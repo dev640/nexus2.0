@@ -201,7 +201,7 @@ export function Home() {
           </h2>
           <p className="text-lg leading-snug text-ink">{brief}</p>
           <a
-            href="/ai"
+            href="/copilot"
             className="mt-4 inline-block text-sm font-medium underline underline-offset-4"
           >
             Ask the Copilot →
