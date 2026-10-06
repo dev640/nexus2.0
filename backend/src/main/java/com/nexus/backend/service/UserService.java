@@ -102,12 +102,49 @@ public class UserService {
         return mapToResponse(user);
     }
 
+    /**
+     * Removes an account entirely. ADMIN-only.
+     *
+     * <p>The database cascades the account's own rows (avatar, notifications,
+     * channel memberships, password resets) and nulls the references other
+     * people should not lose: their tasks become unassigned, their chat
+     * messages stay but lose an author. That is the intended behaviour rather
+     * than an accident — deleting a person must not delete the work they did.
+     *
+     * <p>Two lockout guards apply, because this endpoint can make a workspace
+     * permanently unadministrable and that is not recoverable from the UI:
+     * an admin cannot delete themselves, and the last remaining admin cannot
+     * be removed.
+     */
+    @Transactional
+    public void delete(Long id, String actingEmail) {
+        User user = userRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
+
+        if (user.getEmail().equalsIgnoreCase(actingEmail)) {
+            throw new ValidationException("You cannot delete your own account");
+        }
+        if (user.getRole() == UserRole.ADMIN && countAdmins() <= 1) {
+            throw new ValidationException(
+                "Cannot delete the only remaining admin — promote another member first");
+        }
+
+        userRepository.delete(user);
+    }
+
+    @Transactional(readOnly = true)
+    public long countAdmins() {
+        return userRepository.countByRole(UserRole.ADMIN);
+    }
+
     private UserResponse mapToResponse(User user) {
         return new UserResponse(
             user.getId(),
             user.getName(),
             user.getEmail(),
-            user.getRole()
+            user.getRole(),
+            user.getSupabaseId() != null ? user.getSupabaseId().toString() : null,
+            user.getEmployeeCode()
         );
     }
 }

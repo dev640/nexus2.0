@@ -1,4 +1,4 @@
-import { getStoredToken, whiteboardSocketUrl } from './api'
+import { getCurrentToken, whiteboardSocketUrl } from './api'
 
 export interface WhiteboardEventPayload {
   type: 'created' | 'updated' | 'deleted'
@@ -26,8 +26,8 @@ export function connectWhiteboardSocket(
   let attempt = 0
   let retryTimer: number | undefined
 
-  function open() {
-    const token = getStoredToken()
+  async function open() {
+    const token = await getCurrentToken()
     if (!token || closed) return
     socket = new WebSocket(`${whiteboardSocketUrl()}?token=${encodeURIComponent(token)}`)
 

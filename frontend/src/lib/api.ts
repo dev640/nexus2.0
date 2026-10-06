@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { supabase, supabaseEnabled } from './supabase'
 
 const TOKEN_KEY = 'nexus-auth-token'
 
@@ -19,7 +20,17 @@ export const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
-api.interceptors.request.use((config) => {
+api.interceptors.request.use(async (config) => {
+  // When Supabase auth is enabled it is the source of truth: its session
+  // manager refreshes tokens before they expire, so always send the live one.
+  if (supabaseEnabled && supabase) {
+    const { data } = await supabase.auth.getSession()
+    const token = data.session?.access_token
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
+      return config
+    }
+  }
   const token = getStoredToken()
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
@@ -41,6 +52,8 @@ export interface ApiUser {
   name: string
   email: string
   role: ApiUserRole
+  /** Human-facing code (NX-0007). Always present on rows created after V11. */
+  employeeCode?: string | null
 }
 
 export interface ApiProject {
@@ -82,6 +95,8 @@ export interface ApiTask {
   storyPoints: number
   assignee: ApiUser | null
   labels: string[]
+  /** Waiting on something. Independent of status. */
+  blocked: boolean
   createdAt: string
   updatedAt: string
 }
@@ -104,6 +119,14 @@ export async function apiRegister(name: string, email: string, password: string)
   return data
 }
 
+/**
+ * Files a password-reset request. Public, and always resolves successfully —
+ * the endpoint never reveals whether the address is registered.
+ */
+export async function apiRequestPasswordReset(email: string, note?: string): Promise<void> {
+  await api.post('/auth/password-reset-request', { email, note: note || null })
+}
+
 // ---------- Users ----------
 
 export async function apiListUsers(): Promise<ApiUser[]> {
@@ -119,6 +142,86 @@ export async function apiUpdateMe(name: string): Promise<ApiUser> {
 export async function apiUpdateUserRole(id: number, role: ApiUserRole): Promise<ApiUser> {
   const { data } = await api.patch<ApiUser>(`/users/${id}/role`, { role })
   return data
+}
+
+/**
+ * Uploads the signed-in user's avatar. The server re-encodes whatever is sent,
+ * so the client only has to pick a file.
+ *
+ * axios drops the instance Content-Type for FormData and lets the browser add
+ * the multipart boundary, which is why no explicit header is set here.
+ */
+export async function apiUploadAvatar(file: File): Promise<void> {
+  const form = new FormData()
+  form.append('file', file)
+  await api.post('/users/me/avatar', form)
+}
+
+export async function apiDeleteAvatar(): Promise<void> {
+  await api.delete('/users/me/avatar')
+}
+
+/**
+ * Permanently removes an account. ADMIN-only. The backend refuses self-deletion
+ * and refuses to remove the last admin, so neither mistake can lock the
+ * workspace out of its own management.
+ */
+export async function apiDeleteUser(id: number): Promise<void> {
+  await api.delete(`/users/${id}`)
+}
+
+export interface ApiCreateUserInput {
+  name: string
+  email: string
+  /** Omit to have the server generate one. */
+  password?: string
+  role?: ApiUserRole
+}
+
+export interface ApiCreatedUser {
+  id: number
+  name: string
+  email: string
+  role: ApiUserRole
+  /** Present only when the server generated it; shown once and never stored. */
+  password: string | null
+}
+
+/** ADMIN-only. There is no public signup: accounts are provisioned from here. */
+export async function apiCreateUser(input: ApiCreateUserInput): Promise<ApiCreatedUser> {
+  const { data } = await api.post<ApiCreatedUser>('/users', input)
+  return data
+}
+
+export type ApiResetRequestStatus = 'PENDING' | 'RESOLVED' | 'DISMISSED'
+
+export interface ApiPasswordResetRequest {
+  id: number
+  userId: number
+  userName: string
+  userEmail: string
+  status: ApiResetRequestStatus
+  requestedAt: string
+  resolvedAt: string | null
+  resolvedByName: string | null
+  note: string | null
+}
+
+export async function apiListPasswordResets(pendingOnly = false): Promise<ApiPasswordResetRequest[]> {
+  const { data } = await api.get<ApiPasswordResetRequest[]>('/admin/password-resets', {
+    params: { pendingOnly },
+  })
+  return data
+}
+
+/** Issues a new password and returns it once, for the admin to hand over. */
+export async function apiResolvePasswordReset(id: number): Promise<ApiCreatedUser> {
+  const { data } = await api.post<ApiCreatedUser>(`/admin/password-resets/${id}/resolve`)
+  return data
+}
+
+export async function apiDismissPasswordReset(id: number): Promise<void> {
+  await api.post(`/admin/password-resets/${id}/dismiss`)
 }
 
 // ---------- Projects ----------
@@ -139,6 +242,15 @@ export async function apiCreateProject(input: ApiProjectInput): Promise<ApiProje
   return data
 }
 
+export async function apiUpdateProject(id: number, input: ApiProjectInput): Promise<ApiProject> {
+  const { data } = await api.put<ApiProject>(`/projects/${id}`, input)
+  return data
+}
+
+export async function apiDeleteProject(id: number): Promise<void> {
+  await api.delete(`/projects/${id}`)
+}
+
 // ---------- Sprints ----------
 
 export async function apiListSprints(projectId?: number): Promise<ApiSprint[]> {
@@ -154,11 +266,26 @@ export interface ApiSprintInput {
   startDate: string
   endDate: string
   committedPoints?: number
+  status?: ApiSprintStatus
 }
 
 export async function apiCreateSprint(input: ApiSprintInput): Promise<ApiSprint> {
   const { data } = await api.post<ApiSprint>('/sprints', input)
   return data
+}
+
+/**
+ * projectId must match the sprint's current project: the backend refuses to
+ * move a sprint because that would orphan its tasks and renumber the target
+ * project's sprint sequence.
+ */
+export async function apiUpdateSprint(id: number, input: ApiSprintInput): Promise<ApiSprint> {
+  const { data } = await api.put<ApiSprint>(`/sprints/${id}`, input)
+  return data
+}
+
+export async function apiDeleteSprint(id: number): Promise<void> {
+  await api.delete(`/sprints/${id}`)
 }
 
 export async function apiUpdateSprintStatus(id: number, status: ApiSprintStatus): Promise<ApiSprint> {
@@ -183,6 +310,8 @@ export interface ApiTaskInput {
   storyPoints?: number
   assigneeId?: number | null
   labels?: string[]
+  /** Waiting on something. Omit on update to leave the current value alone. */
+  blocked?: boolean
 }
 
 export async function apiCreateTask(input: ApiTaskInput): Promise<ApiTask> {
@@ -193,6 +322,15 @@ export async function apiCreateTask(input: ApiTaskInput): Promise<ApiTask> {
 export async function apiUpdateTaskStatus(id: number, status: ApiTaskStatus): Promise<ApiTask> {
   const { data } = await api.patch<ApiTask>(`/tasks/${id}/status`, { status })
   return data
+}
+
+export async function apiUpdateTask(id: number, input: ApiTaskInput): Promise<ApiTask> {
+  const { data } = await api.put<ApiTask>(`/tasks/${id}`, input)
+  return data
+}
+
+export async function apiDeleteTask(id: number): Promise<void> {
+  await api.delete(`/tasks/${id}`)
 }
 
 // ---------- Wiki ----------
@@ -326,11 +464,127 @@ export async function apiDeleteWhiteboardNote(id: number): Promise<void> {
   await api.delete(`/whiteboard/notes/${id}`)
 }
 
+// ---------- Chat (Slack) ----------
+
+export type ApiChatChannelType = 'PUBLIC' | 'PRIVATE' | 'DM'
+
+export interface ApiChatChannel {
+  id: number
+  name: string | null
+  type: ApiChatChannelType
+  topic: string | null
+  member: boolean
+  partnerId: number | null
+  partnerName: string | null
+  /** Email of the creator. Channels are deletable by the creator or an admin. */
+  createdBy: string | null
+  createdAt: string
+}
+
+export interface ApiChatMessage {
+  id: number
+  channelId: number | null
+  authorId: number | null
+  authorName: string | null
+  body: string
+  edited: boolean
+  reactions: Record<string, number[]>
+  createdAt: string
+}
+
+export interface ApiChatUnread {
+  total: number
+  channels: { channelId: number; type: string; partnerId: number | null; count: number }[]
+}
+
+export async function apiChatChannels(): Promise<ApiChatChannel[]> {
+  const { data } = await api.get<ApiChatChannel[]>('/chat/channels')
+  return data
+}
+
+export async function apiChatDiscoverChannels(): Promise<ApiChatChannel[]> {
+  const { data } = await api.get<ApiChatChannel[]>('/chat/channels/discover')
+  return data
+}
+
+export async function apiChatCreateChannel(name: string, type: 'PUBLIC' | 'PRIVATE', topic?: string): Promise<ApiChatChannel> {
+  const { data } = await api.post<ApiChatChannel>('/chat/channels', { name, type, topic })
+  return data
+}
+
+export async function apiChatOpenDm(userId: number): Promise<ApiChatChannel> {
+  const { data } = await api.post<ApiChatChannel>(`/chat/channels/dm/${userId}`)
+  return data
+}
+
+export async function apiChatJoinChannel(id: number): Promise<ApiChatChannel> {
+  const { data } = await api.post<ApiChatChannel>(`/chat/channels/${id}/join`)
+  return data
+}
+
+export async function apiChatLeaveChannel(id: number): Promise<void> {
+  await api.post(`/chat/channels/${id}/leave`)
+}
+
+/**
+ * Deletes a channel and its history. Creator or admin only, and direct messages
+ * are refused: two people share a DM, so deleting it would destroy the other
+ * person's history too.
+ */
+export async function apiChatDeleteChannel(id: number): Promise<void> {
+  await api.delete(`/chat/channels/${id}`)
+}
+
+export async function apiChatMessages(id: number, before?: number): Promise<ApiChatMessage[]> {
+  const { data } = await api.get<ApiChatMessage[]>(`/chat/channels/${id}/messages`, {
+    params: before != null ? { before } : undefined,
+  })
+  return data
+}
+
+export async function apiChatPostMessage(id: number, body: string): Promise<ApiChatMessage> {
+  const { data } = await api.post<ApiChatMessage>(`/chat/channels/${id}/messages`, { body })
+  return data
+}
+
+export async function apiChatEditMessage(id: number, body: string): Promise<ApiChatMessage> {
+  const { data } = await api.patch<ApiChatMessage>(`/chat/messages/${id}`, { body })
+  return data
+}
+
+export async function apiChatDeleteMessage(id: number): Promise<void> {
+  await api.delete(`/chat/messages/${id}`)
+}
+
+export async function apiChatReact(id: number, emoji: string, add: boolean): Promise<ApiChatMessage> {
+  const { data } = await api.post<ApiChatMessage>(`/chat/messages/${id}/reactions`, { emoji, add })
+  return data
+}
+
+export async function apiChatMarkRead(id: number): Promise<void> {
+  await api.post(`/chat/channels/${id}/read`)
+}
+
+export async function apiChatUnread(): Promise<ApiChatUnread> {
+  const { data } = await api.get<ApiChatUnread>('/chat/unread')
+  return data
+}
+
+export async function apiChatSearch(q: string): Promise<ApiChatMessage[]> {
+  const { data } = await api.get<ApiChatMessage[]>('/chat/search', { params: { q } })
+  return data
+}
+
 // ---------- Copilot ----------
 
 export interface ApiCopilotAnswer {
   answer: string
   mode: 'llm' | 'grounded'
+  /**
+   * Why the grounded answer was used, or null when the LLM answered. Safe to
+   * display: the backend sends a fixed string, never upstream error text.
+   */
+  reason?: string | null
 }
 
 export async function apiAskCopilot(question: string, projectId?: number): Promise<ApiCopilotAnswer> {
@@ -512,6 +766,15 @@ export function streamAiRegenerate(conversationId: string, handlers: AiStreamHan
   return streamSse(`/ai/conversations/${conversationId}/regenerate`, null, handlers)
 }
 
+/** The most current auth token: the live Supabase session when enabled, else the stored Nexus JWT. */
+export async function getCurrentToken(): Promise<string | null> {
+  if (supabaseEnabled && supabase) {
+    const { data } = await supabase.auth.getSession()
+    if (data.session?.access_token) return data.session.access_token
+  }
+  return getStoredToken()
+}
+
 /** WebSocket endpoint for live whiteboard events, authenticated with the session token. */
 export function whiteboardSocketUrl(): string {
   const explicit = import.meta.env.VITE_WS_URL as string | undefined
@@ -524,8 +787,22 @@ export function whiteboardSocketUrl(): string {
 /** Extract a human-readable message from an axios/network error. */
 export function apiErrorMessage(err: unknown, fallback = 'Something went wrong'): string {
   if (axios.isAxiosError(err)) {
-    const data = err.response?.data as { message?: string; error?: string } | undefined
-    return data?.message || data?.error || err.message || fallback
+    const data = err.response?.data
+    if (data && typeof data === 'object') {
+      const body = data as Record<string, unknown>
+      const detail = body.message ?? body.error
+      if (typeof detail === 'string' && detail) return detail
+      // Bean-validation failures come back as a flat { field: message } map with
+      // no message/error key. Without this branch every rejected form showed only
+      // axios's "Request failed with status code 400".
+      const fieldMessages = Object.entries(body).filter(
+        ([key, value]) => key !== 'status' && key !== 'timestamp' && typeof value === 'string'
+      )
+      if (fieldMessages.length > 0) {
+        return fieldMessages.map(([, message]) => message).join('; ')
+      }
+    }
+    return fallback
   }
   if (err instanceof Error) return err.message
   return fallback

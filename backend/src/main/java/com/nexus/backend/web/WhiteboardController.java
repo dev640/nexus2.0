@@ -3,6 +3,7 @@ package com.nexus.backend.web;
 import com.nexus.backend.dto.WhiteboardNoteRequest;
 import com.nexus.backend.dto.WhiteboardNoteResponse;
 import com.nexus.backend.dto.WhiteboardNoteUpdateRequest;
+import com.nexus.backend.security.WorkspaceWrite;
 import com.nexus.backend.service.WhiteboardService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -34,6 +35,7 @@ public class WhiteboardController {
         return ResponseEntity.ok(whiteboardService.list(board));
     }
 
+    @WorkspaceWrite
     @PostMapping("/notes")
     public ResponseEntity<WhiteboardNoteResponse> createNote(
         @Valid @RequestBody WhiteboardNoteRequest request,
@@ -42,6 +44,7 @@ public class WhiteboardController {
         return ResponseEntity.status(HttpStatus.CREATED).body(whiteboardService.create(request, board));
     }
 
+    @WorkspaceWrite
     @PatchMapping("/notes/{id}")
     public ResponseEntity<WhiteboardNoteResponse> updateNote(
         @PathVariable Long id,
@@ -50,6 +53,7 @@ public class WhiteboardController {
         return ResponseEntity.ok(whiteboardService.update(id, request));
     }
 
+    @WorkspaceWrite
     @DeleteMapping("/notes/{id}")
     public ResponseEntity<Void> deleteNote(@PathVariable Long id) {
         whiteboardService.delete(id);

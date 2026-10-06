@@ -10,6 +10,7 @@ import com.nexus.backend.exception.ResourceNotFoundException;
 import com.nexus.backend.exception.ValidationException;
 import com.nexus.backend.repository.ProjectRepository;
 import com.nexus.backend.repository.SprintRepository;
+import com.nexus.backend.repository.TaskRepository;
 import com.nexus.backend.service.knowledge.KnowledgeEvents;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -24,6 +25,7 @@ public class SprintService {
 
     private final SprintRepository sprintRepository;
     private final ProjectRepository projectRepository;
+private final TaskRepository taskRepository;
     private final ApplicationEventPublisher knowledgePublisher;
 
     @Transactional
@@ -66,6 +68,13 @@ public class SprintService {
     }
 
     @Transactional(readOnly = true)
+    public List<SprintResponse> findAll() {
+        return sprintRepository.findAll().stream()
+            .map(this::mapToResponse)
+            .toList();
+    }
+
+    @Transactional(readOnly = true)
     public List<SprintResponse> findByProjectId(Long projectId) {
         Project project = projectRepository.findById(projectId)
             .orElseThrow(() -> new ResourceNotFoundException("Project", "id", projectId));
@@ -82,6 +91,67 @@ public class SprintService {
         Sprint updatedSprint = sprintRepository.save(sprint);
         KnowledgeEvents.changed(knowledgePublisher, KnowledgeSourceType.SPRINT, updatedSprint.getId());
         return mapToResponse(updatedSprint);
+    }
+
+    /**
+     * Edits a sprint in place.
+     *
+     * <p>The project is deliberately not reassignable: {@code projectId} in the
+     * request is validated to match the sprint's current project and otherwise
+     * rejected, because moving a sprint would silently orphan its tasks and
+     * renumber the target project's sprint sequence. Change the goal, dates,
+     * commitment or status; to move work, create a sprint on the other project.
+     */
+    @Transactional
+    public SprintResponse update(Long id, SprintRequest request) {
+        Sprint sprint = sprintRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Sprint", "id", id));
+
+        if (request.projectId() != null && !request.projectId().equals(sprint.getProject().getId())) {
+            throw new ValidationException("A sprint cannot be moved to a different project");
+        }
+        if (request.endDate().isBefore(request.startDate())) {
+            throw new ValidationException("End date must be after start date");
+        }
+
+        sprint.setGoal(request.goal());
+        sprint.setStartDate(request.startDate());
+        sprint.setEndDate(request.endDate());
+        if (request.committedPoints() != null) {
+            sprint.setCommittedPoints(request.committedPoints());
+        }
+        if (request.status() != null) {
+            sprint.setStatus(request.status());
+        }
+        return mapToResponse(sprintRepository.save(sprint));
+    }
+
+    /**
+     * Deletes a sprint. Only sprints with no tasks can be removed, because
+     * deleting one holding tasks would either fail on the foreign key or leave
+     * those tasks pointing at a sprint that no longer exists.
+     */
+    @Transactional
+    public void delete(Long id) {
+        Sprint sprint = sprintRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Sprint", "id", id));
+
+        long taskCount = taskRepository.countBySprint(sprint);
+        if (taskCount > 0) {
+            throw new ValidationException(
+                "Cannot delete a sprint that still holds " + taskCount
+                    + (taskCount == 1 ? " task" : " tasks")
+                    + " — move or delete them first");
+        }
+
+        Project project = sprint.getProject();
+        sprintRepository.delete(sprint);
+        // project.sprint_number tracks the high-water mark so the next created
+        // sprint is not renumbered onto a number already used by a deleted one.
+        if (project != null && project.getSprintNumber() != null && project.getSprintNumber() > sprint.getNumber()) {
+            project.setSprintNumber(sprint.getNumber());
+            projectRepository.save(project);
+        }
     }
 
     private SprintResponse mapToResponse(Sprint sprint) {

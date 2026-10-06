@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { memberById } from '../lib/mockData'
 import { useAppStore } from '../store/useAppStore'
 import { NewProjectModal } from '../components/project/NewProjectModal'
+import { EditProjectModal } from '../components/project/EditProjectModal'
 import { NewTaskModal } from '../components/task/NewTaskModal'
+import { UserAvatar } from '../components/user/UserAvatar'
 
 const healthColor: Record<string, string> = {
   ON_TRACK: 'text-success',
@@ -20,7 +22,11 @@ export function Projects() {
   const projects = useAppStore((s) => s.projects)
   const teams = useAppStore((s) => s.teams)
   const members = useAppStore((s) => s.members)
+  // VIEWER is read-only: the backend rejects project and task writes with 403,
+  // so the page shows no controls that would fail.
+  const canWrite = useAppStore((s) => s.currentUser?.role !== 'VIEWER')
   const [modalOpen, setModalOpen] = useState(false)
+  const [editingProjectId, setEditingProjectId] = useState<string | null>(null)
   const [taskModalOpen, setTaskModalOpen] = useState(false)
   const [taskProjectId, setTaskProjectId] = useState<string | undefined>(undefined)
 
@@ -35,12 +41,16 @@ export function Projects() {
         <div className="text-xs font-medium uppercase tracking-widest text-mute">
           Workspace
         </div>
-        <button
-          onClick={() => setModalOpen(true)}
-          className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-black"
-        >
-          + New Project
-        </button>
+        {canWrite ? (
+          <button
+            onClick={() => setModalOpen(true)}
+            className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-black"
+          >
+            + New Project
+          </button>
+        ) : (
+          <span className="rounded-md bg-mute px-4 py-2 text-sm font-medium text-mute">+ New Project</span>
+        )}
       </div>
       <h1 className="text-3xl font-semibold tracking-tight text-ink sm:text-4xl lg:text-5xl">Projects</h1>
 
@@ -55,12 +65,24 @@ export function Projects() {
               <div className="text-xs font-semibold uppercase tracking-widest text-mute">
                 Project {String(i + 1).padStart(2, '0')}
               </div>
-              <button
-                onClick={() => openNewTask(project.id)}
-                className="shrink-0 rounded-md border border-line px-3 py-1.5 text-xs font-medium hover:bg-paper"
-              >
-                + Add Task
-              </button>
+              {canWrite ? (
+                <div className="flex shrink-0 gap-2">
+                  <button
+                    onClick={() => setEditingProjectId(project.id)}
+                    className="rounded-md border border-line px-3 py-1.5 text-xs font-medium hover:bg-paper"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => openNewTask(project.id)}
+                    className="rounded-md border border-line px-3 py-1.5 text-xs font-medium hover:bg-paper"
+                  >
+                    + Add Task
+                  </button>
+                </div>
+              ) : (
+                <span className="shrink-0 rounded-md border border-line px-3 py-1.5 text-xs font-medium text-mute">+ Add Task</span>
+              )}
             </div>
             <h2 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">{project.name}</h2>
             <p className="mt-2 max-w-xl text-sm text-mute">
@@ -96,13 +118,14 @@ export function Projects() {
                     <div className="mt-1 flex -space-x-2">
                       {teamMembers.map((m) =>
                         m ? (
-                          <div
+                          <UserAvatar
                             key={m.id}
-                            title={m.name}
-                            className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-ink text-xs font-medium text-white"
-                          >
-                            {m.initials}
-                          </div>
+                            memberId={m.id}
+                            name={m.name}
+                            initials={m.initials}
+                            size="md"
+                            className="h-8 w-8 border-2 border-white text-xs"
+                          />
                         ) : null,
                       )}
                     </div>
@@ -118,6 +141,11 @@ export function Projects() {
       </div>
 
       <NewProjectModal open={modalOpen} onClose={() => setModalOpen(false)} />
+      <EditProjectModal
+        key={editingProjectId}
+        projectId={editingProjectId}
+        onClose={() => setEditingProjectId(null)}
+      />
       <NewTaskModal
         open={taskModalOpen}
         onClose={() => setTaskModalOpen(false)}

@@ -2,6 +2,7 @@ package com.nexus.backend.web;
 
 import com.nexus.backend.dto.WikiPageRequest;
 import com.nexus.backend.dto.WikiPageResponse;
+import com.nexus.backend.security.WorkspaceWrite;
 import com.nexus.backend.service.WikiPageService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -38,11 +39,13 @@ public class WikiPageController {
         return ResponseEntity.ok(wikiPageService.findById(id));
     }
 
+    @WorkspaceWrite
     @PostMapping
     public ResponseEntity<WikiPageResponse> createPage(@Valid @RequestBody WikiPageRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(wikiPageService.create(request));
     }
 
+    @WorkspaceWrite
     @PatchMapping("/{id}")
     public ResponseEntity<WikiPageResponse> updatePage(
         @PathVariable Long id,
@@ -51,6 +54,7 @@ public class WikiPageController {
         return ResponseEntity.ok(wikiPageService.update(id, request));
     }
 
+    @WorkspaceWrite
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deletePage(@PathVariable Long id) {
         wikiPageService.delete(id);

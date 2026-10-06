@@ -30,5 +30,8 @@ public record TaskRequest(
 
     Long assigneeId,
 
-    List<String> labels
+    List<String> labels,
+
+    /** Null leaves the existing value alone on update; defaults to false on create. */
+    Boolean blocked
 ) {}

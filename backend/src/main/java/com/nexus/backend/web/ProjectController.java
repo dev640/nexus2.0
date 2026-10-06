@@ -2,6 +2,7 @@ package com.nexus.backend.web;
 
 import com.nexus.backend.dto.ProjectRequest;
 import com.nexus.backend.dto.ProjectResponse;
+import com.nexus.backend.security.WorkspaceWrite;
 import com.nexus.backend.service.ProjectService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -30,12 +31,14 @@ public class ProjectController {
         return ResponseEntity.ok(project);
     }
 
+    @WorkspaceWrite
     @PostMapping
     public ResponseEntity<ProjectResponse> createProject(@Valid @RequestBody ProjectRequest request) {
         ProjectResponse project = projectService.create(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(project);
     }
 
+    @WorkspaceWrite
     @PutMapping("/{id}")
     public ResponseEntity<ProjectResponse> updateProject(
         @PathVariable Long id,
@@ -45,6 +48,7 @@ public class ProjectController {
         return ResponseEntity.ok(project);
     }
 
+    @WorkspaceWrite
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteProject(@PathVariable Long id) {
         projectService.delete(id);

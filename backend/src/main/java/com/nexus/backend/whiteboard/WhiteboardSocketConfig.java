@@ -2,7 +2,13 @@ package com.nexus.backend.whiteboard;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nexus.backend.dto.WhiteboardEvent;
+import com.nexus.backend.config.SupabaseProperties;
+import com.nexus.backend.domain.user.User;
 import com.nexus.backend.security.JwtUtil;
+import com.nexus.backend.security.SupabaseTokenVerifier;
+import com.nexus.backend.service.SupabaseUserService;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Configuration;
@@ -33,11 +39,23 @@ public class WhiteboardSocketConfig implements WebSocketConfigurer {
 
     private final WhiteboardSocketHandler handler;
     private final JwtUtil jwtUtil;
+    private final SupabaseTokenVerifier supabaseTokenVerifier;
+    private final SupabaseUserService supabaseUserService;
+    private final SupabaseProperties supabaseProperties;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public WhiteboardSocketConfig(WhiteboardSocketHandler handler, JwtUtil jwtUtil) {
+    public WhiteboardSocketConfig(
+        WhiteboardSocketHandler handler,
+        JwtUtil jwtUtil,
+        SupabaseTokenVerifier supabaseTokenVerifier,
+        SupabaseUserService supabaseUserService,
+        SupabaseProperties supabaseProperties
+    ) {
         this.handler = handler;
         this.jwtUtil = jwtUtil;
+        this.supabaseTokenVerifier = supabaseTokenVerifier;
+        this.supabaseUserService = supabaseUserService;
+        this.supabaseProperties = supabaseProperties;
     }
 
     @Override
@@ -72,15 +90,28 @@ public class WhiteboardSocketConfig implements WebSocketConfigurer {
             }
             try {
                 String email = jwtUtil.extractUsername(token);
-                if (email == null || !jwtUtil.validateToken(token, email)) {
-                    return false;
+                if (email != null && email.contains("@") && jwtUtil.validateToken(token, email)) {
+                    attributes.put("email", email);
+                    return true;
                 }
-                attributes.put("email", email);
-                return true;
             } catch (Exception e) {
-                log.debug("Whiteboard handshake rejected: {}", e.getMessage());
-                return false;
+                log.debug("Not a Nexus token on whiteboard handshake: {}", e.getMessage());
             }
+
+            // Supabase tokens (subject = UUID) when the integration is configured.
+            if (supabaseProperties.isEnabled()) {
+                try {
+                    Claims claims = supabaseTokenVerifier.verify(token);
+                    User user = supabaseUserService.resolveUser(claims);
+                    attributes.put("email", user.getEmail());
+                    return true;
+                } catch (JwtException | IllegalArgumentException e) {
+                    log.debug("Supabase token rejected on whiteboard handshake: {}", e.getMessage());
+                }
+            }
+
+            log.debug("Whiteboard handshake rejected: no valid token");
+            return false;
         }
 
         @Override

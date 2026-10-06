@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { velocity } from '../lib/mockData'
 import { useAppStore } from '../store/useAppStore'
 import { NewSprintModal } from '../components/sprint/NewSprintModal'
+import { EditSprintModal } from '../components/sprint/EditSprintModal'
 
 const statusLabel: Record<string, string> = {
   PLANNED: 'Planned',
@@ -16,12 +16,14 @@ const statusColor: Record<string, string> = {
 }
 
 export function Sprints() {
-  const projects = useAppStore((s) => s.projects)
   const sprints = useAppStore((s) => s.sprints)
   const tasks = useAppStore((s) => s.tasks)
   const setSprintStatus = useAppStore((s) => s.setSprintStatus)
+  const canWrite = useAppStore((s) => s.currentUser?.role !== 'VIEWER')
   const [modalOpen, setModalOpen] = useState(false)
   const [modalProjectId, setModalProjectId] = useState<string | undefined>(undefined)
+  const [editingSprintId, setEditingSprintId] = useState<string | null>(null)
+  const projects = useAppStore((s) => s.projects)
 
   function openNewSprint(projectId?: string) {
     setModalProjectId(projectId)
@@ -32,12 +34,16 @@ export function Sprints() {
     <div className="px-4 py-6 sm:px-8 sm:py-8 lg:px-16 lg:py-12">
       <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
         <div className="text-xs font-medium uppercase tracking-widest text-mute">Delivery</div>
-        <button
-          onClick={() => openNewSprint(undefined)}
-          className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-black"
-        >
-          + New Sprint
-        </button>
+        {canWrite ? (
+          <button
+            onClick={() => openNewSprint(undefined)}
+            className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-black"
+          >
+            + New Sprint
+          </button>
+        ) : (
+          <span className="rounded-md bg-mute px-4 py-2 text-sm font-medium text-mute">+ New Sprint</span>
+        )}
       </div>
       <h1 className="text-3xl font-semibold tracking-tight text-ink sm:text-4xl lg:text-5xl">Sprints</h1>
 
@@ -88,17 +94,28 @@ export function Sprints() {
                           <div className="text-xs font-semibold uppercase tracking-widest text-mute">
                             Sprint {sprint.number}
                           </div>
-                          <select
-                            value={sprint.status}
-                            onChange={(e) => setSprintStatus(sprint.id, e.target.value as typeof sprint.status)}
-                            className={`rounded border border-line bg-paper px-2 py-1 text-xs font-medium outline-none ${statusColor[sprint.status]}`}
-                          >
-                            {Object.entries(statusLabel).map(([key, label]) => (
-                              <option key={key} value={key}>
-                                {label}
-                              </option>
-                            ))}
-                          </select>
+                          <div className="flex items-center gap-2">
+                            {canWrite && (
+                              <button
+                                onClick={() => setEditingSprintId(sprint.id)}
+                                className="shrink-0 rounded border border-line px-2 py-1 text-xs font-medium hover:bg-paper"
+                              >
+                                Edit
+                              </button>
+                            )}
+                            <select
+                              value={sprint.status}
+                              onChange={(e) => setSprintStatus(sprint.id, e.target.value as typeof sprint.status)}
+                              disabled={!canWrite}
+                              className={`rounded border border-line bg-paper px-2 py-1 text-xs font-medium outline-none ${statusColor[sprint.status]}`}
+                            >
+                              {Object.entries(statusLabel).map(([key, label]) => (
+                                <option key={key} value={key}>
+                                  {label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
                         </div>
                         <h3 className="mt-2 text-2xl font-semibold tracking-tight">{sprint.goal}</h3>
                         <p className="mt-2 text-sm text-mute">
@@ -119,8 +136,8 @@ export function Sprints() {
                             <div className="text-2xl font-semibold">{remainingPoints} pts</div>
                           </div>
                           <div>
-                            <div className="mb-1 text-xs uppercase tracking-wide text-mute">Velocity</div>
-                            <div className="text-2xl font-semibold">{velocity}</div>
+                            <div className="mb-1 text-xs uppercase tracking-wide text-mute">Tasks</div>
+                            <div className="text-2xl font-semibold">{sprintTasks.length}</div>
                           </div>
                         </div>
 
@@ -150,6 +167,11 @@ export function Sprints() {
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         defaultProjectId={modalProjectId}
+      />
+      <EditSprintModal
+        key={editingSprintId}
+        sprintId={editingSprintId}
+        onClose={() => setEditingSprintId(null)}
       />
     </div>
   )

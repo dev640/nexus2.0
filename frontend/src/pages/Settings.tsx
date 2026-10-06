@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useAppStore, type NotificationCategory } from '../store/useAppStore'
-import type { ApiUserRole } from '../lib/api'
+import { apiDeleteAvatar, apiErrorMessage, apiUploadAvatar, type ApiUserRole } from '../lib/api'
+import { invalidateAvatar } from '../hooks/useAvatar'
+import { UserAvatar } from '../components/user/UserAvatar'
 
 const assignableRoles: ApiUserRole[] = ['ADMIN', 'MEMBER', 'DEVELOPER', 'VIEWER']
 
@@ -12,6 +14,15 @@ const categories: { key: NotificationCategory; label: string }[] = [
   { key: 'SYSTEM', label: 'System' },
 ]
 
+function initialsOf(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? '')
+    .join('')
+}
+
 export function Settings() {
   const settings = useAppStore((s) => s.settings)
   const members = useAppStore((s) => s.members)
@@ -21,12 +32,49 @@ export function Settings() {
   const saveProfile = useAppStore((s) => s.saveProfile)
   const changeUserRole = useAppStore((s) => s.changeUserRole)
   const userRole = useAppStore((s) => s.userRole)
+  const currentUser = useAppStore((s) => s.currentUser)
   const isAdmin = userRole === 'ADMIN'
 
   const [displayName, setDisplayName] = useState(settings.displayName)
   const [saved, setSaved] = useState(false)
   const [profileError, setProfileError] = useState('')
   const [confirmingReset, setConfirmingReset] = useState(false)
+  const [avatarError, setAvatarError] = useState('')
+  const [avatarBusy, setAvatarBusy] = useState(false)
+  const [hasAvatar, setHasAvatar] = useState(false)
+
+  async function handleAvatarPick(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    // Reset first: without it, re-picking the same file after a failure fires
+    // no change event and the retry silently does nothing.
+    e.target.value = ''
+    if (!file) return
+    setAvatarError('')
+    setAvatarBusy(true)
+    try {
+      await apiUploadAvatar(file)
+      invalidateAvatar(currentUser?.id)
+      setHasAvatar(true)
+    } catch (err) {
+      setAvatarError(apiErrorMessage(err, 'Could not upload that image'))
+    } finally {
+      setAvatarBusy(false)
+    }
+  }
+
+  async function handleAvatarRemove() {
+    setAvatarError('')
+    setAvatarBusy(true)
+    try {
+      await apiDeleteAvatar()
+      invalidateAvatar(currentUser?.id)
+      setHasAvatar(false)
+    } catch (err) {
+      setAvatarError(apiErrorMessage(err, 'Could not remove your avatar'))
+    } finally {
+      setAvatarBusy(false)
+    }
+  }
 
   async function handleSaveProfile(e: React.FormEvent) {
     e.preventDefault()
@@ -60,6 +108,46 @@ export function Settings() {
             Profile
           </h2>
           <form onSubmit={handleSaveProfile} className="flex flex-col gap-4">
+            <div className="flex items-center gap-4">
+              <UserAvatar
+                memberId={`u-${currentUser?.id ?? ''}`}
+                name={currentUser?.name ?? settings.displayName}
+                initials={initialsOf(currentUser?.name ?? settings.displayName)}
+                size="md"
+              />
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-medium uppercase tracking-wide text-mute">
+                  Avatar
+                </span>
+                <div className="flex flex-wrap items-center gap-3">
+                  <label
+                    className={`cursor-pointer rounded-md border border-line px-3 py-1.5 text-sm hover:bg-white ${
+                      avatarBusy ? 'pointer-events-none opacity-50' : ''
+                    }`}
+                  >
+                    {avatarBusy ? 'Uploading…' : 'Upload image'}
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg"
+                      className="sr-only"
+                      onChange={(e) => void handleAvatarPick(e)}
+                    />
+                  </label>
+                  {hasAvatar && (
+                    <button
+                      type="button"
+                      onClick={() => void handleAvatarRemove()}
+                      disabled={avatarBusy}
+                      className="text-xs text-mute hover:text-danger"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+                <span className="text-xs text-mute">PNG or JPEG, up to 256 KB.</span>
+                {avatarError && <span className="text-xs text-red-600">{avatarError}</span>}
+              </div>
+            </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-mute">
@@ -102,16 +190,19 @@ export function Settings() {
           </h2>
           <p className="mb-4 text-sm text-mute">
             Everyone in the workspace roster, available as assignees and team members.
-            New people join by registering on the login page.
+            There is no public signup — an admin creates each account from the Admin page.
           </p>
           <div className="flex flex-col gap-2">
             {members.map((m) => (
               <div key={m.id} className="flex items-center justify-between gap-3 text-sm">
                 <div className="flex items-center gap-2">
-                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-ink text-[9px] font-medium text-white">
-                    {m.initials}
-                  </div>
-                  <span>{m.name}</span>
+                  <UserAvatar memberId={m.id} name={m.name} initials={m.initials} />
+                  <span>
+                    {m.name}
+                    {m.employeeCode && (
+                      <span className="ml-2 font-mono text-xs text-mute">{m.employeeCode}</span>
+                    )}
+                  </span>
                 </div>
                 {isAdmin ? (
                   <select

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { memberById, type Member } from '../lib/mockData'
 import { useAppStore } from '../store/useAppStore'
 import { NewTeamModal } from '../components/team/NewTeamModal'
+import { UserAvatar } from '../components/user/UserAvatar'
 
 export function Team() {
   const teams = useAppStore((s) => s.teams)
@@ -84,10 +85,11 @@ export function Team() {
                     {teamMembers.map((m) => (
                       <div key={m.id} className="flex items-center justify-between text-sm">
                         <div className="flex items-center gap-2">
-                          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-ink text-[9px] font-medium text-white">
-                            {m.initials}
-                          </div>
+                          <UserAvatar memberId={m.id} name={m.name} initials={m.initials} />
                           <span>{m.name}</span>
+                          {m.employeeCode && (
+                            <span className="font-mono text-xs text-mute">{m.employeeCode}</span>
+                          )}
                           <span className="text-xs text-mute">{m.role}</span>
                         </div>
                         <button

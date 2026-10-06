@@ -14,6 +14,8 @@ export interface Member {
   initials: string
   role: string
   utilization: number
+  /** Human-facing code from the backend (NX-0007), when it has one. */
+  employeeCode?: string
 }
 
 export interface Task {
@@ -21,6 +23,7 @@ export interface Task {
   projectId: string
   sprintId?: string
   title: string
+  description?: string
   status: TaskStatus
   priority: TaskPriority
   storyPoints: number
@@ -28,6 +31,9 @@ export interface Task {
   labels: string[]
   aiGenerated?: boolean
   blocked?: boolean
+  /** ISO timestamps from the server, used for real activity feeds. */
+  createdAt: string
+  updatedAt: string
 }
 
 export type SprintStatus = 'PLANNED' | 'ACTIVE' | 'COMPLETED'
@@ -53,19 +59,6 @@ export interface Project {
   sprintNumber: number
   memberCount: number
 }
-
-export const velocity = 38
-
-export const activity = [
-  { id: 1, text: 'Palak completed TASK-193', time: '2h ago' },
-  { id: 2, text: 'AI generated sprint documentation', time: '3h ago' },
-  { id: 3, text: 'Vidhi commented on TASK-187', time: '5h ago' },
-  { id: 4, text: 'Sprint 08 updated', time: '1d ago' },
-  { id: 5, text: 'TASK-190 moved to Testing', time: '1d ago' },
-]
-
-export const aiBrief =
-  'The sprint is on track, but API integration is becoming the primary delivery risk.'
 
 export function memberById(members: Member[], id: string): Member | undefined {
   return members.find((m) => m.id === id)

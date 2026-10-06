@@ -54,7 +54,15 @@ export function NewTaskModal({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!title.trim() || !projectId) return
+    if (!title.trim()) {
+      // Returning silently here made an empty title look like a dead button.
+      setError('Title is required')
+      return
+    }
+    if (!projectId) {
+      setError('Pick a project')
+      return
+    }
     setError('')
     const created = await addTask({
       title: title.trim(),

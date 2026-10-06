@@ -11,6 +11,9 @@ export function Wiki() {
   const wikiPages = useAppStore((s) => s.wikiPages)
   const updateWikiPage = useAppStore((s) => s.updateWikiPage)
   const deleteWikiPage = useAppStore((s) => s.deleteWikiPage)
+  // VIEWER is read-only: the backend rejects wiki writes with 403, so the
+  // page offers no controls that would fail.
+  const canWrite = useAppStore((s) => s.currentUser?.role !== 'VIEWER')
 
   const [selectedId, setSelectedId] = useState<string | undefined>(wikiPages[0]?.id)
   const [modalOpen, setModalOpen] = useState(false)
@@ -64,12 +67,14 @@ export function Wiki() {
     <div className="px-4 py-6 sm:px-8 sm:py-8 lg:px-16 lg:py-12">
       <div className="mb-1 flex items-center justify-between">
         <div className="text-xs font-medium uppercase tracking-widest text-mute">Knowledge</div>
-        <button
-          onClick={() => setModalOpen(true)}
-          className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-black"
-        >
-          + New Page
-        </button>
+        {canWrite ? (
+          <button
+            onClick={() => setModalOpen(true)}
+            className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-black"
+          >
+            + New Page
+          </button>
+        ) : null}
       </div>
       <h1 className="text-3xl font-semibold tracking-tight text-ink sm:text-4xl lg:text-5xl">Wiki</h1>
 
@@ -142,13 +147,15 @@ export function Wiki() {
                   {selected.title}
                 </h2>
                 <div className="flex shrink-0 gap-2">
+                  {canWrite ? (
                   <button
                     onClick={startEditing}
                     className="rounded-md border border-line px-3 py-1.5 text-xs font-medium hover:bg-paper"
                   >
                     Edit
                   </button>
-                  {confirmingDelete ? (
+                  ) : null}
+                  {canWrite && confirmingDelete ? (
                     <>
                 <button
                   onClick={() => void handleDelete()}
@@ -163,14 +170,14 @@ export function Wiki() {
                         Cancel
                       </button>
                     </>
-                  ) : (
+                  ) : canWrite ? (
                     <button
                       onClick={() => setConfirmingDelete(true)}
                       className="rounded-md border border-danger/40 px-3 py-1.5 text-xs font-medium text-danger hover:bg-danger/10"
                     >
                       Delete
                     </button>
-                  )}
+                  ) : null}
                 </div>
               </div>
               <p className="mt-1 text-xs text-mute">

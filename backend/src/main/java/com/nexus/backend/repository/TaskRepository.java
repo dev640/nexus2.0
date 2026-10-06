@@ -14,4 +14,10 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
     List<Task> findByProject(Project project);
 
     List<Task> findBySprint(Sprint sprint);
+
+    /**
+     * How many tasks sit in this sprint. Used to refuse deleting a sprint that
+     * still holds work, rather than letting the delete fail on a foreign key.
+     */
+    long countBySprint(Sprint sprint);
 }

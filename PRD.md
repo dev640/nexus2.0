@@ -50,6 +50,36 @@ Legend — **✅ Built** (implemented + verified against the running stack) · *
 - **FR-A5** Every `/api/*` route except auth, health and the WebSocket handshake requires a token.
 - **FR-A6** Log out clears the token and the in-memory workspace.
 - **FR-A7** Repeated authentication attempts from one IP are rate limited (HTTP 429).
+- **FR-A8** `GET /api/users/me` returns the authenticated caller's own account.
+- **FR-A9** Optional Supabase Auth: a verified Supabase access token is accepted alongside a
+  Nexus token. The identity is matched to `users.supabase_id`, else linked to the local account
+  with the same email (clearing its local password), else provisioned with the `MEMBER` role.
+  Unset configuration leaves the built-in flow untouched.
+- **FR-A10** The whiteboard WebSocket handshake accepts either token type; the chat socket at
+  `/ws/chat` uses the same handshake.
+
+### 3.12 Chat (Slack) — ✅ Built
+- **FR-C1** Public and private channels; anyone can create, browse and join public ones; only
+  members can read or post in private channels.
+- **FR-C2** Direct messages between any two teammates, created on demand and reused (never
+  duplicated) for the same pair.
+- **FR-C3** Message history is paged newest-first backwards from any point and returned
+  oldest-first; messages are limited to 4000 characters.
+- **FR-C4** Emoji reactions on any message, one reaction per user per emoji, idempotent.
+- **FR-C5** Unread counts per conversation plus a workspace total; opening a conversation marks
+  it read; authors count their own messages as read.
+- **FR-C6** `@username` mentions notify the mentioned teammate in the Inbox (MENTIONS category).
+- **FR-C7** Authors can edit their own messages (marked as edited); authors or channel admins
+  can delete.
+- **FR-C8** Full-text message search across every conversation the caller belongs to.
+- **FR-C9** Default channels #general/#random/#dev exist from first use and every user is
+  auto-joined; the first user to open chat admins them.
+- **FR-C10** Delivery is live: messages, edits, deletions and reactions arrive over the
+  `/ws/chat` WebSocket scoped to channel membership; typing indicators and online presence are
+  relayed between members.
+- **FR-C11** Only channel admins can change a channel topic; DMs cannot be left.
+- **FR-C12** The chat socket handshake requires the same JWT as the REST API (Nexus or
+  Supabase).
 
 ### 3.2 Projects — ✅ Built
 - **FR-P1** List projects with status, health, progress, current sprint number and member count.
@@ -124,7 +154,10 @@ Legend — **✅ Built** (implemented + verified against the running stack) · *
 - **FR-H1** Help page documents the workspace.
 
 ### 3.12 Nexus AI Assistant (RAG over Nexus data) — ✅ Implemented
-> Unit-tested and build-verified (47 backend tests, frontend lint + typecheck + build).
+> Ships **alongside** the grounded Copilot of §3.9 rather than replacing it: the Copilot
+> stays at `/copilot` with its deterministic analytics answers, Nexus AI is the RAG chat at
+> `/ai` with its own `/api/ai/**` endpoints. Both are first-class nav entries.
+> Unit-tested and build-verified (backend unit suite, frontend typecheck + lint + tests + build).
 > Not yet re-run against a live stack in this change set (no container runtime in the
 > authoring environment) — `docker compose up` plus an `OPENAI_API_KEY` reproduces it end to end.
 
@@ -167,16 +200,17 @@ Legend — **✅ Built** (implemented + verified against the running stack) · *
 ## 4. Non-Functional Requirements
 
 - **NFR-1 Performance** — API responses are single-digit to low-tens of milliseconds against
-  seeded data volumes; the frontend bundle is **403 kB (118 kB gzipped)**.
+  seeded data volumes; the frontend bundle is **469 kB (133 kB gzipped)**, as reported by the
+  last production build.
 - **NFR-2 Security** — Passwords are hashed with BCrypt; JWTs use HS256 with a secret supplied by
   environment (≥32 bytes, enforced by jjwt); token types are separated; auth endpoints are rate
   limited; CORS origins come from the environment; secrets are never committed (`.env*` ignored).
 - **NFR-3 Data integrity** — Flyway owns the schema (`ddl-auto=validate`); migrations are
   append-only and never edited after being applied; orphaned columns were migrated, not dropped.
 - **NFR-4 Reliability** — The full stack starts from a clean checkout with one command
-  (`docker compose up -d --build`) and migrates `V1 → V7` on boot.
-- **NFR-5 Quality gates** — CI runs frontend lint + production build and the backend unit test
-  suite (**47 tests**) plus a clean image build on every push/PR to `main`.
+(`docker compose up -d --build`) and migrates `V1 → V13` on boot.
+- **NFR-5 Quality gates** — CI runs frontend lint + component/store tests (Vitest) + production
+  build and the backend unit test suite, plus a clean image build, on every push/PR to `main`.
 - **NFR-6 Portability** — The backend is a plain Docker image that honours the platform-provided
   `PORT`; the frontend builds to static assets.
 
@@ -218,8 +252,21 @@ are mapped to the string IDs the UI already used (`p-1`, `t-5`).
 | POST | `/api/auth/refresh` | Exchange a refresh token for a new token pair |
 | GET | `/api/health` | Liveness (public) |
 | GET | `/api/users` | List workspace users |
+| GET | `/api/users/me` | Return the authenticated caller's account |
 | PATCH | `/api/users/me` | Update own display name |
 | PATCH | `/api/users/{id}/role` | Change a user's role (**ADMIN**) |
+| GET · POST | `/api/chat/channels` | My conversations · create a channel |
+| GET | `/api/chat/channels/discover` | Public channels not yet joined |
+| POST | `/api/chat/channels/dm/{userId}` | Open (or reuse) a DM with a teammate |
+| POST | `/api/chat/channels/{id}/join` · `/leave` | Join a public channel · leave one |
+| PATCH | `/api/chat/channels/{id}/topic` | Set the topic (**channel admin**) |
+| GET · POST | `/api/chat/channels/{id}/messages` | History (paged) · post |
+| PATCH · DELETE | `/api/chat/messages/{id}` | Edit own · delete (author or channel admin) |
+| POST | `/api/chat/messages/{id}/reactions` | Toggle an emoji reaction |
+| POST | `/api/chat/channels/{id}/read` | Mark the conversation read |
+| GET | `/api/chat/unread` | Per-channel unread counts + total (mentions included) |
+| GET | `/api/chat/search?q=` | Search messages across my conversations |
+| GET | `/api/chat/presence` | Currently online user ids |
 | GET · POST | `/api/projects` | List · create projects |
 | GET · PUT · DELETE | `/api/projects/{id}` | Read · update · delete |
 | GET · POST | `/api/sprints` | List (`?projectId`) · create |
@@ -254,7 +301,9 @@ are mapped to the string IDs the UI already used (`p-1`, `t-5`).
 `wiki_pages` · `notifications` · `whiteboard_notes` — all `BIGSERIAL` primary keys with
 `created_at` / `updated_at` timestamps. The AI layer adds `knowledge_chunks` (indexed,
 permission-scoped copies of source records with `tsvector` + embedding) and
-`chat_conversations` / `chat_messages` (`UUID` keys, per-user ownership, citations as JSON).
+`ai_conversations` / `ai_messages` (`UUID` keys, per-user ownership, citations as JSON). The AI
+tables are deliberately prefixed `ai_`: they coexist with the team chat of `V9`
+(`chat_channels` · `chat_messages`) rather than sharing it.
 
 | Migration | Contents |
 |-----------|----------|
@@ -265,7 +314,12 @@ permission-scoped copies of source records with `tsvector` + embedding) and
 | `V5` | `wiki_pages` |
 | `V6` | `notifications` (+ a seed wiki page) |
 | `V7` | `whiteboard_notes` |
-| `V8` | `knowledge_chunks` (FTS vector + embeddings) · `chat_conversations` · `chat_messages` |
+| `V8` | `users.supabase_id` (+ partial unique index) and a nullable `users.password` for Supabase-managed accounts |
+| `V9` | `chat_channels`, `chat_channel_members` (with read position) and `chat_messages` (inline reactions) |
+| `V10` | `password_reset_requests` |
+| `V11` | Employee identity columns |
+| `V12` | `tasks.blocked` flag |
+| `V13` | `knowledge_chunks` (FTS vector + embeddings) · `ai_conversations` · `ai_messages` |
 
 ### 5.3 Configuration
 
@@ -283,6 +337,8 @@ full list and generation hints.
 | `NEXUS_LLM_API_KEY` / `_BASE_URL` / `_MODEL` | Optional Copilot LLM | empty → grounded mode |
 | `OPENAI_API_KEY` / `_BASE_URL` / `_MODEL` / `_EMBEDDING_MODEL` | Nexus AI engine (server-side only; falls back to `NEXUS_LLM_*`) | key empty → context-only mode; model `gpt-4o-mini`; embeddings `text-embedding-3-small` |
 | `NEXUS_AI_RATE_LIMIT` | Max Nexus AI questions per user per 60 s | `20` |
+| `NEXUS_SUPABASE_URL` / `_JWT_SECRET` / `_USE_JWKS` / `_AUDIENCE` / `_ISSUER` | Optional Supabase Auth for the API (URL plus a secret **or** JWKS) | empty → disabled |
+| `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` (frontend) | Supabase Auth on the login screen | empty → built-in email/password login |
 | `VITE_API_URL` (frontend) | Backend API base **including `/api`**, baked into the build at build time | `/api` via dev proxy |
 | `VITE_WS_URL` (frontend) | Explicit whiteboard socket URL | derived from `VITE_API_URL` (http→ws, trailing `/api` stripped) |
 
@@ -302,6 +358,18 @@ full list and generation hints.
 | 7 | Optional LLM-backed Copilot with grounded fallback | ✅ Done |
 | 8 | Production deployment config and hardening | ✅ Done |
 | 9 | Nexus AI assistant: knowledge index + incremental sync, hybrid retrieval, server-side OpenAI layer, streaming RAG chat | ✅ Implemented |
+
+### Production-hardening plan (after first deploy)
+
+| Phase | Scope | Status |
+|-------|-------|--------|
+| 0 | UI truthfulness — the interface reports what the data actually says | ✅ Done |
+| 1 | `VIEWER` read-only enforcement via `@WorkspaceWrite` on every write endpoint | ✅ Done |
+| 2 | Employee identity — employee codes and avatars in their own table | ✅ Done |
+| 3 | Copilot diagnosability — named provider and a surfaced failure reason | ✅ Done |
+| 4 | Destructive actions — entity deletes, plus a task `blocked` flag | ✅ Done |
+| 5 | Frontend test harness, dead-code sweep, store split into per-domain slices | ✅ Done |
+| 6 | Operations runbook and documentation accuracy | ✅ Done |
 
 ### Phase 8 detail
 - Refresh-token endpoint with token-type separation (an access token cannot be replayed).
@@ -331,12 +399,15 @@ full list and generation hints.
 5. The backend's public URL is created at **Settings → Networking → Generate Domain**.
 
 ### Frontend — Vercel
-1. The Vercel project is connected to `dev640/nexus2.0` (`main`); root directory
-   `frontend/`, framework Vite, output `dist`.
+1. The Vercel project is connected to `dev640/nexus2.0` (`main`) and builds the **repo root**
+   with [`vercel.json`](vercel.json), installing and building in `frontend/` and serving
+   `frontend/dist`. ([`frontend/vercel.json`](frontend/vercel.json) covers a project whose root
+   directory is `frontend/` instead.)
 2. Set `VITE_API_URL` to the backend's public URL **plus `/api`** (e.g.
    `https://your-backend.up.railway.app/api`), then redeploy — Vite inlines `VITE_*`
    variables at build time, so adding the variable alone changes nothing.
 3. Every push to `main` deploys automatically; the SPA rewrite keeps client routes working.
+4. Verifying and rolling back a deploy: [`OPERATIONS.md`](OPERATIONS.md).
 
 > The backend is **not** a serverless function — it is a long-running Spring Boot container,
 > which is what allows the WebSocket-based whiteboard to work in production.
@@ -352,40 +423,55 @@ docker compose up -d --build
 # 2. Frontend dev server (proxies /api and /ws to localhost:8080)
 cd frontend && npm install && npm run dev        # http://localhost:5173
 
-# 3. Seed logins (password: password123)
+# 3. Seed logins. With Supabase unconfigured the password is `password123`;
+#    once it is configured, admins issue passwords from the Admin page.
 #    devendra@nexus.com (ADMIN) · achal@nexus.com · vidhi@nexus.com · palak@nexus.com
 
 # 4. Quality gates
-docker build --target test ./backend             # backend unit tests (47)
-cd frontend && npx tsc -b && npm run lint && npm run build
+docker build --target test ./backend             # backend unit tests
+cd frontend && npx tsc -b && npm run lint && npm test && npm run build
 ```
 
 ### Verified end to end
-- Clean database volume → Flyway applies `V1 → V7` with seed data.
+- Clean database volume → Flyway applies `V1 → V12` with seed data.
 - Login, refresh-token exchange, and rejection of an access token used as a refresh token.
 - Anonymous `/api/*` → **403**; authenticated access to all eight domains → **200**.
 - Task creation, board status change and whiteboard note create/delete persist to Postgres.
 - Live whiteboard events reach an open session without a reload, from a separate client.
 - Rate limiter returns **429** once an IP exceeds its window.
 - CORS preflight from the frontend origin returns **200**.
+- Supabase identity path, against the real API with a locally minted HS256 token: a new subject
+  provisions a `MEMBER` account, a repeat login returns the same row, an existing email account
+  is linked (role preserved, password cleared) rather than duplicated, and forged signatures,
+  a foreign issuer and a malformed token are all refused.
+- Chat, two live users on one stack: posting to #general delivers `message.created` over
+  `/ws/chat` to both members, typing indicators relay, presence frames arrive, unread counts
+  rise for the reader and fall after `/read`, reactions toggle idempotently, DMs are reused
+  not duplicated, `@achal` mentions create a MENTIONS notification, private channels 404 for
+  non-members, and edit/delete permissions hold (author yes, other member no, channel admin
+  delete yes).
 
 ---
 
 ## 9. Known Gaps & Next Milestones
 
-1. **`VIEWER` is not enforced per-endpoint.** The role exists and is assignable; read-only
-   enforcement across controllers is the next permission milestone.
-2. **Team/team-assignment UI is still client-side.** Member and team grouping on the Team page is
+1. **Team/team-assignment UI is still client-side.** Member and team grouping on the Team page is
    not backed by tables yet, unlike users and roles which are real.
-3. **Refresh tokens are not rotated client-side.** The endpoint and token types exist; the
+2. **Refresh tokens are not rotated client-side.** The endpoint and token types exist; the
    frontend holds a 24 h access token and does not yet silently refresh on 401.
-4. **A dev-only JWT fallback secret is present in `application.properties`.** Production must set
+3. **A dev-only JWT fallback secret is present in `application.properties`.** Production must set
    `NEXUS_JWT_SECRET`; a startup check that refuses the default profile is a worthwhile hardening.
-5. **Rate limiting is per instance.** A shared Redis counter is needed for multi-instance
+4. **Rate limiting is per instance.** A shared Redis counter is needed for multi-instance
    deployments.
-6. **No end-to-end (browser) test suite in CI.** Coverage today is backend unit tests plus
-   frontend lint/build; a Playwright smoke path would guard the wiring regressions found during
-   Phase 1.
+5. **The Supabase JWKS path is not yet exercised against a real project.** HS256 verification is
+   covered by unit tests and the end-to-end smoke; the `NEXUS_SUPABASE_USE_JWKS=true` branch
+   (RS256/ES256, JWKS caching and rotation refetch) is implemented but only unit-tested.
+6. **No browser-level end-to-end suite in CI.** Coverage is backend unit tests plus frontend
+   Vitest (components and store); a Playwright smoke path would guard the wiring regressions found
+   during the integration phase.
+7. **No log or metric shipping off the platform.** Health is observable (`/api/health`,
+   `/actuator/health`) and logs live on Railway and Vercel, but nothing is forwarded to an
+   aggregator or alerting. [`OPERATIONS.md`](OPERATIONS.md) §9 is the interim incident path.
 
 ---
 

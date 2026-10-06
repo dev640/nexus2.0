@@ -24,7 +24,9 @@ public class CustomUserDetailsService implements UserDetailsService {
 
         return new org.springframework.security.core.userdetails.User(
                 user.getEmail(),
-                user.getPassword(),
+                // Supabase-managed accounts have no local password hash; the empty
+                // string keeps Spring's constructor happy and is never compared.
+                user.getPassword() == null ? "" : user.getPassword(),
                 Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()))
         );
     }

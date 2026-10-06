@@ -14,7 +14,9 @@ export const primaryNav: NavItem[] = [
   { label: 'Calendar', path: '/calendar' },
   { label: 'Wiki', path: '/wiki' },
   { label: 'Whiteboard', path: '/whiteboard' },
+  { label: 'Slack', path: '/slack' },
   { label: 'Analytics', path: '/analytics' },
+  { label: 'AI Copilot', path: '/copilot' },
   { label: 'Nexus AI', path: '/ai' },
 ]
 

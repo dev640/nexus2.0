@@ -10,6 +10,7 @@ import com.nexus.backend.dto.TaskRequest;
 import com.nexus.backend.dto.TaskResponse;
 import com.nexus.backend.dto.UserResponse;
 import com.nexus.backend.exception.ResourceNotFoundException;
+import com.nexus.backend.exception.ValidationException;
 import com.nexus.backend.repository.ProjectRepository;
 import com.nexus.backend.repository.SprintRepository;
 import com.nexus.backend.repository.TaskRepository;
@@ -51,6 +52,7 @@ public class TaskService {
         if (request.sprintId() != null) {
             Sprint sprint = sprintRepository.findById(request.sprintId())
                 .orElseThrow(() -> new ResourceNotFoundException("Sprint", "id", request.sprintId()));
+            requireSameProject(project, sprint);
             task.setSprint(sprint);
         }
 
@@ -65,6 +67,9 @@ public class TaskService {
         }
 
         task.setLabels(request.labels());
+        if (request.blocked() != null) {
+            task.setBlocked(request.blocked());
+        }
 
         Task savedTask = taskRepository.save(task);
         KnowledgeEvents.changed(knowledgePublisher, KnowledgeSourceType.TASK, savedTask.getId());
@@ -121,12 +126,26 @@ public class TaskService {
         Task task = taskRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Task", "id", id));
 
+        // A task can be moved between projects, so honour projectId rather than
+        // silently keeping the old one and ignoring part of the request body.
+        Project project = projectRepository.findById(request.projectId())
+            .orElseThrow(() -> new ResourceNotFoundException("Project", "id", request.projectId()));
+        task.setProject(project);
+
         task.setTitle(request.title());
         task.setDescription(request.description());
         task.setStatus(request.status());
         task.setPriority(request.priority());
-        task.setStoryPoints(request.storyPoints());
-        task.setLabels(request.labels());
+        // story_points is NOT NULL: an omitted field must keep the current value
+        // rather than nulling the column out from under Hibernate.
+        if (request.storyPoints() != null) {
+            task.setStoryPoints(request.storyPoints());
+        }
+        task.setLabels(request.labels() != null ? request.labels() : task.getLabels());
+        // Null keeps the current value; only an explicit false unblocks.
+        if (request.blocked() != null) {
+            task.setBlocked(request.blocked());
+        }
 
         // Notify on a newly added assignee (not on reassignment to the same person)
         User previousAssignee = task.getAssignee();
@@ -145,6 +164,9 @@ public class TaskService {
         if (request.sprintId() != null) {
             Sprint sprint = sprintRepository.findById(request.sprintId())
                 .orElseThrow(() -> new ResourceNotFoundException("Sprint", "id", request.sprintId()));
+            // A task and its sprint must live in the same project, otherwise the
+            // task silently disappears from that project's backlog and velocity.
+            requireSameProject(project, sprint);
             task.setSprint(sprint);
         } else {
             task.setSprint(null);
@@ -164,6 +186,14 @@ public class TaskService {
         KnowledgeEvents.removed(knowledgePublisher, KnowledgeSourceType.TASK, id);
     }
 
+    /** A sprint from another project cannot hold this task's work. */
+    private void requireSameProject(Project project, Sprint sprint) {
+        Project sprintProject = sprint.getProject();
+        if (sprintProject == null || !project.getId().equals(sprintProject.getId())) {
+            throw new ValidationException("The selected sprint belongs to a different project");
+        }
+    }
+
     private TaskResponse mapToResponse(Task task) {
         UserResponse assigneeResponse = null;
         if (task.getAssignee() != null) {
@@ -172,7 +202,9 @@ public class TaskService {
                 assignee.getId(),
                 assignee.getName(),
                 assignee.getEmail(),
-                assignee.getRole()
+                assignee.getRole(),
+                assignee.getSupabaseId() != null ? assignee.getSupabaseId().toString() : null,
+                assignee.getEmployeeCode()
             );
         }
 
@@ -194,6 +226,7 @@ public class TaskService {
             task.getStoryPoints(),
             assigneeResponse,
             labels,
+            task.isBlocked(),
             task.getCreatedAt(),
             task.getUpdatedAt()
         );

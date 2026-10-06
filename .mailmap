@@ -1,0 +1,34 @@
+# Map the historical author identities onto the repository owner.
+#
+# Every commit in this repository was authored as `ferhennn`, under two
+# different addresses. GitHub resolves the noreply address
+# ferhennn@users.noreply.github.com to an unrelated account, so anyone
+# reading this history -- including integrations that derive deployment
+# attribution from commit metadata, such as Vercel -- sees a stranger as the
+# author instead of the person who owns the repository, and Vercel refuses the
+# deployment with "not a member of this team".
+#
+# Rather than rewriting history (which would force-push 105 commits and
+# invalidate every existing SHA), a mailmap re-attribution is declared here.
+# It changes only how identities are *resolved* for display; the underlying
+# commit objects and their hashes are untouched.
+#
+# What this does and does not fix, measured rather than assumed:
+#
+#   - Every mailmap-aware reader resolves all 105 commits to dev640: git log,
+#     git blame, git shortlog, CI logs, and any GitLab-side mirror or fork.
+#   - github.com does NOT apply this file. Its commit pages were checked after
+#     the mailmap landed and still render the raw `ferhennn` identity, because
+#     GitHub attributes a commit to an account by the email stored in the commit
+#     object and does not consult .mailmap. GitHub's REST API reports the same
+#     unresolved identity.
+#
+# So the repository's own history now reads correctly everywhere git is in
+# charge, but github.com will keep showing `ferhennn` on the pre-rewrite
+# commits. Changing that requires rewriting the 105 commit objects with
+# git filter-repo and force-pushing both remotes, which invalidates every
+# existing SHA and every link ever pasted. New commits are unaffected: they are
+# authored as dev640 at the source, which is what deployment attribution reads.
+
+dev640 <83763869+dev640@users.noreply.github.com> ferhennn <ferhennn@users.noreply.github.com>
+dev640 <83763869+dev640@users.noreply.github.com> ferhennn <sheikhfarhan2008@gmail.com>

@@ -4,13 +4,16 @@ import com.nexus.backend.dto.AnalyticsResponse;
 import com.nexus.backend.dto.CopilotAnswerResponse;
 import org.springframework.stereotype.Service;
 
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
  * Answers workspace questions. Always computes a grounded answer from live data;
  * when an LLM is configured it is asked to phrase the answer using that data as
  * context, and falls back to the grounded answer on any failure.
+ *
+ * <p>The fallback used to be silent, so a Copilot whose key had been revoked
+ * looked identical to a healthy one. The reason for the fallback is now
+ * reported alongside the answer, using only wording that is safe to display.
  */
 @Service
 public class CopilotService {
@@ -27,8 +30,11 @@ public class CopilotService {
         AnalyticsResponse overview = analyticsService.getOverview(projectId);
         String grounded = groundedAnswer(question, overview);
 
-        if (!llmClient.isConfigured()) {
-            return new CopilotAnswerResponse(grounded, "grounded");
+        // Checked up front so a misconfigured Copilot reports the actual missing
+        // setting instead of the generic failure of an impossible request.
+        LlmFailure notConfigured = llmClient.configurationFailure();
+        if (notConfigured != null) {
+            return new CopilotAnswerResponse(grounded, "grounded", notConfigured.safeReason());
         }
 
         String systemPrompt = """
@@ -39,10 +45,11 @@ public class CopilotService {
             FACTS:
             """ + facts(overview);
 
-        Optional<String> llmAnswer = llmClient.complete(systemPrompt, question);
-        return llmAnswer
-            .map(text -> new CopilotAnswerResponse(text, "llm"))
-            .orElseGet(() -> new CopilotAnswerResponse(grounded, "grounded"));
+        LlmResult result = llmClient.complete(systemPrompt, question);
+        if (result.answered()) {
+            return new CopilotAnswerResponse(result.text(), "llm", null);
+        }
+        return new CopilotAnswerResponse(grounded, "grounded", result.failure().safeReason());
     }
 
     /** Compact description of live workspace state, used as LLM context. */

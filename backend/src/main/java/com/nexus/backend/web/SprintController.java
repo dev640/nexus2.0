@@ -1,8 +1,9 @@
 package com.nexus.backend.web;
 
-import com.nexus.backend.domain.sprint.SprintStatus;
 import com.nexus.backend.dto.SprintRequest;
 import com.nexus.backend.dto.SprintResponse;
+import com.nexus.backend.dto.SprintStatusRequest;
+import com.nexus.backend.security.WorkspaceWrite;
 import com.nexus.backend.service.SprintService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -11,7 +12,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/sprints")
@@ -22,12 +22,11 @@ public class SprintController {
 
     @GetMapping
     public ResponseEntity<List<SprintResponse>> listSprints(@RequestParam(required = false) Long projectId) {
-        List<SprintResponse> sprints;
-        if (projectId != null) {
-            sprints = sprintService.findByProjectId(projectId);
-        } else {
-            sprints = List.of();
-        }
+        // Without a projectId this is "all sprints": the frontend loads the whole
+        // workspace at once. Returning an empty list here left the Sprints page blank.
+        List<SprintResponse> sprints = projectId != null
+            ? sprintService.findByProjectId(projectId)
+            : sprintService.findAll();
         return ResponseEntity.ok(sprints);
     }
 
@@ -37,19 +36,36 @@ public class SprintController {
         return ResponseEntity.ok(sprint);
     }
 
+    @WorkspaceWrite
     @PostMapping
     public ResponseEntity<SprintResponse> createSprint(@Valid @RequestBody SprintRequest request) {
         SprintResponse sprint = sprintService.create(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(sprint);
     }
 
+    @WorkspaceWrite
     @PatchMapping("/{id}/status")
     public ResponseEntity<SprintResponse> updateSprintStatus(
         @PathVariable Long id,
-        @RequestBody Map<String, String> payload
+        @Valid @RequestBody SprintStatusRequest request
     ) {
-        SprintStatus newStatus = SprintStatus.valueOf(payload.get("status"));
-        SprintResponse sprint = sprintService.updateStatus(id, newStatus);
+        SprintResponse sprint = sprintService.updateStatus(id, request.status());
         return ResponseEntity.ok(sprint);
+    }
+
+    @WorkspaceWrite
+    @PutMapping("/{id}")
+    public ResponseEntity<SprintResponse> updateSprint(
+        @PathVariable Long id,
+        @Valid @RequestBody SprintRequest request
+    ) {
+        return ResponseEntity.ok(sprintService.update(id, request));
+    }
+
+    @WorkspaceWrite
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteSprint(@PathVariable Long id) {
+        sprintService.delete(id);
+        return ResponseEntity.noContent().build();
     }
 }

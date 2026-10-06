@@ -11,6 +11,7 @@ import {
   Calendar,
   BookOpen,
   PenTool,
+  MessageCircle,
   BarChart3,
   Sparkles,
   Users,
@@ -23,6 +24,10 @@ import {
 import { primaryNav, secondaryNav } from '../../lib/nav'
 import type { NavItem } from '../../lib/nav'
 import { useAppStore } from '../../store/useAppStore'
+import { useUnreadCount } from '../../hooks/useUnreadCount'
+
+/** Admin-only entry, kept out of the shared arrays so non-admins never see it. */
+const adminNavItem: NavItem = { label: 'Admin', path: '/admin' }
 
 const iconByPath: Record<string, LucideIcon> = {
   '/': Home,
@@ -35,14 +40,35 @@ const iconByPath: Record<string, LucideIcon> = {
   '/calendar': Calendar,
   '/wiki': BookOpen,
   '/whiteboard': PenTool,
+  '/slack': MessageCircle,
   '/analytics': BarChart3,
   '/ai': Sparkles,
   '/team': Users,
   '/settings': Settings,
   '/help': HelpCircle,
+  '/admin': ShieldCheck,
 }
 
-function NavRow({ item, onNavigate }: { item: NavItem; onNavigate?: () => void }) {
+function UnreadBadge({ count }: { count: number }) {
+  return (
+    <span
+      aria-label={`${count} unread messages`}
+      className="ml-auto inline-flex min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white"
+    >
+      {count > 99 ? '99+' : count}
+    </span>
+  )
+}
+
+function NavRow({
+  item,
+  onNavigate,
+  unread,
+}: {
+  item: NavItem
+  onNavigate?: () => void
+  unread?: number
+}) {
   const Icon = iconByPath[item.path]
   return (
     <NavLink
@@ -59,6 +85,7 @@ function NavRow({ item, onNavigate }: { item: NavItem; onNavigate?: () => void }
     >
       {Icon && <Icon size={16} strokeWidth={1.5} className="shrink-0" />}
       {item.label}
+      {item.path === '/slack' && unread != null && unread > 0 && <UnreadBadge count={unread} />}
     </NavLink>
   )
 }
@@ -73,6 +100,7 @@ export function Sidebar({
   const navigate = useNavigate()
   const userRole = useAppStore((s) => s.userRole)
   const logout = useAppStore((s) => s.logout)
+  const unreadTotal = useUnreadCount()
 
   function handleLogout() {
     logout()
@@ -100,7 +128,15 @@ export function Sidebar({
         <div className="flex flex-col gap-1 overflow-y-auto overscroll-contain touch-pan-y">
           <div>
             <div className="mb-6 flex items-center justify-between px-3">
-              <img src="/logo-wordmark.png" alt="Nexus" className="h-7 w-auto" />
+              <NavLink
+                to="/"
+                end
+                onClick={onClose}
+                aria-label="Nexus home"
+                className="rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              >
+                <img src="/logo-wordmark.png" alt="Nexus" className="h-7 w-auto" />
+              </NavLink>
               <button
                 onClick={onClose}
                 aria-label="Close menu"
@@ -111,7 +147,7 @@ export function Sidebar({
             </div>
             <nav className="flex flex-col gap-1">
               {primaryNav.map((item) => (
-                <NavRow key={item.path} item={item} onNavigate={onClose} />
+                <NavRow key={item.path} item={item} onNavigate={onClose} unread={unreadTotal} />
               ))}
             </nav>
           </div>
@@ -120,10 +156,7 @@ export function Sidebar({
               <NavRow key={item.path} item={item} onNavigate={onClose} />
             ))}
             {userRole === 'ADMIN' && (
-              <div className="flex items-center gap-2.5 rounded-md px-3 py-2 text-sm text-ink/70">
-                <ShieldCheck size={16} strokeWidth={1.5} className="shrink-0" />
-                Admin
-              </div>
+              <NavRow item={adminNavItem} onNavigate={onClose} />
             )}
             <button
               onClick={handleLogout}

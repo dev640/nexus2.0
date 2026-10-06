@@ -18,6 +18,8 @@ public record TaskResponse(
     Integer storyPoints,
     UserResponse assignee,
     List<String> labels,
+    /** Waiting on something. Independent of status. */
+    boolean blocked,
     LocalDateTime createdAt,
     LocalDateTime updatedAt
 ) {}

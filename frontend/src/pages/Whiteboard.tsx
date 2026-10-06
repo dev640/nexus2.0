@@ -12,6 +12,9 @@ export function Whiteboard() {
   const loadStickyNotes = useAppStore((s) => s.loadStickyNotes)
   const connectWhiteboard = useAppStore((s) => s.connectWhiteboard)
   const disconnectWhiteboard = useAppStore((s) => s.disconnectWhiteboard)
+  // VIEWER is read-only: the backend rejects note writes with 403, so the
+  // board shows no controls that would fail.
+  const canWrite = useAppStore((s) => s.currentUser?.role !== 'VIEWER')
 
   const boardRef = useRef<HTMLDivElement>(null)
   const dragState = useRef<{ id: string; offsetX: number; offsetY: number } | null>(null)
@@ -47,6 +50,7 @@ export function Whiteboard() {
     const rect = board.getBoundingClientRect()
     const x = Math.max(0, Math.min(e.clientX - rect.left - drag.offsetX, rect.width - 176))
     const y = Math.max(0, Math.min(e.clientY - rect.top - drag.offsetY, rect.height - 176))
+    if (!canWrite) return
     moveStickyNote(drag.id, x, y)
   }
 
@@ -70,15 +74,24 @@ export function Whiteboard() {
             <span className={`h-1.5 w-1.5 rounded-full ${live ? 'bg-success' : 'bg-mute'}`} />
             {live ? 'Live' : 'Offline'}
           </span>
-          {noteColors.map((color) => (
-            <button
-              key={color}
-              onClick={() => void addStickyNote(color)}
-              className="h-7 w-7 rounded-full border border-line shadow-sm transition hover:scale-110"
-              style={{ backgroundColor: color }}
-              aria-label={`Add ${color} sticky note`}
-            />
-          ))}
+          {noteColors.map((color) =>
+            canWrite ? (
+              <button
+                key={color}
+                onClick={() => void addStickyNote(color)}
+                className="h-7 w-7 rounded-full border border-line shadow-sm transition hover:scale-110"
+                style={{ backgroundColor: color }}
+                aria-label={`Add ${color} sticky note`}
+              />
+            ) : (
+              <span
+                key={color}
+                className="h-7 w-7 rounded-full border border-line shadow-sm opacity-50"
+                style={{ backgroundColor: color }}
+                aria-hidden="true"
+              />
+            ),
+          )}
         </div>
       </div>
       <h1 className="text-3xl font-semibold tracking-tight text-ink sm:text-4xl lg:text-5xl">
@@ -93,37 +106,42 @@ export function Whiteboard() {
       >
         {stickyNotes.length === 0 && (
           <div className="flex h-full items-center justify-center text-sm text-mute">
-            Click a color above to drop a sticky note.
+            {canWrite ? 'Click a color above to drop a sticky note.' : 'No sticky notes yet.'}
           </div>
         )}
         {stickyNotes.map((note) => (
           <div
             key={note.id}
             style={{ left: note.x, top: note.y, backgroundColor: note.color as NoteColor }}
-            className={`group absolute flex h-44 w-44 flex-col rounded-sm shadow-md touch-none ${
-              draggingId === note.id ? 'z-10 shadow-lg' : ''
-            }`}
+            className={`group absolute flex h-44 w-44 flex-col rounded-sm shadow-md ${
+              canWrite ? 'touch-none' : ''
+            } ${draggingId === note.id ? 'z-10 shadow-lg' : ''}`}
           >
             <div
-              onPointerDown={(e) => handlePointerDown(e, note.id, note.x, note.y)}
-              className="flex h-5 shrink-0 cursor-grab items-center justify-center gap-0.5 active:cursor-grabbing"
+              onPointerDown={canWrite ? (e) => handlePointerDown(e, note.id, note.x, note.y) : undefined}
+              className={`flex h-5 shrink-0 items-center justify-center gap-0.5 ${
+                canWrite ? 'cursor-grab active:cursor-grabbing' : ''
+              }`}
             >
               <span className="h-1 w-1 rounded-full bg-black/25" />
               <span className="h-1 w-1 rounded-full bg-black/25" />
               <span className="h-1 w-1 rounded-full bg-black/25" />
             </div>
-            <button
-              onClick={() => void deleteStickyNote(note.id)}
-              className="absolute right-1.5 top-1.5 hidden h-5 w-5 items-center justify-center rounded-full bg-black/10 text-xs text-black/60 hover:bg-black/20 group-hover:flex"
-              aria-label="Delete note"
-            >
-              ✕
-            </button>
+            {canWrite ? (
+              <button
+                onClick={() => void deleteStickyNote(note.id)}
+                className="absolute right-1.5 top-1.5 hidden h-5 w-5 items-center justify-center rounded-full bg-black/10 text-xs text-black/60 hover:bg-black/20 group-hover:flex"
+                aria-label="Delete note"
+              >
+                ✕
+              </button>
+            ) : null}
             <textarea
               value={note.text}
               onChange={(e) => updateStickyNoteText(note.id, e.target.value)}
               onBlur={() => saveStickyNoteText(note.id)}
               placeholder="Write something..."
+              readOnly={!canWrite}
               className="min-h-0 w-full flex-1 resize-none bg-transparent px-3 pb-1 text-sm leading-snug text-black/80 outline-none placeholder:text-black/40"
             />
             <div className="shrink-0 px-3 pb-2 text-[10px] font-medium uppercase tracking-wide text-black/40">
@@ -134,4 +152,4 @@ export function Whiteboard() {
       </div>
     </div>
   )
-}
+}

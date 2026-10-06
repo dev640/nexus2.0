@@ -55,6 +55,15 @@ public class Task {
     @Column(name = "task_type", length = 50)
     private String taskType;
 
+    /**
+     * Whether this task is waiting on something. Deliberately a flag rather
+     * than a status: a blocked task is still IN_PROGRESS or TODO, and the two
+     * questions ("is someone working on it" / "is it stuck") have separate
+     * answers.
+     */
+    @Column(nullable = false)
+    private boolean blocked = false;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
@@ -110,6 +119,9 @@ public class Task {
 
     public String getTaskType() { return taskType; }
     public void setTaskType(String taskType) { this.taskType = taskType; }
+
+    public boolean isBlocked() { return blocked; }
+    public void setBlocked(boolean blocked) { this.blocked = blocked; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

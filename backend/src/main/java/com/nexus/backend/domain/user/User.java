@@ -21,14 +21,31 @@ public class User {
     @Column(nullable = false, unique = true, length = 255)
     private String email;
 
-    @NotBlank(message = "Password is required")
-    @Size(min = 8, message = "Password must be at least 8 characters")
-    @Column(nullable = false, length = 255)
+    /**
+     * BCrypt hash of the local password. Null for accounts provisioned by
+     * Supabase, which authenticate through Supabase instead. Registration still
+     * requires a password: that rule lives in {@code RegisterRequest}.
+     */
+    @Column(length = 255)
     private String password;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
     private UserRole role = UserRole.MEMBER;
+
+    /**
+     * Supabase Auth user UUID when the account is (also) managed by Supabase.
+     * Null for accounts that only use the built-in email/password flow.
+     */
+    @Column(name = "supabase_id", unique = true)
+    private java.util.UUID supabaseId;
+
+    /**
+     * Human-facing employee code (NX-0007). Assigned by the database default on
+     * insert, so callers never invent one and it can never collide.
+     */
+    @Column(name = "employee_code", nullable = false, unique = true, length = 20)
+    private String employeeCode;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
@@ -66,6 +83,12 @@ public class User {
 
     public UserRole getRole() { return role; }
     public void setRole(UserRole role) { this.role = role; }
+
+    public java.util.UUID getSupabaseId() { return supabaseId; }
+    public void setSupabaseId(java.util.UUID supabaseId) { this.supabaseId = supabaseId; }
+
+    public String getEmployeeCode() { return employeeCode; }
+    public void setEmployeeCode(String employeeCode) { this.employeeCode = employeeCode; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
