@@ -341,6 +341,177 @@ export async function apiAskCopilot(question: string, projectId?: number): Promi
   return data
 }
 
+// ---------- Nexus AI (RAG assistant) ----------
+
+export interface AiSource {
+  type: string
+  sourceId: number
+  title: string
+  category: string | null
+  projectId: number | null
+  updatedAt: string | null
+}
+
+export interface AiConversation {
+  id: string
+  title: string
+  createdAt: string
+  updatedAt: string
+  messageCount: number
+}
+
+export interface AiMessage {
+  id: string
+  role: 'USER' | 'ASSISTANT'
+  content: string
+  sources: AiSource[]
+  mode: string | null
+  model: string | null
+  createdAt: string
+}
+
+export interface AiConversationDetail {
+  conversation: AiConversation
+  messages: AiMessage[]
+}
+
+export interface AiKnowledgeStatus {
+  configured: boolean
+  model: string
+  embeddingModel: string
+  indexedChunks: number
+  embeddedChunks: number
+  vectorsLoaded: number
+  bySource: Record<string, number>
+}
+
+export interface AiReindexResult {
+  sources: number
+  reindexed: number
+  removed: number
+  vectors: number
+}
+
+export async function apiListAiConversations(): Promise<AiConversation[]> {
+  const { data } = await api.get<AiConversation[]>('/ai/conversations')
+  return data
+}
+
+export async function apiGetAiConversation(id: string): Promise<AiConversationDetail> {
+  const { data } = await api.get<AiConversationDetail>(`/ai/conversations/${id}`)
+  return data
+}
+
+export async function apiDeleteAiConversation(id: string): Promise<void> {
+  await api.delete(`/ai/conversations/${id}`)
+}
+
+export async function apiAiKnowledgeStatus(): Promise<AiKnowledgeStatus> {
+  const { data } = await api.get<AiKnowledgeStatus>('/ai/knowledge/status')
+  return data
+}
+
+export async function apiAiReindex(full = false): Promise<AiReindexResult> {
+  const { data } = await api.post<AiReindexResult>(`/ai/knowledge/reindex?full=${full}`)
+  return data
+}
+
+export interface AiStreamHandlers {
+  onMeta?: (meta: { conversationId: string; sources: AiSource[] }) => void
+  onDelta?: (text: string) => void
+  onDone?: (done: { messageId: string; conversationId: string; mode: string; model: string }) => void
+  onError?: (message: string) => void
+}
+
+/**
+ * Server-Sent Events over POST: the answer streams token by token from the
+ * backend (which calls OpenAI server-side — the key never reaches the browser).
+ */
+async function streamSse(path: string, body: unknown, handlers: AiStreamHandlers): Promise<void> {
+  const base = import.meta.env.VITE_API_URL || '/api'
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Accept: 'text/event-stream',
+  }
+  const token = getStoredToken()
+  if (token) headers.Authorization = `Bearer ${token}`
+
+  const response = await fetch(`${base}${path}`, {
+    method: 'POST',
+    headers,
+    body: body === undefined ? undefined : JSON.stringify(body),
+  })
+
+  if (!response.ok) {
+    let message = `The AI request failed (HTTP ${response.status})`
+    try {
+      const data = (await response.json()) as { message?: string; error?: string }
+      message = data.message || data.error || message
+    } catch {
+      // Non-JSON error body; keep the generic message.
+    }
+    throw new Error(message)
+  }
+  if (!response.body) throw new Error('Streaming is not supported in this browser')
+
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+
+    let separator = buffer.indexOf('\n\n')
+    while (separator !== -1) {
+      const frame = buffer.slice(0, separator)
+      buffer = buffer.slice(separator + 2)
+
+      let event = 'message'
+      const dataLines: string[] = []
+      for (const line of frame.split('\n')) {
+        if (line.startsWith('event:')) event = line.slice(6).trim()
+        else if (line.startsWith('data:')) dataLines.push(line.slice(5).trim())
+      }
+      if (dataLines.length > 0) {
+        const raw = dataLines.join('\n')
+        let payload: Record<string, unknown> = {}
+        try {
+          payload = JSON.parse(raw) as Record<string, unknown>
+        } catch {
+          payload = { text: raw }
+        }
+        if (event === 'meta') {
+          handlers.onMeta?.(payload as unknown as { conversationId: string; sources: AiSource[] })
+        } else if (event === 'delta') {
+          handlers.onDelta?.(typeof payload.text === 'string' ? payload.text : '')
+        } else if (event === 'done') {
+          handlers.onDone?.(
+            payload as unknown as { messageId: string; conversationId: string; mode: string; model: string },
+          )
+        } else if (event === 'error') {
+          handlers.onError?.(
+            typeof payload.message === 'string' ? payload.message : 'The AI service failed. Try again.',
+          )
+        }
+      }
+      separator = buffer.indexOf('\n\n')
+    }
+  }
+}
+
+export function streamAiAsk(
+  payload: { question: string; conversationId?: string | null; projectId?: number | null },
+  handlers: AiStreamHandlers,
+): Promise<void> {
+  return streamSse('/ai/ask', payload, handlers)
+}
+
+export function streamAiRegenerate(conversationId: string, handlers: AiStreamHandlers): Promise<void> {
+  return streamSse(`/ai/conversations/${conversationId}/regenerate`, null, handlers)
+}
+
 /** WebSocket endpoint for live whiteboard events, authenticated with the session token. */
 export function whiteboardSocketUrl(): string {
   const explicit = import.meta.env.VITE_WS_URL as string | undefined

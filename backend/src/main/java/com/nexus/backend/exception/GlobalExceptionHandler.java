@@ -1,5 +1,6 @@
 package com.nexus.backend.exception;
 
+import com.nexus.backend.service.ai.AiEngineException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -66,6 +67,21 @@ public class GlobalExceptionHandler {
             LocalDateTime.now()
         );
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+    }
+
+    @ExceptionHandler(AiEngineException.class)
+    public ResponseEntity<ErrorResponse> handleAiEngine(AiEngineException ex) {
+        HttpStatus status = switch (ex.kind()) {
+            case RATE_LIMIT -> HttpStatus.TOO_MANY_REQUESTS;
+            case INVALID_REQUEST -> HttpStatus.BAD_REQUEST;
+            default -> HttpStatus.SERVICE_UNAVAILABLE;
+        };
+        ErrorResponse error = new ErrorResponse(
+            status.value(),
+            ex.userMessage(),
+            LocalDateTime.now()
+        );
+        return ResponseEntity.status(status).body(error);
     }
 
     @ExceptionHandler(Exception.class)

@@ -5,8 +5,8 @@
 > and how it is deployed. Every claim below is implemented and verified against a running
 > stack unless explicitly marked otherwise.
 
-**Status:** Phases 0–8 complete — feature-complete for the current scope
-**Last updated:** 2026-09-23
+**Status:** Phases 0–8 complete — feature-complete for the current scope · Nexus AI assistant (RAG) added
+**Last updated:** 2026-10-05
 **Repository:** `dev640/nexus2.0` (branch `main`)
 
 ---
@@ -123,6 +123,45 @@ Legend — **✅ Built** (implemented + verified against the running stack) · *
 - **FR-M1** "My Work" lists the signed-in user's tasks and their inbox summary.
 - **FR-H1** Help page documents the workspace.
 
+### 3.12 Nexus AI Assistant (RAG over Nexus data) — ✅ Implemented
+> Unit-tested and build-verified (47 backend tests, frontend lint + typecheck + build).
+> Not yet re-run against a live stack in this change set (no container runtime in the
+> authoring environment) — `docker compose up` plus an `OPENAI_API_KEY` reproduces it end to end.
+
+- **FR-AI1** Full AI chat at `/ai`: conversation history sidebar, Markdown answers with code
+  blocks and tables, per-answer source citations, token streaming (SSE), regeneration,
+  copy-to-clipboard, loading and error states.
+- **FR-AI2** Server-side question pipeline: authenticate → validate → conversation ownership →
+  permission-aware retrieval → minimal context package → OpenAI (streamed) → persisted answer
+  with citations. All OpenAI calls happen in the backend; the key never reaches the browser.
+- **FR-AI3** Knowledge/indexing service: wiki pages, projects, tasks, sprints and whiteboard
+  notes are normalized, chunked (~1k chars, paragraph-aware, overlapping) and stored in
+  `knowledge_chunks` with metadata (source, record id, title, category, project, tags,
+  source timestamps, access scope) plus an OpenAI embedding and a generated `tsvector`.
+- **FR-AI4** Incremental synchronization: create/update/delete events on source services
+  re-index only the affected record (after commit); `POST /api/ai/knowledge/reindex` (ADMIN)
+  reconciles stale/orphaned chunks and can rebuild from scratch (`?full=true`).
+- **FR-AI5** Hybrid retrieval — Postgres full-text (GIN) + keyword match + semantic ranking
+  from an in-memory vector index (warmed at startup, updated incrementally, refreshed every
+  5 min), fused with reciprocal-rank fusion; only the smallest useful context is sent
+  (≤ 6 chunks / ~6 000 chars, ≤ 2 chunks per source) — never the whole database.
+- **FR-AI6** Permission-aware: retrieval filters access scope in SQL *and* again against the
+  vector index in-process; conversations are strictly per-user (404 across users); PRIVATE and
+  ADMIN scopes are supported alongside WORKSPACE for future fine-grained data.
+- **FR-AI7** OpenAI integration behind a clean `aiService.ask(question, context, conversation)`
+  abstraction (`AiEngine` interface): model configurable via `OPENAI_MODEL`, embeddings via
+  `OPENAI_EMBEDDING_MODEL`, key via `OPENAI_API_KEY` (falls back to `NEXUS_LLM_*`); without a
+  key the assistant degrades to a source-cited context-only answer instead of erroring.
+- **FR-AI8** AI behavior rules in the system prompt: authoritative Nexus context first,
+  inline `[n]` citations, an explicit "could not find sufficient information" when context is
+  missing, no invented facts, numbers/dates/names preserved verbatim.
+- **FR-AI9** Security: JWT auth on every route, per-user rate limit (`NEXUS_AI_RATE_LIMIT`,
+  HTTP 429), question input validation (≤ 2 000 chars), classified engine errors returned as
+  friendly messages (timeouts, rate limits, auth, provider outages), logging without keys,
+  prompts or provider payloads.
+- **FR-AI10** Context management: recent history verbatim, older turns summarized, bounded by
+  a character budget so long conversations stay cheap.
+
 ---
 
 ## 4. Non-Functional Requirements
@@ -137,7 +176,7 @@ Legend — **✅ Built** (implemented + verified against the running stack) · *
 - **NFR-4 Reliability** — The full stack starts from a clean checkout with one command
   (`docker compose up -d --build`) and migrates `V1 → V7` on boot.
 - **NFR-5 Quality gates** — CI runs frontend lint + production build and the backend unit test
-  suite (**17 tests**) plus a clean image build on every push/PR to `main`.
+  suite (**47 tests**) plus a clean image build on every push/PR to `main`.
 - **NFR-6 Portability** — The backend is a plain Docker image that honours the platform-provided
   `PORT`; the frontend builds to static assets.
 
@@ -198,6 +237,12 @@ are mapped to the string IDs the UI already used (`p-1`, `t-5`).
 | DELETE | `/api/notifications/{id}` | Archive |
 | GET | `/api/analytics/overview` | Velocity, breakdowns, team load, risks (`?projectId`) |
 | POST | `/api/copilot/ask` | Ask the Copilot (`?projectId`); returns `mode` + `answer` |
+| POST | `/api/ai/ask` | Ask Nexus AI — SSE stream (`meta`, `delta`, `done`, `error`); body `{question, conversationId?, projectId?}` |
+| GET | `/api/ai/conversations` | List my conversations (threads are created by `/ask`) |
+| GET · DELETE | `/api/ai/conversations/{id}` | Read · delete an owned conversation (404 otherwise) |
+| POST | `/api/ai/conversations/{id}/regenerate` | Re-answer the last question — SSE stream |
+| GET | `/api/ai/knowledge/status` | Engine config, indexed/embedded chunk counts, vectors loaded |
+| POST | `/api/ai/knowledge/reindex` | Incremental reconcile of the knowledge index (**ADMIN**; `?full=true` rebuilds) |
 | GET · POST | `/api/whiteboard/notes` | List · create sticky notes (`?board`) |
 | PATCH · DELETE | `/api/whiteboard/notes/{id}` | Move/edit · delete a note |
 | WS | `/ws/whiteboard?token=` | Live whiteboard event stream (JWT handshake) |
@@ -207,7 +252,9 @@ are mapped to the string IDs the UI already used (`p-1`, `t-5`).
 
 `organizations` · `workspaces` · `users` · `projects` · `sprints` · `tasks` · `task_labels` ·
 `wiki_pages` · `notifications` · `whiteboard_notes` — all `BIGSERIAL` primary keys with
-`created_at` / `updated_at` timestamps.
+`created_at` / `updated_at` timestamps. The AI layer adds `knowledge_chunks` (indexed,
+permission-scoped copies of source records with `tsvector` + embedding) and
+`chat_conversations` / `chat_messages` (`UUID` keys, per-user ownership, citations as JSON).
 
 | Migration | Contents |
 |-----------|----------|
@@ -218,6 +265,7 @@ are mapped to the string IDs the UI already used (`p-1`, `t-5`).
 | `V5` | `wiki_pages` |
 | `V6` | `notifications` (+ a seed wiki page) |
 | `V7` | `whiteboard_notes` |
+| `V8` | `knowledge_chunks` (FTS vector + embeddings) · `chat_conversations` · `chat_messages` |
 
 ### 5.3 Configuration
 
@@ -233,6 +281,8 @@ full list and generation hints.
 | `NEXUS_CORS_ALLOWED_ORIGINS` | Comma-separated allowed browser origins | `localhost:5173,localhost:3000` |
 | `NEXUS_AUTH_RATE_LIMIT` | Max auth requests per IP per 60 s window | `20` |
 | `NEXUS_LLM_API_KEY` / `_BASE_URL` / `_MODEL` | Optional Copilot LLM | empty → grounded mode |
+| `OPENAI_API_KEY` / `_BASE_URL` / `_MODEL` / `_EMBEDDING_MODEL` | Nexus AI engine (server-side only; falls back to `NEXUS_LLM_*`) | key empty → context-only mode; model `gpt-4o-mini`; embeddings `text-embedding-3-small` |
+| `NEXUS_AI_RATE_LIMIT` | Max Nexus AI questions per user per 60 s | `20` |
 | `VITE_API_URL` (frontend) | Backend API base **including `/api`**, baked into the build at build time | `/api` via dev proxy |
 | `VITE_WS_URL` (frontend) | Explicit whiteboard socket URL | derived from `VITE_API_URL` (http→ws, trailing `/api` stripped) |
 
@@ -251,6 +301,7 @@ full list and generation hints.
 | 6 | Whiteboard with server persistence and live sync | ✅ Done |
 | 7 | Optional LLM-backed Copilot with grounded fallback | ✅ Done |
 | 8 | Production deployment config and hardening | ✅ Done |
+| 9 | Nexus AI assistant: knowledge index + incremental sync, hybrid retrieval, server-side OpenAI layer, streaming RAG chat | ✅ Implemented |
 
 ### Phase 8 detail
 - Refresh-token endpoint with token-type separation (an access token cannot be replayed).
@@ -305,7 +356,7 @@ cd frontend && npm install && npm run dev        # http://localhost:5173
 #    devendra@nexus.com (ADMIN) · achal@nexus.com · vidhi@nexus.com · palak@nexus.com
 
 # 4. Quality gates
-docker build --target test ./backend             # backend unit tests (17)
+docker build --target test ./backend             # backend unit tests (47)
 cd frontend && npx tsc -b && npm run lint && npm run build
 ```
 

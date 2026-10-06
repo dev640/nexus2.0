@@ -1,12 +1,15 @@
 package com.nexus.backend.service;
 
+import com.nexus.backend.domain.knowledge.KnowledgeSourceType;
 import com.nexus.backend.domain.whiteboard.WhiteboardNote;
 import com.nexus.backend.dto.WhiteboardNoteRequest;
 import com.nexus.backend.dto.WhiteboardNoteResponse;
 import com.nexus.backend.dto.WhiteboardNoteUpdateRequest;
 import com.nexus.backend.exception.ResourceNotFoundException;
 import com.nexus.backend.repository.WhiteboardNoteRepository;
+import com.nexus.backend.service.knowledge.KnowledgeEvents;
 import com.nexus.backend.whiteboard.WhiteboardBroadcaster;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,10 +23,15 @@ public class WhiteboardService {
 
     private final WhiteboardNoteRepository noteRepository;
     private final WhiteboardBroadcaster broadcaster;
+    private final ApplicationEventPublisher knowledgePublisher;
 
-    public WhiteboardService(WhiteboardNoteRepository noteRepository, WhiteboardBroadcaster broadcaster) {
+    public WhiteboardService(
+            WhiteboardNoteRepository noteRepository,
+            WhiteboardBroadcaster broadcaster,
+            ApplicationEventPublisher knowledgePublisher) {
         this.noteRepository = noteRepository;
         this.broadcaster = broadcaster;
+        this.knowledgePublisher = knowledgePublisher;
     }
 
     @Transactional(readOnly = true)
@@ -43,6 +51,7 @@ public class WhiteboardService {
         note.setY(request.y() != null ? request.y() : 40.0);
         note.setAuthor(currentUserEmail());
         WhiteboardNote saved = noteRepository.save(note);
+        KnowledgeEvents.changed(knowledgePublisher, KnowledgeSourceType.WHITEBOARD_NOTE, saved.getId());
 
         WhiteboardNoteResponse response = mapToResponse(saved);
         broadcaster.publish("created", response);
@@ -58,6 +67,7 @@ public class WhiteboardService {
         if (request.x() != null) note.setX(request.x());
         if (request.y() != null) note.setY(request.y());
         WhiteboardNote saved = noteRepository.save(note);
+        KnowledgeEvents.changed(knowledgePublisher, KnowledgeSourceType.WHITEBOARD_NOTE, saved.getId());
 
         WhiteboardNoteResponse response = mapToResponse(saved);
         broadcaster.publish("updated", response);
@@ -70,6 +80,7 @@ public class WhiteboardService {
             .orElseThrow(() -> new ResourceNotFoundException("Whiteboard note", "id", id));
         WhiteboardNoteResponse response = mapToResponse(note);
         noteRepository.delete(note);
+        KnowledgeEvents.removed(knowledgePublisher, KnowledgeSourceType.WHITEBOARD_NOTE, id);
         broadcaster.publish("deleted", response);
     }
 

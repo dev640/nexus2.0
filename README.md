@@ -91,6 +91,7 @@ the WebSocket whiteboard work in production.
    | `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` — the app derives the JDBC URL from it |
    | `REDIS_URL` | `${{Redis.REDIS_URL}}` — the app derives host/port/password from it |
    | `NEXUS_LLM_API_KEY` | Optional — leave empty for grounded (data-only) Copilot answers |
+   | `OPENAI_API_KEY` | Optional — enables Nexus AI generated answers (RAG chat at `/ai`); without it answers run in context-only mode. `OPENAI_MODEL` (default `gpt-4o-mini`) and `OPENAI_EMBEDDING_MODEL` (default `text-embedding-3-small`) are also read. |
 
    `PORT` is injected by the platform automatically, and the app derives its datasource from
    `DATABASE_URL` (or the discrete `PGHOST`/`PGPORT`/`PGUSER`/`PGPASSWORD`/`PGDATABASE` form) and
@@ -144,6 +145,7 @@ PRD.md               product requirements and delivery history
 ```bash
 # Backend: compiles and runs the unit test suite inside Docker
 docker build --target test ./backend
+# (or locally: cd backend && sh mvnw test — 47 tests)
 
 # Frontend: typecheck, lint and production build
 cd frontend && npx tsc -b && npm run lint && npm run build

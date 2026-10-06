@@ -1,5 +1,6 @@
 package com.nexus.backend.service;
 
+import com.nexus.backend.domain.knowledge.KnowledgeSourceType;
 import com.nexus.backend.domain.project.Project;
 import com.nexus.backend.domain.project.ProjectHealth;
 import com.nexus.backend.domain.project.ProjectStatus;
@@ -7,7 +8,9 @@ import com.nexus.backend.dto.ProjectRequest;
 import com.nexus.backend.dto.ProjectResponse;
 import com.nexus.backend.exception.ResourceNotFoundException;
 import com.nexus.backend.repository.ProjectRepository;
+import com.nexus.backend.service.knowledge.KnowledgeEvents;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,6 +21,7 @@ import java.util.List;
 public class ProjectService {
 
     private final ProjectRepository projectRepository;
+    private final ApplicationEventPublisher knowledgePublisher;
 
     @Transactional
     public ProjectResponse create(ProjectRequest request) {
@@ -31,6 +35,7 @@ public class ProjectService {
         project.setMemberCount(1);
 
         Project savedProject = projectRepository.save(project);
+        KnowledgeEvents.changed(knowledgePublisher, KnowledgeSourceType.PROJECT, savedProject.getId());
         return mapToResponse(savedProject);
     }
 
@@ -58,6 +63,7 @@ public class ProjectService {
         }
 
         Project updatedProject = projectRepository.save(project);
+        KnowledgeEvents.changed(knowledgePublisher, KnowledgeSourceType.PROJECT, updatedProject.getId());
         return mapToResponse(updatedProject);
     }
 
@@ -67,6 +73,7 @@ public class ProjectService {
             throw new ResourceNotFoundException("Project", "id", id);
         }
         projectRepository.deleteById(id);
+        KnowledgeEvents.removed(knowledgePublisher, KnowledgeSourceType.PROJECT, id);
     }
 
     private ProjectResponse mapToResponse(Project project) {

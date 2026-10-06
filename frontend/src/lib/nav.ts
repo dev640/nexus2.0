@@ -15,7 +15,7 @@ export const primaryNav: NavItem[] = [
   { label: 'Wiki', path: '/wiki' },
   { label: 'Whiteboard', path: '/whiteboard' },
   { label: 'Analytics', path: '/analytics' },
-  { label: 'AI Copilot', path: '/ai' },
+  { label: 'Nexus AI', path: '/ai' },
 ]
 
 export const secondaryNav: NavItem[] = [

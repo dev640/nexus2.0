@@ -1,5 +1,6 @@
 package com.nexus.backend.service;
 
+import com.nexus.backend.domain.knowledge.KnowledgeSourceType;
 import com.nexus.backend.domain.project.Project;
 import com.nexus.backend.domain.sprint.Sprint;
 import com.nexus.backend.domain.task.Task;
@@ -13,8 +14,10 @@ import com.nexus.backend.repository.ProjectRepository;
 import com.nexus.backend.repository.SprintRepository;
 import com.nexus.backend.repository.TaskRepository;
 import com.nexus.backend.repository.UserRepository;
+import com.nexus.backend.service.knowledge.KnowledgeEvents;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +32,7 @@ public class TaskService {
     private final ProjectRepository projectRepository;
     private final SprintRepository sprintRepository;
     private final UserRepository userRepository;
+    private final ApplicationEventPublisher knowledgePublisher;
 
     @Autowired
     @Lazy
@@ -63,6 +67,7 @@ public class TaskService {
         task.setLabels(request.labels());
 
         Task savedTask = taskRepository.save(task);
+        KnowledgeEvents.changed(knowledgePublisher, KnowledgeSourceType.TASK, savedTask.getId());
         if (savedTask.getAssignee() != null) {
             notificationService.notifyTaskAssigned(savedTask, savedTask.getAssignee());
         }
@@ -107,6 +112,7 @@ public class TaskService {
             .orElseThrow(() -> new ResourceNotFoundException("Task", "id", id));
         task.setStatus(status);
         Task updatedTask = taskRepository.save(task);
+        KnowledgeEvents.changed(knowledgePublisher, KnowledgeSourceType.TASK, updatedTask.getId());
         return mapToResponse(updatedTask);
     }
 
@@ -145,6 +151,7 @@ public class TaskService {
         }
 
         Task updatedTask = taskRepository.save(task);
+        KnowledgeEvents.changed(knowledgePublisher, KnowledgeSourceType.TASK, updatedTask.getId());
         return mapToResponse(updatedTask);
     }
 
@@ -154,6 +161,7 @@ public class TaskService {
             throw new ResourceNotFoundException("Task", "id", id);
         }
         taskRepository.deleteById(id);
+        KnowledgeEvents.removed(knowledgePublisher, KnowledgeSourceType.TASK, id);
     }
 
     private TaskResponse mapToResponse(Task task) {

@@ -1,5 +1,6 @@
 package com.nexus.backend.service;
 
+import com.nexus.backend.domain.knowledge.KnowledgeSourceType;
 import com.nexus.backend.domain.project.Project;
 import com.nexus.backend.domain.wiki.WikiPage;
 import com.nexus.backend.dto.WikiPageRequest;
@@ -7,6 +8,8 @@ import com.nexus.backend.dto.WikiPageResponse;
 import com.nexus.backend.exception.ResourceNotFoundException;
 import com.nexus.backend.repository.ProjectRepository;
 import com.nexus.backend.repository.WikiPageRepository;
+import com.nexus.backend.service.knowledge.KnowledgeEvents;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,10 +21,15 @@ public class WikiPageService {
 
     private final WikiPageRepository wikiPageRepository;
     private final ProjectRepository projectRepository;
+    private final ApplicationEventPublisher knowledgePublisher;
 
-    public WikiPageService(WikiPageRepository wikiPageRepository, ProjectRepository projectRepository) {
+    public WikiPageService(
+            WikiPageRepository wikiPageRepository,
+            ProjectRepository projectRepository,
+            ApplicationEventPublisher knowledgePublisher) {
         this.wikiPageRepository = wikiPageRepository;
         this.projectRepository = projectRepository;
+        this.knowledgePublisher = knowledgePublisher;
     }
 
     @Transactional(readOnly = true)
@@ -50,7 +58,9 @@ public class WikiPageService {
                 .orElseThrow(() -> new ResourceNotFoundException("Project", "id", request.projectId()));
             page.setProject(project);
         }
-        return mapToResponse(wikiPageRepository.save(page));
+        WikiPage saved = wikiPageRepository.save(page);
+        KnowledgeEvents.changed(knowledgePublisher, KnowledgeSourceType.WIKI_PAGE, saved.getId());
+        return mapToResponse(saved);
     }
 
     @Transactional
@@ -66,7 +76,9 @@ public class WikiPageService {
         } else {
             page.setProject(null);
         }
-        return mapToResponse(wikiPageRepository.save(page));
+        WikiPage saved = wikiPageRepository.save(page);
+        KnowledgeEvents.changed(knowledgePublisher, KnowledgeSourceType.WIKI_PAGE, saved.getId());
+        return mapToResponse(saved);
     }
 
     @Transactional
@@ -75,6 +87,7 @@ public class WikiPageService {
             throw new ResourceNotFoundException("Wiki page", "id", id);
         }
         wikiPageRepository.deleteById(id);
+        KnowledgeEvents.removed(knowledgePublisher, KnowledgeSourceType.WIKI_PAGE, id);
     }
 
     private String currentUserEmail() {

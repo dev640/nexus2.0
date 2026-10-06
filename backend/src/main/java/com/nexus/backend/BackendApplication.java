@@ -4,9 +4,11 @@ import com.nexus.backend.config.PlatformEnvironment;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
 @EnableJpaAuditing
+@EnableScheduling // periodic vector-index refresh for the Nexus AI assistant
 public class BackendApplication {
 
 	public static void main(String[] args) {

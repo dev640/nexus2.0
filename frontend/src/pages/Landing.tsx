@@ -43,8 +43,8 @@ const features = [
   },
   {
     icon: Sparkles,
-    title: 'AI Copilot',
-    body: 'Ask about risk, scope and status. Answers grounded in your actual data.',
+    title: 'Nexus AI',
+    body: 'Ask anything in plain language. Answers cite your wiki, tasks and projects as sources.',
   },
 ]
 
@@ -63,8 +63,8 @@ const workflow = [
   },
   {
     eyebrow: 'Ship',
-    title: 'Ask your copilot.',
-    body: 'Before standup, ask what slipped and why. The copilot reads the sprint so you do not have to.',
+    title: 'Ask your workspace.',
+    body: 'Before standup, ask what slipped and why. Nexus AI reads your permission-filtered knowledge so you do not have to.',
     visual: <CopilotVisual />,
   },
 ]
@@ -117,8 +117,8 @@ export function Landing() {
           </Reveal>
           <Reveal delay={120}>
             <p className="mx-auto mt-6 max-w-xl text-base text-mute sm:text-lg">
-              Nexus folds your backlog, sprints, docs, whiteboards and an AI copilot
-              into one fast workspace — so the plan and the work never drift apart.
+              Nexus folds your backlog, sprints, docs, whiteboards and a Nexus AI
+              assistant into one fast workspace — so the plan and the work never drift apart.
             </p>
           </Reveal>
           <Reveal delay={180}>
@@ -140,7 +140,7 @@ export function Landing() {
           </Reveal>
           <Reveal delay={220}>
             <div className="mt-7 flex flex-wrap items-center justify-center gap-2 text-xs text-mute">
-              {['Backlog & Sprints', 'Kanban Board', 'Whiteboard', 'AI Copilot'].map((t) => (
+              {['Backlog & Sprints', 'Kanban Board', 'Whiteboard', 'Nexus AI'].map((t) => (
                 <span
                   key={t}
                   className="rounded-full border border-line bg-white/60 px-3 py-1 backdrop-blur"
@@ -547,7 +547,7 @@ function CopilotVisual() {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-mute">
-        <Sparkles size={13} strokeWidth={1.75} /> AI Copilot
+        <Sparkles size={13} strokeWidth={1.75} /> Nexus AI
       </div>
       <div className="ml-auto max-w-[85%] rounded-lg rounded-br-sm bg-ink px-3 py-2 text-xs text-white">
         What&apos;s at risk in Sprint 8?

@@ -1,5 +1,6 @@
 package com.nexus.backend.service;
 
+import com.nexus.backend.domain.knowledge.KnowledgeSourceType;
 import com.nexus.backend.domain.sprint.Sprint;
 import com.nexus.backend.domain.sprint.SprintStatus;
 import com.nexus.backend.domain.project.Project;
@@ -9,7 +10,9 @@ import com.nexus.backend.exception.ResourceNotFoundException;
 import com.nexus.backend.exception.ValidationException;
 import com.nexus.backend.repository.ProjectRepository;
 import com.nexus.backend.repository.SprintRepository;
+import com.nexus.backend.service.knowledge.KnowledgeEvents;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,6 +24,7 @@ public class SprintService {
 
     private final SprintRepository sprintRepository;
     private final ProjectRepository projectRepository;
+    private final ApplicationEventPublisher knowledgePublisher;
 
     @Transactional
     public SprintResponse create(SprintRequest request) {
@@ -45,6 +49,7 @@ public class SprintService {
         sprint.setStatus(request.status() != null ? request.status() : SprintStatus.PLANNED);
 
         Sprint savedSprint = sprintRepository.save(sprint);
+        KnowledgeEvents.changed(knowledgePublisher, KnowledgeSourceType.SPRINT, savedSprint.getId());
 
         // Update project sprint number
         project.setSprintNumber(sprint.getNumber());
@@ -75,6 +80,7 @@ public class SprintService {
             .orElseThrow(() -> new ResourceNotFoundException("Sprint", "id", id));
         sprint.setStatus(status);
         Sprint updatedSprint = sprintRepository.save(sprint);
+        KnowledgeEvents.changed(knowledgePublisher, KnowledgeSourceType.SPRINT, updatedSprint.getId());
         return mapToResponse(updatedSprint);
     }
 
