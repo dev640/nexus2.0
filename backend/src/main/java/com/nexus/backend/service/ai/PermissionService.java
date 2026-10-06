@@ -1,6 +1,6 @@
 package com.nexus.backend.service.ai;
 
-import com.nexus.backend.domain.chat.ChatConversation;
+import com.nexus.backend.domain.ai.AiConversation;
 import com.nexus.backend.domain.knowledge.AccessScope;
 import com.nexus.backend.domain.user.User;
 import com.nexus.backend.domain.user.UserRole;
@@ -52,7 +52,7 @@ public class PermissionService {
      * Conversations are strictly per-user: nobody, not even an admin, reads
      * another user's chat history.
      */
-    public boolean owns(ChatConversation conversation, User user) {
+    public boolean owns(AiConversation conversation, User user) {
         return conversation != null && conversation.getUser() != null && user != null
             && conversation.getUser().getId().equals(user.getId());
     }

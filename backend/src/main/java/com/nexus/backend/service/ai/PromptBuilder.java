@@ -1,7 +1,7 @@
 package com.nexus.backend.service.ai;
 
-import com.nexus.backend.domain.chat.ChatMessage;
-import com.nexus.backend.domain.chat.ChatRole;
+import com.nexus.backend.domain.ai.AiMessage;
+import com.nexus.backend.domain.ai.AiRole;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -47,14 +47,14 @@ public class PromptBuilder {
 
     /** All messages for one engine call: system + history + the new question. */
     public List<AiEngine.Message> messages(
-            String question, List<RetrievedContext> context, List<ChatMessage> history) {
+            String question, List<RetrievedContext> context, List<AiMessage> history) {
         List<AiEngine.Message> out = new ArrayList<>();
         out.add(AiEngine.Message.system(systemMessage(context)));
 
-        for (ChatMessage message : usableHistory(history)) {
+        for (AiMessage message : usableHistory(history)) {
             String content = truncate(message.getContent(), HISTORY_MESSAGE_CHARS);
             if (content.isBlank()) continue;
-            out.add(message.getRole() == ChatRole.USER
+            out.add(message.getRole() == AiRole.USER
                 ? AiEngine.Message.user(content)
                 : AiEngine.Message.assistant(content));
         }
@@ -68,12 +68,12 @@ public class PromptBuilder {
      * summarized, everything capped by {@link #HISTORY_CHAR_BUDGET} with the
      * oldest content dropped first.
      */
-    public List<ChatMessage> usableHistory(List<ChatMessage> history) {
+    public List<AiMessage> usableHistory(List<AiMessage> history) {
         if (history == null || history.isEmpty()) return List.of();
 
         int start = Math.max(0, history.size() - RECENT_MESSAGES);
-        List<ChatMessage> recent = history.subList(start, history.size());
-        List<ChatMessage> older = history.subList(0, start);
+        List<AiMessage> recent = history.subList(start, history.size());
+        List<AiMessage> older = history.subList(0, start);
 
         // Half the budget keeps recent turns verbatim; the rest summarizes
         // older turns, dropping the oldest first once it is spent.
@@ -82,18 +82,18 @@ public class PromptBuilder {
             ? HISTORY_MESSAGE_CHARS
             : Math.max(200, Math.min(HISTORY_MESSAGE_CHARS, recentBudget / recent.size()));
 
-        List<ChatMessage> digested = new ArrayList<>();
+        List<AiMessage> digested = new ArrayList<>();
         int digestUsed = 0;
-        for (ChatMessage message : older) {
+        for (AiMessage message : older) {
             String digest = summarize(message);
             if (digestUsed + digest.length() > HISTORY_CHAR_BUDGET - recentBudget) break;
             digestUsed += digest.length();
             digested.add(draft(message.getRole(), digest));
         }
 
-        List<ChatMessage> verbatim = new ArrayList<>();
+        List<AiMessage> verbatim = new ArrayList<>();
         int verbatimUsed = 0;
-        for (ChatMessage message : recent) {
+        for (AiMessage message : recent) {
             String content = truncate(message.getContent(), perRecent);
             if (verbatimUsed + content.length() > recentBudget) break;
             verbatimUsed += content.length();
@@ -157,13 +157,13 @@ public class PromptBuilder {
 
     // ---------- helpers ----------
 
-    private String summarize(ChatMessage message) {
-        String role = message.getRole() == ChatRole.USER ? "User" : "Assistant";
+    private String summarize(AiMessage message) {
+        String role = message.getRole() == AiRole.USER ? "User" : "Assistant";
         return role + ": " + truncate(message.getContent(), DIGEST_CHARS);
     }
 
-    private ChatMessage draft(ChatRole role, String content) {
-        ChatMessage message = new ChatMessage();
+    private AiMessage draft(AiRole role, String content) {
+        AiMessage message = new AiMessage();
         message.setRole(role);
         message.setContent(content);
         return message;

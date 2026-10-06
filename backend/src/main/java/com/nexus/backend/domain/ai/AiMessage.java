@@ -1,4 +1,4 @@
-package com.nexus.backend.domain.chat;
+package com.nexus.backend.domain.ai;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -16,10 +16,15 @@ import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-/** One message in a chat thread; assistant messages persist their citations. */
+/**
+ * One message in an AI assistant conversation; assistant messages persist
+ * their citations.
+ *
+ * <p>Distinct from the workspace team chat message in {@code domain.chat}.
+ */
 @Entity
-@Table(name = "chat_messages")
-public class ChatMessage {
+@Table(name = "ai_messages")
+public class AiMessage {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -27,11 +32,11 @@ public class ChatMessage {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "conversation_id", nullable = false)
-    private ChatConversation conversation;
+    private AiConversation conversation;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
-    private ChatRole role;
+    private AiRole role;
 
     @Column(nullable = false, columnDefinition = "TEXT")
     private String content = "";
@@ -62,11 +67,11 @@ public class ChatMessage {
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
 
-    public ChatConversation getConversation() { return conversation; }
-    public void setConversation(ChatConversation conversation) { this.conversation = conversation; }
+    public AiConversation getConversation() { return conversation; }
+    public void setConversation(AiConversation conversation) { this.conversation = conversation; }
 
-    public ChatRole getRole() { return role; }
-    public void setRole(ChatRole role) { this.role = role; }
+    public AiRole getRole() { return role; }
+    public void setRole(AiRole role) { this.role = role; }
 
     public String getContent() { return content; }
     public void setContent(String content) { this.content = content; }

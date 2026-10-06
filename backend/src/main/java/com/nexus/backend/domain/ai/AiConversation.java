@@ -1,4 +1,4 @@
-package com.nexus.backend.domain.chat;
+package com.nexus.backend.domain.ai;
 
 import com.nexus.backend.domain.user.User;
 import jakarta.persistence.Column;
@@ -15,10 +15,15 @@ import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-/** A chat thread owned by exactly one user — never shared across users. */
+/**
+ * An AI assistant conversation owned by exactly one user — never shared.
+ *
+ * <p>Distinct from the workspace team chat in {@code domain.chat}: this holds
+ * assistant transcripts for the RAG copilot, not channel messages.
+ */
 @Entity
-@Table(name = "chat_conversations")
-public class ChatConversation {
+@Table(name = "ai_conversations")
+public class AiConversation {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

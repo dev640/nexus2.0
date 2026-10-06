@@ -1,7 +1,7 @@
 package com.nexus.backend.service.ai;
 
-import com.nexus.backend.domain.chat.ChatMessage;
-import com.nexus.backend.domain.chat.ChatRole;
+import com.nexus.backend.domain.ai.AiMessage;
+import com.nexus.backend.domain.ai.AiRole;
 import com.nexus.backend.domain.knowledge.KnowledgeSourceType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

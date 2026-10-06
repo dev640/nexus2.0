@@ -37,7 +37,7 @@ public class AiService {
     public AiAnswer ask(
             String question,
             List<RetrievedContext> context,
-            List<com.nexus.backend.domain.chat.ChatMessage> conversation,
+            List<com.nexus.backend.domain.ai.AiMessage> conversation,
             Consumer<String> onDelta) {
 
         if (!engine.isConfigured()) {

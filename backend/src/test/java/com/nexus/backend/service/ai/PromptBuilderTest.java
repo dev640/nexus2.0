@@ -1,7 +1,7 @@
 package com.nexus.backend.service.ai;
 
-import com.nexus.backend.domain.chat.ChatMessage;
-import com.nexus.backend.domain.chat.ChatRole;
+import com.nexus.backend.domain.ai.AiMessage;
+import com.nexus.backend.domain.ai.AiRole;
 import com.nexus.backend.domain.knowledge.KnowledgeSourceType;
 import org.junit.jupiter.api.Test;
 
@@ -20,8 +20,8 @@ class PromptBuilderTest {
             "WIKI", 1L, LocalDateTime.of(2026, 9, 1, 12, 0), 0.9);
     }
 
-    private static ChatMessage message(ChatRole role, String content) {
-        ChatMessage message = new ChatMessage();
+    private static AiMessage message(AiRole role, String content) {
+        AiMessage message = new AiMessage();
         message.setRole(role);
         message.setContent(content);
         return message;
@@ -67,9 +67,9 @@ class PromptBuilderTest {
 
     @Test
     void messagesAreSystemHistoryThenQuestion() {
-        List<ChatMessage> history = List.of(
-            message(ChatRole.USER, "first question"),
-            message(ChatRole.ASSISTANT, "first answer"));
+        List<AiMessage> history = List.of(
+            message(AiRole.USER, "first question"),
+            message(AiRole.ASSISTANT, "first answer"));
 
         List<AiEngine.Message> messages = builder.messages("new question", List.of(context("T", "C")), history);
 
@@ -82,13 +82,13 @@ class PromptBuilderTest {
 
     @Test
     void olderHistoryIsSummarizedAndRecentKeptVerbatim() {
-        List<ChatMessage> history = new ArrayList<>();
+        List<AiMessage> history = new ArrayList<>();
         for (int i = 0; i < 15; i++) {
-            history.add(message(i % 2 == 0 ? ChatRole.USER : ChatRole.ASSISTANT,
+            history.add(message(i % 2 == 0 ? AiRole.USER : AiRole.ASSISTANT,
                 "turn ".repeat(100) + i));
         }
 
-        List<ChatMessage> usable = builder.usableHistory(history);
+        List<AiMessage> usable = builder.usableHistory(history);
 
         assertThat(usable).hasSize(15);
         // Oldest turns are digested: role-prefixed and short.
@@ -100,9 +100,9 @@ class PromptBuilderTest {
 
     @Test
     void historyStaysWithinBudget() {
-        List<ChatMessage> history = new ArrayList<>();
+        List<AiMessage> history = new ArrayList<>();
         for (int i = 0; i < 30; i++) {
-            history.add(message(ChatRole.USER, "question number " + i + " " + "details ".repeat(300)));
+            history.add(message(AiRole.USER, "question number " + i + " " + "details ".repeat(300)));
         }
 
         int total = builder.usableHistory(history).stream()

@@ -1,8 +1,8 @@
 package com.nexus.backend.web;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.nexus.backend.domain.chat.ChatConversation;
-import com.nexus.backend.domain.chat.ChatMessage;
+import com.nexus.backend.domain.ai.AiConversation;
+import com.nexus.backend.domain.ai.AiMessage;
 import com.nexus.backend.domain.user.User;
 import com.nexus.backend.dto.AiAskRequest;
 import com.nexus.backend.dto.AiConversationDetailResponse;
@@ -131,9 +131,9 @@ public class AiController {
         User user = permissionService.currentUser();
 
         UUID conversationId;
-        List<ChatMessage> history;
+        List<AiMessage> history;
         if (request.conversationId() == null) {
-            ChatConversation created = conversationService.create(user, request.question());
+            AiConversation created = conversationService.create(user, request.question());
             conversationId = created.getId();
             history = List.of();
         } else {
@@ -205,7 +205,7 @@ public class AiController {
             SseEmitter emitter,
             UUID conversationId,
             String question,
-            List<ChatMessage> history,
+            List<AiMessage> history,
             Long projectId,
             User user,
             boolean persistUserMessage) {

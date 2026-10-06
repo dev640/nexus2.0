@@ -1,4 +1,8 @@
--- Nexus AI assistant (RAG): permission-aware knowledge index + chat storage.
+-- Nexus AI assistant (RAG): permission-aware knowledge index + AI chat storage.
+--
+-- Numbered V13 because V8-V12 are already applied by the team chat,
+-- Supabase identity, password reset and task-flag migrations. The AI tables
+-- are prefixed ai_ so they never collide with the workspace team chat.
 --
 -- knowledge_chunks holds normalized, chunked copies of Nexus data (wiki pages,
 -- projects, tasks, sprints, whiteboard notes) with:
@@ -37,9 +41,10 @@ CREATE INDEX idx_knowledge_chunks_project ON knowledge_chunks (project_id);
 CREATE INDEX idx_knowledge_chunks_scope ON knowledge_chunks (access_scope, owner_id);
 CREATE INDEX idx_knowledge_chunks_updated ON knowledge_chunks (updated_at DESC);
 
--- Per-user chat conversations and their messages. Sources of an assistant
--- answer are persisted as a JSON array of citation references.
-CREATE TABLE chat_conversations (
+-- Per-user AI conversations and their messages. Sources of an assistant
+-- answer are persisted as a JSON array of citation references. These are
+-- assistant transcripts, not the team chat of V9 (chat_messages).
+CREATE TABLE ai_conversations (
     id UUID PRIMARY KEY,
     user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     title VARCHAR(200) NOT NULL DEFAULT 'New conversation',
@@ -47,11 +52,11 @@ CREATE TABLE chat_conversations (
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_chat_conversations_user ON chat_conversations (user_id, updated_at DESC);
+CREATE INDEX idx_ai_conversations_user ON ai_conversations (user_id, updated_at DESC);
 
-CREATE TABLE chat_messages (
+CREATE TABLE ai_messages (
     id UUID PRIMARY KEY,
-    conversation_id UUID NOT NULL REFERENCES chat_conversations(id) ON DELETE CASCADE,
+    conversation_id UUID NOT NULL REFERENCES ai_conversations(id) ON DELETE CASCADE,
     role VARCHAR(20) NOT NULL,
     content TEXT NOT NULL,
     sources TEXT,
@@ -61,4 +66,4 @@ CREATE TABLE chat_messages (
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_chat_messages_conversation ON chat_messages (conversation_id, created_at);
+CREATE INDEX idx_ai_messages_conversation ON ai_messages (conversation_id, created_at);
