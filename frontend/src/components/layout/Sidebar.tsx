@@ -1,55 +1,10 @@
 import { NavLink, useNavigate } from 'react-router-dom'
-import {
-  X,
-  Home,
-  ListChecks,
-  Inbox,
-  FolderKanban,
-  Rocket,
-  Kanban,
-  ListTodo,
-  Calendar,
-  BookOpen,
-  PenTool,
-  MessageCircle,
-  BarChart3,
-  Bot,
-  Sparkles,
-  Users,
-  Settings,
-  HelpCircle,
-  LogOut,
-  ShieldCheck,
-  type LucideIcon,
-} from 'lucide-react'
+import { X, LogOut } from 'lucide-react'
 import { primaryNav, secondaryNav } from '../../lib/nav'
 import type { NavItem } from '../../lib/nav'
+import { adminNavItem, iconByPath } from './navIcons'
 import { useAppStore } from '../../store/useAppStore'
 import { useUnreadCount } from '../../hooks/useUnreadCount'
-
-/** Admin-only entry, kept out of the shared arrays so non-admins never see it. */
-const adminNavItem: NavItem = { label: 'Admin', path: '/admin' }
-
-const iconByPath: Record<string, LucideIcon> = {
-  '/': Home,
-  '/my-work': ListChecks,
-  '/inbox': Inbox,
-  '/projects': FolderKanban,
-  '/sprints': Rocket,
-  '/board': Kanban,
-  '/backlog': ListTodo,
-  '/calendar': Calendar,
-  '/wiki': BookOpen,
-  '/whiteboard': PenTool,
-  '/slack': MessageCircle,
-  '/analytics': BarChart3,
-  '/copilot': Bot,
-  '/ai': Sparkles,
-  '/team': Users,
-  '/settings': Settings,
-  '/help': HelpCircle,
-  '/admin': ShieldCheck,
-}
 
 function UnreadBadge({ count }: { count: number }) {
   return (
