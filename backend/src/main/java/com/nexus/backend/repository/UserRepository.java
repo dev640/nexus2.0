@@ -22,4 +22,11 @@ public interface UserRepository extends JpaRepository<User, Long> {
      * which would leave the workspace with no one able to manage it.
      */
     long countByRole(UserRole role);
+
+    /**
+     * Returns the next value of the employee-code sequence so admin-created
+     * accounts get a real NX-#### code instead of failing the NOT NULL constraint.
+     */
+    @org.springframework.data.jpa.repository.Query("select nextval('user_employee_code_seq')")
+    long nextEmployeeCodeSeq();
 }

@@ -102,6 +102,7 @@ public class AdminAccountService {
         user.setName(name);
         user.setEmail(email);
         user.setRole(role);
+        user.setEmployeeCode(nextEmployeeCode());
 
         if (supabaseAdminClient.isAvailable()) {
             UUID supabaseId = supabaseAdminClient.createUser(email, password, name);
@@ -226,6 +227,18 @@ public class AdminAccountService {
     }
 
     // ------------------------------------------------------------- helpers
+
+    /**
+     * Assigns the next employee code from the DB sequence the schema created for
+     * this column, so newly created accounts always get a real NX-#### code.
+     * Hibernate sends null for this column and the DB default does not apply when
+     * a column is explicitly null, which is what made admin-created accounts fail.
+     */
+    private String nextEmployeeCode() {
+        // The schema migration (V11) created user_employee_code_seq starting at 1000.
+        Long next = userRepository.nextEmployeeCodeSeq();
+        return "NX-" + String.format("%04d", next);
+    }
 
     /**
      * A 16-character password drawn from four character classes, with at least
