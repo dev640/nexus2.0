@@ -31,6 +31,11 @@ services:
       NEXUS_CORS_ALLOWED_ORIGINS: http://localhost:5173,http://localhost:5174,http://localhost:3000
       # Brute-force protection on /api/auth/**
       NEXUS_AUTH_RATE_LIMIT: 20
+      # Supabase Auth integration — required for Supabase token verification + admin-user creation.
+      NEXUS_SUPABASE_URL: https://ktvjotwmpynbjgnqjitg.supabase.co
+      NEXUS_SUPABASE_USE_JWKS: true
+      NEXUS_SUPABASE_AUDIENCE: authenticated
+      NEXUS_SUPABASE_SERVICE_ROLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt0dmpvdHdtcHluYmpnbnFqaXRnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MDg3NTk1MCwiZXhwIjoyMTA2NDUxOTUwfQ.ZhWq_YLFpf2AyzsJgiexMmQ8aIuyO6B-vz_oUK39sFU
     depends_on:
       - postgres
       - redis
