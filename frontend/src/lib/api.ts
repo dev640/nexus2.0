@@ -687,7 +687,10 @@ async function streamSse(path: string, body: unknown, handlers: AiStreamHandlers
     'Content-Type': 'application/json',
     Accept: 'text/event-stream',
   }
-  const token = getStoredToken()
+  // The live Supabase session token when Supabase auth is on — localStorage's
+  // `nexus-auth-token` is only written on the built-in login path, so reading it
+  // here sent /ai requests with no (or a stale) header and got a 403.
+  const token = await getCurrentToken()
   if (token) headers.Authorization = `Bearer ${token}`
 
   const response = await fetch(`${base}${path}`, {
