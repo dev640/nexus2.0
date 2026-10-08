@@ -61,14 +61,18 @@ export function useAvatar(userId: number | null | undefined): string | null {
   useEffect(() => {
     if (userId == null || cache.has(userId)) return
 
+    // The version this read started at. An upload or a delete bumps it, and a
+    // response that was already in flight when that happened describes the
+    // state *before* the change: without this check, removing an avatar could
+    // put the removed picture back on screen, because the read that raced the
+    // delete still reported the old bytes.
+    const startedAt = version
     let cancelled = false
     void (async () => {
-      let entry: CacheEntry = { url: null }
-      let loaded = false
+      let blob: Blob | null = null
       try {
         const response = await api.get(`/users/${userId}/avatar`, { responseType: 'blob' })
-        entry = { url: URL.createObjectURL(response.data as Blob) }
-        loaded = true
+        blob = response.data as Blob
       } catch (error) {
         const status = axios.isAxiosError(error) ? error.response?.status : undefined
         if (status !== 404) {
@@ -77,9 +81,14 @@ export function useAvatar(userId: number | null | undefined): string | null {
         }
       }
 
-      // A newer image now exists, so anything invalidated earlier is unused.
-      if (loaded) flushPendingRevoke()
+      // Superseded while this was in flight; the newer state is the truth. The
+      // object URL is deliberately not created for a discarded read.
+      if (startedAt !== version) return
 
+      // A newer image now exists, so anything invalidated earlier is unused.
+      if (blob) flushPendingRevoke()
+
+      const entry: CacheEntry = { url: blob ? URL.createObjectURL(blob) : null }
       cache.set(userId, entry)
       if (!cancelled) setFetched({ userId, url: entry.url })
     })()
@@ -111,6 +120,23 @@ export function invalidateAvatar(userId?: number | null): void {
     revoke(cache.get(userId)?.url ?? null)
     cache.delete(userId)
   }
+  version += 1
+  for (const listener of listeners) listener()
+}
+
+/**
+ * Records that the user has no avatar, without asking the server again.
+ *
+ * Call this after a delete: the client already knows the outcome, and a
+ * refetch is the weaker answer — the read it starts can be served from a cache
+ * or answered before the delete commits, which put the picture back on screen
+ * until the page was reloaded. Marking the absence is final, so the hook sees
+ * a cache entry and does not refetch.
+ */
+export function forgetAvatar(userId: number | null | undefined): void {
+  if (userId == null) return
+  revoke(cache.get(userId)?.url ?? null)
+  cache.set(userId, { url: null })
   version += 1
   for (const listener of listeners) listener()
 }

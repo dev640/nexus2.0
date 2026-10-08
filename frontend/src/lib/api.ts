@@ -15,9 +15,23 @@ export function storeToken(token: string | null) {
   }
 }
 
+/**
+ * Deliberately no default Content-Type here.
+ *
+ * Setting `application/json` on the instance looks harmless, but axios applies
+ * the transformRequest BEFORE the adapter can hand a FormData body to the
+ * browser, and that transform keys off the declared content type: given a
+ * FormData payload and a JSON content type it serialises the form to JSON
+ * (`formDataToJSON`) instead of sending multipart. The avatar upload sent
+ * `{"file":{}}` with every file dropped, and the server saw a JSON body where
+ * it expected a multipart part.
+ *
+ * Nothing is lost by removing it: axios sets `application/json` itself for a
+ * plain-object payload, and for FormData the adapter clears the header so the
+ * browser can add the multipart boundary.
+ */
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '/api',
-  headers: { 'Content-Type': 'application/json' },
 })
 
 api.interceptors.request.use(async (config) => {

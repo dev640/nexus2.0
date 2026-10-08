@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useAppStore, type NotificationCategory } from '../store/useAppStore'
 import { apiDeleteAvatar, apiErrorMessage, apiUploadAvatar, type ApiUserRole } from '../lib/api'
-import { invalidateAvatar } from '../hooks/useAvatar'
+import { forgetAvatar, invalidateAvatar } from '../hooks/useAvatar'
 import { UserAvatar } from '../components/user/UserAvatar'
 
 const assignableRoles: ApiUserRole[] = ['ADMIN', 'MANAGER', 'MEMBER', 'DEVELOPER', 'VIEWER']
@@ -67,7 +67,10 @@ export function Settings() {
     setAvatarBusy(true)
     try {
       await apiDeleteAvatar()
-      invalidateAvatar(currentUser?.id)
+      // forgetAvatar, not invalidateAvatar: the picture is gone because this
+      // call removed it, so there is nothing to re-read — and re-reading here
+      // could hand back the avatar the delete had just cleared.
+      forgetAvatar(currentUser?.id)
       setHasAvatar(false)
     } catch (err) {
       setAvatarError(apiErrorMessage(err, 'Could not remove your avatar'))
