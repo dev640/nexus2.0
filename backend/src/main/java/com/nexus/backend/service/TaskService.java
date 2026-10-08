@@ -15,6 +15,7 @@ import com.nexus.backend.repository.ProjectRepository;
 import com.nexus.backend.repository.SprintRepository;
 import com.nexus.backend.repository.TaskRepository;
 import com.nexus.backend.repository.UserRepository;
+import com.nexus.backend.security.RolePolicy;
 import com.nexus.backend.service.knowledge.KnowledgeEvents;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -61,6 +62,9 @@ public class TaskService {
         task.setStoryPoints(request.storyPoints() != null ? request.storyPoints() : 0);
 
         if (request.assigneeId() != null) {
+            // Newly giving this task an owner is an assignment, so it needs
+            // management rights.
+            RolePolicy.requireWorkspaceManageRights();
             User assignee = userRepository.findById(request.assigneeId())
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", request.assigneeId()));
             task.setAssignee(assignee);
@@ -153,11 +157,19 @@ public class TaskService {
             User assignee = userRepository.findById(request.assigneeId())
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", request.assigneeId()));
             if (!assignee.equals(previousAssignee)) {
+                // The check sits inside the "changed" branch on purpose: a
+                // member editing an unrelated field still sends the assignee
+                // back unchanged, and that must not be treated as assigning.
+                RolePolicy.requireWorkspaceManageRights();
                 task.setAssignee(assignee);
                 task = taskRepository.save(task);
                 notificationService.notifyTaskAssigned(task, assignee);
             }
-        } else {
+        } else if (previousAssignee != null) {
+            // Taking the task away from someone is as much a management action
+            // as handing it out; clearing an already-empty assignee changes
+            // nothing and stays open.
+            RolePolicy.requireWorkspaceManageRights();
             task.setAssignee(null);
         }
 

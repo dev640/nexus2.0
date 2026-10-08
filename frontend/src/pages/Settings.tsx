@@ -4,7 +4,7 @@ import { apiDeleteAvatar, apiErrorMessage, apiUploadAvatar, type ApiUserRole } f
 import { invalidateAvatar } from '../hooks/useAvatar'
 import { UserAvatar } from '../components/user/UserAvatar'
 
-const assignableRoles: ApiUserRole[] = ['ADMIN', 'MEMBER', 'DEVELOPER', 'VIEWER']
+const assignableRoles: ApiUserRole[] = ['ADMIN', 'MANAGER', 'MEMBER', 'DEVELOPER', 'VIEWER']
 
 const categories: { key: NotificationCategory; label: string }[] = [
   { key: 'MENTIONS', label: 'Mentions' },

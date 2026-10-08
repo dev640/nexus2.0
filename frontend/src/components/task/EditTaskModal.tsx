@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Modal } from '../ui/Modal'
 import { useAppStore } from '../../store/useAppStore'
 import { labelsToInput, parseLabels } from '../../lib/labels'
+import { canManageWorkspace } from '../../lib/roles'
 import type { TaskPriority, TaskStatus } from '../../lib/mockData'
 
 const statuses: TaskStatus[] = ['BACKLOG', 'TODO', 'IN_PROGRESS', 'IN_REVIEW', 'TESTING', 'DONE']
@@ -22,6 +23,9 @@ export function EditTaskModal({
   const projects = useAppStore((s) => s.projects)
   const sprints = useAppStore((s) => s.sprints)
   const members = useAppStore((s) => s.members)
+  // Only admins and managers may change who owns a task; everybody else edits
+  // the rest of the task and leaves the owner field alone.
+  const canAssign = useAppStore((s) => canManageWorkspace(s.currentUser?.role))
   const updateTask = useAppStore((s) => s.updateTask)
   const deleteTask = useAppStore((s) => s.deleteTask)
 
@@ -244,7 +248,8 @@ export function EditTaskModal({
             <select
               value={assigneeId}
               onChange={(e) => setAssigneeId(e.target.value)}
-              className={field}
+              disabled={!canAssign}
+              className={`${field} disabled:bg-paper disabled:text-mute`}
             >
               <option value="">Unassigned</option>
               {members.map((m) => (
@@ -253,6 +258,9 @@ export function EditTaskModal({
                 </option>
               ))}
             </select>
+            {!canAssign && (
+              <p className="mt-1 text-xs text-mute">Only admins and managers can assign work.</p>
+            )}
           </div>
         </div>
 

@@ -2,6 +2,7 @@ package com.nexus.backend.web;
 
 import com.nexus.backend.dto.ProjectRequest;
 import com.nexus.backend.dto.ProjectResponse;
+import com.nexus.backend.security.WorkspaceManage;
 import com.nexus.backend.security.WorkspaceWrite;
 import com.nexus.backend.service.ProjectService;
 import jakarta.validation.Valid;
@@ -31,7 +32,9 @@ public class ProjectController {
         return ResponseEntity.ok(project);
     }
 
-    @WorkspaceWrite
+    // Creating a project is management work: ADMIN and MANAGER only, even
+    // though editing an existing one stays open to every writer.
+    @WorkspaceManage
     @PostMapping
     public ResponseEntity<ProjectResponse> createProject(@Valid @RequestBody ProjectRequest request) {
         ProjectResponse project = projectService.create(request);

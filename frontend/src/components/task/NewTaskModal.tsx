@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Modal } from '../ui/Modal'
 import { useAppStore } from '../../store/useAppStore'
 import type { TaskPriority, TaskStatus } from '../../lib/mockData'
+import { canManageWorkspace } from '../../lib/roles'
 
 const statuses: TaskStatus[] = ['BACKLOG', 'TODO', 'IN_PROGRESS', 'IN_REVIEW', 'TESTING', 'DONE']
 const priorities: TaskPriority[] = ['LOW', 'MEDIUM', 'HIGH', 'URGENT']
@@ -22,6 +23,9 @@ export function NewTaskModal({
   const members = useAppStore((s) => s.members)
   const addTask = useAppStore((s) => s.addTask)
   const defaultAssigneeId = useAppStore((s) => s.settings.defaultAssigneeId)
+  // Assigning work is admin-or-manager only, so everyone else gets an empty
+  // (disabled) assignee field and the task is created unassigned.
+  const canAssign = useAppStore((s) => canManageWorkspace(s.currentUser?.role))
 
   const [title, setTitle] = useState('')
   const [projectId, setProjectId] = useState(defaultProjectId ?? projects[0]?.id ?? '')
@@ -29,7 +33,7 @@ export function NewTaskModal({
   const [status, setStatus] = useState<TaskStatus>(defaultStatus)
   const [priority, setPriority] = useState<TaskPriority>('MEDIUM')
   const [storyPoints, setStoryPoints] = useState(3)
-  const [assigneeId, setAssigneeId] = useState(defaultAssigneeId)
+  const [assigneeId, setAssigneeId] = useState(canAssign ? defaultAssigneeId : '')
   const [error, setError] = useState('')
 
   const projectSprints = sprints.filter((s) => s.projectId === projectId)
@@ -42,9 +46,9 @@ export function NewTaskModal({
 
   useEffect(() => {
     if (open) {
-      setAssigneeId(defaultAssigneeId)
+      setAssigneeId(canAssign ? defaultAssigneeId : '')
     }
-  }, [open, defaultAssigneeId])
+  }, [open, defaultAssigneeId, canAssign])
 
   useEffect(() => {
     if (!projectSprints.some((s) => s.id === sprintId)) {
@@ -189,14 +193,19 @@ export function NewTaskModal({
             <select
               value={assigneeId}
               onChange={(e) => setAssigneeId(e.target.value)}
-              className="w-full rounded-md border border-line px-3 py-2 text-sm outline-none focus:border-ink"
+              disabled={!canAssign}
+              className="w-full rounded-md border border-line px-3 py-2 text-sm outline-none focus:border-ink disabled:bg-paper disabled:text-mute"
             >
+              <option value="">Unassigned</option>
               {members.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.name}
                 </option>
               ))}
             </select>
+            {!canAssign && (
+              <p className="mt-1 text-xs text-mute">Only admins and managers can assign work.</p>
+            )}
           </div>
         </div>
 

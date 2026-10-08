@@ -11,7 +11,7 @@ import {
   type ApiUserRole,
 } from '../lib/api'
 
-const assignableRoles: ApiUserRole[] = ['ADMIN', 'MEMBER', 'DEVELOPER', 'VIEWER']
+const assignableRoles: ApiUserRole[] = ['ADMIN', 'MANAGER', 'MEMBER', 'DEVELOPER', 'VIEWER']
 
 /**
  * Admin-only console: member roles, account creation and the password-reset

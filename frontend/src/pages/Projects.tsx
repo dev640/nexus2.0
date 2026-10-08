@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { memberById } from '../lib/mockData'
+import { canManageWorkspace } from '../lib/roles'
 import { useAppStore } from '../store/useAppStore'
 import { NewProjectModal } from '../components/project/NewProjectModal'
 import { EditProjectModal } from '../components/project/EditProjectModal'
@@ -25,6 +26,9 @@ export function Projects() {
   // VIEWER is read-only: the backend rejects project and task writes with 403,
   // so the page shows no controls that would fail.
   const canWrite = useAppStore((s) => s.currentUser?.role !== 'VIEWER')
+  // Creating a project is admin-or-manager work, so a MEMBER or DEVELOPER sees
+  // the same inert label a VIEWER does.
+  const canManage = useAppStore((s) => canManageWorkspace(s.currentUser?.role))
   const [modalOpen, setModalOpen] = useState(false)
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null)
   const [taskModalOpen, setTaskModalOpen] = useState(false)
@@ -41,7 +45,7 @@ export function Projects() {
         <div className="text-xs font-medium uppercase tracking-widest text-mute">
           Workspace
         </div>
-        {canWrite ? (
+        {canManage ? (
           <button
             onClick={() => setModalOpen(true)}
             className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-black"
@@ -49,7 +53,12 @@ export function Projects() {
             + New Project
           </button>
         ) : (
-          <span className="rounded-md bg-mute px-4 py-2 text-sm font-medium text-mute">+ New Project</span>
+          <span
+            className="rounded-md bg-mute px-4 py-2 text-sm font-medium text-mute"
+            title="Only admins and managers can create projects"
+          >
+            + New Project
+          </span>
         )}
       </div>
       <h1 className="text-3xl font-semibold tracking-tight text-ink sm:text-4xl lg:text-5xl">Projects</h1>
