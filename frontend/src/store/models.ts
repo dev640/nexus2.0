@@ -52,6 +52,23 @@ export interface Notification {
   archived: boolean
 }
 
+/**
+ * A message one member wrote to another, as the Inbox renders it. `senderId`
+ * and `recipientId` use the store's `u-<id>` member form so rows can be matched
+ * against the member list.
+ */
+export interface MailMessage {
+  id: number
+  senderId: string
+  senderName: string
+  recipientId: string
+  recipientName: string
+  subject: string
+  body: string
+  read: boolean
+  time: string
+}
+
 export function timeAgo(iso: string): string {
   const seconds = Math.max(1, Math.floor((Date.now() - new Date(iso).getTime()) / 1000))
   if (seconds < 60) return 'just now'

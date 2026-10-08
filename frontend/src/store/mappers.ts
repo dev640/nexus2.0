@@ -1,7 +1,8 @@
-import type { ApiTask, ApiUser } from '../lib/api'
+import type { ApiMessage, ApiTask, ApiUser } from '../lib/api'
 import type { Member, Task } from '../lib/mockData'
 import { toProjectId, toSprintId, toTaskId, toUserId } from './ids'
-import type { NoteColor, StickyNote } from './models'
+import type { MailMessage, NoteColor, StickyNote } from './models'
+import { timeAgo } from './models'
 
 export function initialsOf(name: string): string {
   return name
@@ -40,6 +41,20 @@ export function mapTask(t: ApiTask): Task {
     blocked: t.blocked ?? false,
     createdAt: t.createdAt,
     updatedAt: t.updatedAt,
+  }
+}
+
+export function mapMessage(m: ApiMessage): MailMessage {
+  return {
+    id: m.id,
+    senderId: toUserId(m.senderId),
+    senderName: m.senderName,
+    recipientId: toUserId(m.recipientId),
+    recipientName: m.recipientName,
+    subject: m.subject,
+    body: m.body,
+    read: m.read,
+    time: timeAgo(m.createdAt),
   }
 }
 

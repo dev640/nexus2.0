@@ -398,6 +398,49 @@ export async function apiArchiveNotification(id: number): Promise<void> {
   await api.delete(`/notifications/${id}`)
 }
 
+// ---------- Mail (internal messages) ----------
+
+export interface ApiMessage {
+  id: number
+  senderId: number
+  senderName: string
+  recipientId: number
+  recipientName: string
+  subject: string
+  body: string
+  read: boolean
+  createdAt: string
+}
+
+export interface ApiMessageInput {
+  recipientId: number
+  subject: string
+  body: string
+}
+
+export async function apiListMessages(): Promise<ApiMessage[]> {
+  const { data } = await api.get<ApiMessage[]>('/messages')
+  return data
+}
+
+export async function apiListSentMessages(): Promise<ApiMessage[]> {
+  const { data } = await api.get<ApiMessage[]>('/messages/sent')
+  return data
+}
+
+export async function apiSendMessage(input: ApiMessageInput): Promise<ApiMessage> {
+  const { data } = await api.post<ApiMessage>('/messages', input)
+  return data
+}
+
+export async function apiMarkMessageRead(id: number): Promise<void> {
+  await api.patch(`/messages/${id}/read`)
+}
+
+export async function apiDeleteMessage(id: number): Promise<void> {
+  await api.delete(`/messages/${id}`)
+}
+
 // ---------- Analytics ----------
 
 export interface ApiAnalyticsOverview {

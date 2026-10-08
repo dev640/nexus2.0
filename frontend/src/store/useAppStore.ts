@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { createAuthSlice } from './slices/auth'
 import { createMembersSlice } from './slices/members'
+import { createMessagesSlice } from './slices/messages'
 import { createNotificationsSlice } from './slices/notifications'
 import { createProjectsSlice } from './slices/projects'
 import { createSettingsSlice } from './slices/settings'
@@ -29,12 +30,14 @@ export const useAppStore = create<AppState>()((set, get, store) => ({
   ...createTeamsSlice(set, get, store),
   ...createWikiSlice(set, get, store),
   ...createNotificationsSlice(set, get, store),
+  ...createMessagesSlice(set, get, store),
   ...createSettingsSlice(set, get, store),
 }))
 
 export { numericUserId, toUserId } from './ids'
 export { noteColors, timeAgo } from './models'
 export type {
+  MailMessage,
   NoteColor,
   Notification,
   NotificationCategory,
@@ -46,6 +49,8 @@ export type {
 } from './models'
 export type {
   AuthResult,
+  MessageResult,
+  NewMessageInput,
   ProjectEditInput,
   ProfileResult,
   RoleChangeResult,

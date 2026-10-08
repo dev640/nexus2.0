@@ -11,6 +11,7 @@ import com.nexus.backend.service.AnalyticsService;
 import com.nexus.backend.service.ChatService;
 import com.nexus.backend.service.ChatSocketFacade;
 import com.nexus.backend.service.CopilotService;
+import com.nexus.backend.service.MessageService;
 import com.nexus.backend.service.NotificationService;
 import com.nexus.backend.service.ProjectService;
 import com.nexus.backend.service.SprintService;
@@ -22,6 +23,7 @@ import com.nexus.backend.service.UserService;
 import com.nexus.backend.service.AvatarService;
 import com.nexus.backend.web.ChatController;
 import com.nexus.backend.web.CopilotController;
+import com.nexus.backend.web.MessageController;
 import com.nexus.backend.web.NotificationController;
 import com.nexus.backend.web.ProjectController;
 import com.nexus.backend.web.SprintController;
@@ -66,6 +68,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
     WhiteboardController.class,
     ChatController.class,
     NotificationController.class,
+    MessageController.class,
     CopilotController.class,
     SprintController.class,
     UserController.class,
@@ -94,6 +97,7 @@ class ViewerReadOnlySecurityTest {
     @MockitoBean private ChatSocketFacade chatSocketFacade;
     @MockitoBean private CopilotService copilotService;
     @MockitoBean private NotificationService notificationService;
+    @MockitoBean private MessageService messageService;
     @MockitoBean private ProjectService projectService;
     @MockitoBean private SprintService sprintService;
     @MockitoBean private TaskService taskService;
@@ -175,6 +179,15 @@ class ViewerReadOnlySecurityTest {
                 .with(SecurityMockMvcRequestPostProcessors.user("v@nexus.com").roles("VIEWER")))
             .andExpect(status().isNoContent());
         mockMvc.perform(request("POST", "/api/chat/channels/1/read")
+                .with(SecurityMockMvcRequestPostProcessors.user("v@nexus.com").roles("VIEWER")))
+            .andExpect(status().isNoContent());
+        // Internal mail is correspondence, not workspace content: a read-only
+        // account still writes to colleagues and manages its own boxes.
+        mockMvc.perform(request("POST", "/api/messages")
+                .content("{\"recipientId\":2,\"subject\":\"s\",\"body\":\"b\"}")
+                .with(SecurityMockMvcRequestPostProcessors.user("v@nexus.com").roles("VIEWER")))
+            .andExpect(status().isCreated());
+        mockMvc.perform(request("DELETE", "/api/messages/1")
                 .with(SecurityMockMvcRequestPostProcessors.user("v@nexus.com").roles("VIEWER")))
             .andExpect(status().isNoContent());
     }

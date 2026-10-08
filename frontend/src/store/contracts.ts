@@ -90,6 +90,18 @@ export interface RoleChangeResult {
   error?: string
 }
 
+export interface NewMessageInput {
+  /** Store member id (`u-<id>`) of the person being written to. */
+  recipientId: string
+  subject: string
+  body: string
+}
+
+export interface MessageResult {
+  ok: boolean
+  error?: string
+}
+
 export interface NewWikiPageInput {
   title: string
   content: string

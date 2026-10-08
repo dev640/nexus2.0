@@ -1,5 +1,6 @@
 import type { AuthSlice } from './slices/auth'
 import type { MembersSlice } from './slices/members'
+import type { MessagesSlice } from './slices/messages'
 import type { NotificationsSlice } from './slices/notifications'
 import type { ProjectsSlice } from './slices/projects'
 import type { SettingsSlice } from './slices/settings'
@@ -29,4 +30,5 @@ export type AppState = AuthSlice &
   TeamsSlice &
   WikiSlice &
   NotificationsSlice &
+  MessagesSlice &
   SettingsSlice

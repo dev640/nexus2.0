@@ -28,6 +28,7 @@ export const createSyncSlice: StateCreator<AppState, [], [], SyncSlice> = (set, 
 
       void get().loadWikiPages()
       void get().loadNotifications()
+      void get().loadMessages()
 
       const members = users.map(mapUser)
       // Fall back to the signed-in user's own profile, never to a teammate:

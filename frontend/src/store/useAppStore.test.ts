@@ -67,6 +67,11 @@ const actions: Record<ActionKeys, true> = {
   markNotificationRead: true,
   archiveNotification: true,
   markAllNotificationsRead: true,
+  // mail
+  loadMessages: true,
+  sendMessage: true,
+  markMessageRead: true,
+  deleteMessage: true,
   // settings / profile
   updateSettings: true,
   saveProfile: true,
