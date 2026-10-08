@@ -5,6 +5,7 @@ import com.nexus.backend.domain.user.User;
 import com.nexus.backend.domain.user.UserRole;
 import com.nexus.backend.dto.MessageRequest;
 import com.nexus.backend.exception.ResourceNotFoundException;
+import com.nexus.backend.exception.ValidationException;
 import com.nexus.backend.repository.MessageRepository;
 import com.nexus.backend.repository.UserRepository;
 import org.junit.jupiter.api.AfterEach;
@@ -87,6 +88,18 @@ class MessageServiceTest {
 
         assertThatThrownBy(() -> messageService.send(new MessageRequest(99L, "Hi", "Anyone there?")))
             .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
+    void sendToYourselfIsRejected() {
+        authenticate(alice.getEmail());
+        signedInAs(alice);
+        when(userRepository.findById(alice.getId())).thenReturn(Optional.of(alice));
+
+        assertThatThrownBy(() -> messageService.send(new MessageRequest(alice.getId(), "Note to self", "Remember the milk")))
+            .isInstanceOf(ValidationException.class)
+            .hasMessageContaining("yourself");
+        verify(messageRepository, never()).save(any(Message.class));
     }
 
     @Test

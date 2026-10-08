@@ -5,6 +5,7 @@ import com.nexus.backend.domain.user.User;
 import com.nexus.backend.dto.MessageRequest;
 import com.nexus.backend.dto.MessageResponse;
 import com.nexus.backend.exception.ResourceNotFoundException;
+import com.nexus.backend.exception.ValidationException;
 import com.nexus.backend.repository.MessageRepository;
 import com.nexus.backend.repository.UserRepository;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -39,6 +40,14 @@ public class MessageService {
         User sender = currentUser();
         User recipient = userRepository.findById(request.recipientId())
             .orElseThrow(() -> new ResourceNotFoundException("User", "id", request.recipientId()));
+
+        // A message to your own inbox is a mis-click, not correspondence: there is
+        // nobody on the other end to read it and no reply to wait for. The compose
+        // form already leaves you out of the recipient list; this keeps the rule
+        // true for anything that talks to the API directly.
+        if (sender.getId() != null && sender.getId().equals(recipient.getId())) {
+            throw new ValidationException("You cannot send a message to yourself");
+        }
 
         Message message = new Message(
             sender, recipient, request.subject().trim(), request.body().trim());
