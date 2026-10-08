@@ -29,6 +29,9 @@ export const createMessagesSlice: StateCreator<AppState, [], [], MessagesSlice> 
   inboxMessages: [],
   sentMessages: [],
 
+  // Both boxes load together: Received and Sent are two views of the same
+  // screen, and fetching them separately would make one of them flash empty
+  // while the user switches tabs.
   loadMessages: async () => {
     try {
       const [inbox, sent] = await Promise.all([apiListMessages(), apiListSentMessages()])
@@ -65,6 +68,10 @@ export const createMessagesSlice: StateCreator<AppState, [], [], MessagesSlice> 
     apiMarkMessageRead(id).catch(() => set({ inboxMessages: previous }))
   },
 
+  // Dropped from both lists up front because only one of them holds this id at
+  // a time — the same message is a different row to each side. The server still
+  // decides which copy is cleared, so a sender deleting their sent copy leaves
+  // the recipient's inbox untouched.
   deleteMessage: async (id) => {
     const previousInbox = get().inboxMessages
     const previousSent = get().sentMessages

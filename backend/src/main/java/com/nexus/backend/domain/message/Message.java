@@ -36,9 +36,11 @@ public class Message {
     @JoinColumn(name = "recipient_id", nullable = false)
     private User recipient;
 
+    /** "From" line, shown in the list. Same ceiling the request enforces. */
     @Column(nullable = false, length = 200)
     private String subject;
 
+    /** Unbounded, so a long note is not truncated on the way in. */
     @Column(columnDefinition = "TEXT", nullable = false)
     private String body;
 
@@ -46,9 +48,11 @@ public class Message {
     @Column(nullable = false)
     private boolean read;
 
+    /** Set when the sender clears their own Sent copy. */
     @Column(name = "deleted_by_sender", nullable = false)
     private boolean deletedBySender;
 
+    /** Set when the recipient clears their own Inbox copy. */
     @Column(name = "deleted_by_recipient", nullable = false)
     private boolean deletedByRecipient;
 

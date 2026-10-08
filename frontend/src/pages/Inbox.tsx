@@ -51,6 +51,9 @@ export function Inbox() {
   )
   const unreadCount = unmuted.filter((n) => !n.read && !n.archived).length
 
+  // Received and Sent are the same rows seen from opposite ends, so the box
+  // toggle only picks a list — the badge counts unread *received* mail, since
+  // nothing you wrote is something you owe a reply to.
   const mail = box === 'received' ? inboxMessages : sentMessages
   const unreadMail = inboxMessages.filter((m) => !m.read).length
 
@@ -277,6 +280,9 @@ export function Inbox() {
         onClose={() => setOpenMessage(null)}
         onReply={(m) => {
           setOpenMessage(null)
+          // Replying from Received writes back to the sender; replying from Sent
+          // follows up to the person you wrote to. The prefix is only added once,
+          // so a back-and-forth does not grow a chain of "Re: Re: Re:".
           setCompose({
             recipientId: box === 'received' ? m.senderId : m.recipientId,
             subject: m.subject.startsWith('Re: ') ? m.subject : `Re: ${m.subject}`,
