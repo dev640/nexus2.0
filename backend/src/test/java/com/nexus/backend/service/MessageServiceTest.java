@@ -186,6 +186,21 @@ class MessageServiceTest {
     }
 
     @Test
+    void mailAddressedToYourselfClearsBothBoxesInOneGo() {
+        // Pre-guard rows like this exist: the same person is both parties, so a
+        // single delete must clear the inbox and the sent copy together.
+        Message toSelf = message(7L, alice, alice, false);
+        authenticate(alice.getEmail());
+        when(messageRepository.findById(7L)).thenReturn(Optional.of(toSelf));
+        when(messageRepository.save(any(Message.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        messageService.delete(7L);
+
+        assertThat(toSelf.isDeletedBySender()).isTrue();
+        assertThat(toSelf.isDeletedByRecipient()).isTrue();
+    }
+
+    @Test
     void senderDeletingKeepsTheRecipientsCopy() {
         Message forBob = message(5L, alice, bob, false);
         authenticate(alice.getEmail());

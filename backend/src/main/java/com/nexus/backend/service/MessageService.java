@@ -97,12 +97,20 @@ public class MessageService {
             .orElseThrow(() -> new ResourceNotFoundException("Message", "id", id));
         String email = currentUserEmail();
 
-        if (message.getRecipient().getEmail().equals(email)) {
-            message.setDeletedByRecipient(true);
-        } else if (message.getSender().getEmail().equals(email)) {
-            message.setDeletedBySender(true);
-        } else {
+        // Both flags, not either/or: a message addressed to yourself (which the
+        // workspace no longer accepts, but older rows exist) is the caller's own
+        // mail on both sides, and clearing one box must not strand the other —
+        // that would leave a row nobody can ever delete.
+        boolean isRecipient = message.getRecipient().getEmail().equals(email);
+        boolean isSender = message.getSender().getEmail().equals(email);
+        if (!isRecipient && !isSender) {
             throw new ResourceNotFoundException("Message", "id", id);
+        }
+        if (isRecipient) {
+            message.setDeletedByRecipient(true);
+        }
+        if (isSender) {
+            message.setDeletedBySender(true);
         }
         messageRepository.save(message);
     }
