@@ -1,5 +1,6 @@
 import type { StateCreator } from 'zustand'
 import {
+  apiBroadcastMessage,
   apiDeleteMessage,
   apiErrorMessage,
   apiListMessages,
@@ -42,18 +43,23 @@ export const createMessagesSlice: StateCreator<AppState, [], [], MessagesSlice> 
   },
 
   sendMessage: async (input) => {
-    const recipientId = numericUserId(input.recipientId)
-    if (recipientId == null) {
+    const subject = input.subject.trim()
+    const body = input.body.trim()
+    const recipientId = input.toEveryone ? null : numericUserId(input.recipientId)
+    if (!input.toEveryone && recipientId == null) {
       return { ok: false, error: 'Pick someone to send this to' }
     }
     try {
-      const created = await apiSendMessage({
-        recipientId,
-        subject: input.subject.trim(),
-        body: input.body.trim(),
-      })
-      // The sender's own copy lands in Sent; the recipient sees it in their
-      // inbox on their next load.
+      // Writing to everyone is its own endpoint: the server fans the letter out
+      // to every recipient in one transaction, so a failure cannot deliver it to
+      // half the team. One person stays a single row.
+      const created =
+        recipientId == null
+          ? await apiBroadcastMessage({ subject, body })
+          : await apiSendMessage({ recipientId, subject, body })
+      // The sender's own copy lands in Sent — one entry even for a broadcast,
+      // because what went out was one letter. Recipients see theirs on their next
+      // load.
       set((state) => ({ sentMessages: [mapMessage(created), ...state.sentMessages] }))
       return { ok: true }
     } catch (err) {

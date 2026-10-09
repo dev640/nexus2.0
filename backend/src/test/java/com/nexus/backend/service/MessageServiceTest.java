@@ -3,6 +3,7 @@ package com.nexus.backend.service;
 import com.nexus.backend.domain.message.Message;
 import com.nexus.backend.domain.user.User;
 import com.nexus.backend.domain.user.UserRole;
+import com.nexus.backend.dto.MessageBroadcastRequest;
 import com.nexus.backend.dto.MessageRequest;
 import com.nexus.backend.exception.ResourceNotFoundException;
 import com.nexus.backend.exception.ValidationException;
@@ -78,6 +79,8 @@ class MessageServiceTest {
         assertThat(response.subject()).isEqualTo("Standup");
         assertThat(response.body()).isEqualTo("Moving it to 10.");
         assertThat(response.read()).isFalse();
+        // Person-to-person mail is not a broadcast.
+        assertThat(response.broadcast()).isFalse();
     }
 
     @Test
@@ -100,6 +103,69 @@ class MessageServiceTest {
             .isInstanceOf(ValidationException.class)
             .hasMessageContaining("yourself");
         verify(messageRepository, never()).save(any(Message.class));
+    }
+
+    @Test
+    void broadcastWritesOneCopyPerPersonAndKeepsOneInSent() {
+        authenticate(alice.getEmail());
+        signedInAs(alice);
+        // Alice writes to the workspace: Bob and Carol are the audience.
+        when(userRepository.findByIdNotOrderByIdAsc(alice.getId())).thenReturn(List.of(bob, carol));
+        when(messageRepository.save(any(Message.class))).thenAnswer(invocation -> {
+            Message saved = invocation.getArgument(0);
+            saved.setId(saved.getRecipient().getId() + 100L);
+            return saved;
+        });
+
+        var response = messageService.broadcast(
+            new MessageBroadcastRequest("  Office closed Friday  ", "  See you Monday.  "));
+
+        // Two rows, one per recipient, both flagged as workspace-wide.
+        var saved = org.mockito.ArgumentCaptor.forClass(Message.class);
+        verify(messageRepository, org.mockito.Mockito.times(2)).save(saved.capture());
+        var rows = saved.getAllValues();
+        assertThat(rows).extracting(m -> m.getRecipient().getEmail())
+            .containsExactlyInAnyOrder(bob.getEmail(), carol.getEmail());
+        assertThat(rows).allSatisfy(m -> assertThat(m.isBroadcast()).isTrue());
+        assertThat(rows).allSatisfy(m -> assertThat(m.getSubject()).isEqualTo("Office closed Friday"));
+        assertThat(rows).allSatisfy(m -> assertThat(m.getBody()).isEqualTo("See you Monday."));
+
+        // One letter, one Sent entry: the recipient copies are hidden from the
+        // sender's box, the first copy is the one that stays.
+        assertThat(rows).filteredOn(m -> !m.isDeletedBySender()).hasSize(1);
+
+        // And the caller gets back the copy they keep.
+        assertThat(response.recipientName()).isEqualTo("Bob");
+        assertThat(response.broadcast()).isTrue();
+    }
+
+    @Test
+    void broadcastIsRejectedWhenThereIsNobodyElseInTheWorkspace() {
+        authenticate(alice.getEmail());
+        signedInAs(alice);
+        when(userRepository.findByIdNotOrderByIdAsc(alice.getId())).thenReturn(List.of());
+
+        assertThatThrownBy(() -> messageService.broadcast(new MessageBroadcastRequest("Hello", "Anyone?")))
+            .isInstanceOf(ValidationException.class)
+            .hasMessageContaining("nobody else");
+        verify(messageRepository, never()).save(any(Message.class));
+    }
+
+    @Test
+    void broadcastIsNotSentToTheSender() {
+        authenticate(alice.getEmail());
+        signedInAs(alice);
+        // The repository lookup is the whole guard: it already excludes Alice, so
+        // nothing the service writes may come back to her inbox.
+        when(userRepository.findByIdNotOrderByIdAsc(alice.getId())).thenReturn(List.of(bob));
+        when(messageRepository.save(any(Message.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        messageService.broadcast(new MessageBroadcastRequest("Hello", "Everyone"));
+
+        var saved = org.mockito.ArgumentCaptor.forClass(Message.class);
+        verify(messageRepository).save(saved.capture());
+        assertThat(saved.getValue().getSender().getEmail()).isEqualTo(alice.getEmail());
+        assertThat(saved.getValue().getRecipient().getEmail()).isEqualTo(bob.getEmail());
     }
 
     @Test

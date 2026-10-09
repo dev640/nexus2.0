@@ -91,10 +91,15 @@ export interface RoleChangeResult {
 }
 
 export interface NewMessageInput {
-  /** Store member id (`u-<id>`) of the person being written to. */
+  /**
+   * Store member id (`u-<id>`) of the person being written to. Ignored when
+   * `toEveryone` is set, because then there is no single recipient.
+   */
   recipientId: string
   subject: string
   body: string
+  /** Writes to the whole workspace instead of one person. */
+  toEveryone?: boolean
 }
 
 export interface MessageResult {

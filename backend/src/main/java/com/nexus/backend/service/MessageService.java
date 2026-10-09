@@ -2,6 +2,7 @@ package com.nexus.backend.service;
 
 import com.nexus.backend.domain.message.Message;
 import com.nexus.backend.domain.user.User;
+import com.nexus.backend.dto.MessageBroadcastRequest;
 import com.nexus.backend.dto.MessageRequest;
 import com.nexus.backend.dto.MessageResponse;
 import com.nexus.backend.exception.ResourceNotFoundException;
@@ -52,6 +53,43 @@ public class MessageService {
         Message message = new Message(
             sender, recipient, request.subject().trim(), request.body().trim());
         return mapToResponse(messageRepository.save(message));
+    }
+
+    /**
+     * Writes one letter to everyone in the workspace except the sender.
+     *
+     * Each recipient gets their own row, because the copy each of them reads and
+     * deletes is theirs alone. The sender, however, wrote one letter, so only the
+     * first copy stays visible in Sent — the remaining copies are hidden there
+     * with the same per-side flag a manual delete uses, rather than inventing a
+     * second kind of row. The returned message is the copy the sender keeps.
+     *
+     * @throws ValidationException when the workspace has nobody else in it
+     */
+    @Transactional
+    public MessageResponse broadcast(MessageBroadcastRequest request) {
+        User sender = currentUser();
+        List<User> recipients = userRepository.findByIdNotOrderByIdAsc(sender.getId());
+        if (recipients.isEmpty()) {
+            throw new ValidationException("There is nobody else in the workspace to write to");
+        }
+
+        String subject = request.subject().trim();
+        String body = request.body().trim();
+
+        Message kept = null;
+        for (User recipient : recipients) {
+            Message message = new Message(sender, recipient, subject, body);
+            message.setBroadcast(true);
+            if (kept != null) {
+                message.setDeletedBySender(true);
+            }
+            Message saved = messageRepository.save(message);
+            if (kept == null) {
+                kept = saved;
+            }
+        }
+        return mapToResponse(kept);
     }
 
     /** Received mail, newest first. */
@@ -142,6 +180,7 @@ public class MessageService {
             message.getSubject(),
             message.getBody(),
             message.isRead(),
+            message.isBroadcast(),
             message.getCreatedAt()
         );
     }

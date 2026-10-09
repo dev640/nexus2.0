@@ -47,9 +47,20 @@ export interface Notification {
   id: number
   category: NotificationCategory
   text: string
+  /** Page this notification is about, as the API supplies it. */
+  link: string | null
   time: string
   read: boolean
   archived: boolean
+}
+
+/** A transient in-app alert, shown when no system popup can be displayed. */
+export interface AppAlert {
+  id: number
+  title: string
+  body: string
+  /** Where clicking the alert goes; null makes the toast purely informational. */
+  link: string | null
 }
 
 /**
@@ -66,6 +77,8 @@ export interface MailMessage {
   subject: string
   body: string
   read: boolean
+  /** Written to the whole workspace, rather than to one person. */
+  broadcast: boolean
   time: string
 }
 

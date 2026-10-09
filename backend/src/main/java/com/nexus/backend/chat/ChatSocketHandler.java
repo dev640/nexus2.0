@@ -136,6 +136,20 @@ public class ChatSocketHandler extends TextWebSocketHandler {
         }
     }
 
+    /**
+     * Push an arbitrary JSON frame to specific users. Notifications travel this
+     * way: they are not chat events, but the session registry that knows which
+     * socket belongs to whom is the same one.
+     */
+    public void pushToUsers(List<Long> userIds, Object payload) {
+        String json = write(payload);
+        if (json == null) return;
+        Set<Long> targets = new HashSet<>(userIds);
+        for (Map.Entry<WebSocketSession, Long> entry : users.entrySet()) {
+            if (targets.contains(entry.getValue())) send(entry.getKey(), json);
+        }
+    }
+
     /** Broadcast the current online user ids to everyone (presence badges). */
     public void broadcastPresence() {
         String payload = write(Map.of("type", ChatEvent.PRESENCE, "online", onlineUserIds()));

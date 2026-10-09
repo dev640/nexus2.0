@@ -1,15 +1,23 @@
 import { getCurrentToken, whiteboardSocketUrl } from './api'
-import type { ApiChatMessage } from './api'
+import type { ApiChatMessage, ApiNotification } from './api'
 
 /** Frames pushed by the backend over /ws/chat. */
 export type ChatSocketEvent =
-  | { type: 'message.created'; channelId: number; message: ApiChatMessage }
+  | {
+      type: 'message.created'
+      channelId: number
+      message: ApiChatMessage
+      /** Present for channel messages; null for DMs, which carry no name. */
+      channelName?: string | null
+    }
   | { type: 'message.updated'; channelId: number; message: ApiChatMessage }
   | { type: 'message.deleted'; channelId: number; messageId?: number }
   | { type: 'reactions.updated'; channelId: number; reactions: { messageId: number; emoji: string; userIds: number[] }[] }
   | { type: 'channel.created'; channelId: number; channelName: string | null }
   | { type: 'typing'; channelId: number; userId: number; userName: string }
   | { type: 'presence'; online: number[] }
+  /** Pushed the moment a notification is written, so alerts need no polling. */
+  | { type: 'notification.created'; notification: ApiNotification }
 
 /**
  * Live chat connection. Reconnects automatically with backoff; returns a

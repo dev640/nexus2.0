@@ -1,6 +1,7 @@
 package com.nexus.backend.service;
 
 import com.nexus.backend.domain.knowledge.KnowledgeSourceType;
+import com.nexus.backend.domain.notification.Notification;
 import com.nexus.backend.domain.project.Project;
 import com.nexus.backend.domain.sprint.Sprint;
 import com.nexus.backend.domain.task.Task;
@@ -16,6 +17,7 @@ import com.nexus.backend.repository.SprintRepository;
 import com.nexus.backend.repository.TaskRepository;
 import com.nexus.backend.repository.UserRepository;
 import com.nexus.backend.security.RolePolicy;
+import com.nexus.backend.service.activity.ActivityEvents;
 import com.nexus.backend.service.knowledge.KnowledgeEvents;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -77,8 +79,16 @@ public class TaskService {
 
         Task savedTask = taskRepository.save(task);
         KnowledgeEvents.changed(knowledgePublisher, KnowledgeSourceType.TASK, savedTask.getId());
+        String news = "added the task \"" + savedTask.getTitle() + "\" to \"" + project.getName() + "\"";
         if (savedTask.getAssignee() != null) {
+            // The assignee hears the more useful "you were assigned" instead,
+            // so the workspace copy is sent to everybody else.
             notificationService.notifyTaskAssigned(savedTask, savedTask.getAssignee());
+            ActivityEvents.workspace(knowledgePublisher, Notification.Category.TASKS, news,
+                "/board?task=" + savedTask.getId(), savedTask.getAssignee().getId());
+        } else {
+            ActivityEvents.workspace(knowledgePublisher, Notification.Category.TASKS, news,
+                "/board?task=" + savedTask.getId());
         }
         return mapToResponse(savedTask);
     }
@@ -119,9 +129,18 @@ public class TaskService {
     public TaskResponse updateStatus(Long id, TaskStatus status) {
         Task task = taskRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Task", "id", id));
+        boolean moved = task.getStatus() != status;
         task.setStatus(status);
         Task updatedTask = taskRepository.save(task);
         KnowledgeEvents.changed(knowledgePublisher, KnowledgeSourceType.TASK, updatedTask.getId());
+        if (moved && updatedTask.getAssignee() != null) {
+            // The owner is who a move concerns; the board itself shows everyone
+            // else, so a full fan-out here would just be noise.
+            ActivityEvents.toUsers(knowledgePublisher, Notification.Category.TASKS,
+                "moved \"" + updatedTask.getTitle() + "\" to " + statusLabel(updatedTask.getStatus()),
+                "/board?task=" + updatedTask.getId(),
+                List.of(updatedTask.getAssignee().getId()));
+        }
         return mapToResponse(updatedTask);
     }
 
@@ -129,6 +148,7 @@ public class TaskService {
     public TaskResponse update(Long id, TaskRequest request) {
         Task task = taskRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Task", "id", id));
+        TaskStatus previousStatus = task.getStatus();
 
         // A task can be moved between projects, so honour projectId rather than
         // silently keeping the old one and ignoring part of the request body.
@@ -186,7 +206,20 @@ public class TaskService {
 
         Task updatedTask = taskRepository.save(task);
         KnowledgeEvents.changed(knowledgePublisher, KnowledgeSourceType.TASK, updatedTask.getId());
+        // The edit form can change status too, so an edit that moves the task
+        // tells its owner exactly like a board drag does.
+        if (previousStatus != updatedTask.getStatus() && updatedTask.getAssignee() != null) {
+            ActivityEvents.toUsers(knowledgePublisher, Notification.Category.TASKS,
+                "moved \"" + updatedTask.getTitle() + "\" to " + statusLabel(updatedTask.getStatus()),
+                "/board?task=" + updatedTask.getId(),
+                List.of(updatedTask.getAssignee().getId()));
+        }
         return mapToResponse(updatedTask);
+    }
+
+    /** IN_PROGRESS reads as "IN PROGRESS" in a sentence. */
+    private static String statusLabel(TaskStatus status) {
+        return status.name().replace('_', ' ');
     }
 
     @Transactional

@@ -391,6 +391,8 @@ export interface ApiNotification {
   id: number
   category: string
   text: string
+  /** App-relative path an alert opens; null when there is nothing to open. */
+  link?: string | null
   read: boolean
   createdAt: string
 }
@@ -423,6 +425,8 @@ export interface ApiMessage {
   subject: string
   body: string
   read: boolean
+  /** Set when the letter was written to the whole workspace. */
+  broadcast?: boolean
   createdAt: string
 }
 
@@ -444,6 +448,21 @@ export async function apiListSentMessages(): Promise<ApiMessage[]> {
 
 export async function apiSendMessage(input: ApiMessageInput): Promise<ApiMessage> {
   const { data } = await api.post<ApiMessage>('/messages', input)
+  return data
+}
+
+/**
+ * Writes one letter to everyone in the workspace.
+ *
+ * The server fans it out — one copy per recipient, so each person reads and
+ * clears their own — and returns the single copy that belongs in Sent. Doing
+ * that here would mean N requests and a half-delivered letter when one fails.
+ */
+export async function apiBroadcastMessage(input: {
+  subject: string
+  body: string
+}): Promise<ApiMessage> {
+  const { data } = await api.post<ApiMessage>('/messages/broadcast', input)
   return data
 }
 

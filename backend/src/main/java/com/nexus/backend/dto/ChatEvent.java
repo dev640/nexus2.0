@@ -21,6 +21,8 @@ public record ChatEvent(
     public static final String CHANNEL_DELETED = "channel.deleted";
     public static final String TYPING = "typing";
     public static final String PRESENCE = "presence";
+    /** Pushed over the chat socket so notifications arrive without polling. */
+    public static final String NOTIFICATION_CREATED = "notification.created";
 
     public record ReactionEvent(Long messageId, String emoji, List<Long> userIds) {}
 }

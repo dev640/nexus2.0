@@ -1,12 +1,27 @@
 import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Menu, TriangleAlert } from 'lucide-react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
+import { AlertToasts } from './AlertToasts'
+import { useDeviceAlerts } from '../../hooks/useDeviceAlerts'
+import { setAlertNavigator } from '../../lib/deviceAlerts'
 import { useAppStore } from '../../store/useAppStore'
 
 export function AppShell({ children }: { children: ReactNode }) {
+  // Mounted here rather than on a page: an alert about a task, a wiki page or a
+  // chat message has to reach the user wherever they happen to be.
+  useDeviceAlerts()
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const navigate = useNavigate()
+
+  // A system popup is clicked outside the React tree, so the alert layer needs a
+  // way back in: it gets the router's navigate, and clicking a popup then moves
+  // the app to the page it points at instead of reloading it.
+  useEffect(() => {
+    setAlertNavigator((path) => navigate(path))
+    return () => setAlertNavigator(null)
+  }, [navigate])
   const location = useLocation()
   const syncError = useAppStore((s) => s.syncError)
   const isLoading = useAppStore((s) => s.isLoading)
@@ -53,6 +68,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         )}
         {children}
       </main>
+
+      <AlertToasts />
     </div>
   )
 }

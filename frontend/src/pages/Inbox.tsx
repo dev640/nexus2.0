@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAppStore, type NotificationCategory } from '../store/useAppStore'
 import type { MailMessage } from '../store/useAppStore'
 import { ComposeMessageModal } from '../components/mail/ComposeMessageModal'
@@ -27,7 +28,23 @@ const categoryColor: Record<Category, string> = {
 
 const rowButton = 'rounded-md border border-line px-3 py-1.5 font-medium hover:bg-paper'
 
+/**
+ * Where a notification's "Open" goes. A notification is derived from an event
+ * and carries no id of its own, so the destination is the area that event
+ * belongs to — the same page someone would have been on when it happened.
+ * The button used to have no handler at all, which read as the Inbox being
+ * broken: clicking Open did nothing whatsoever.
+ */
+const notificationTarget: Record<Category, string> = {
+  MENTIONS: '/slack',
+  TASKS: '/my-work',
+  PROJECTS: '/projects',
+  AI: '/copilot',
+  SYSTEM: '/settings',
+}
+
 export function Inbox() {
+  const navigate = useNavigate()
   const notifications = useAppStore((s) => s.notifications)
   const markRead = useAppStore((s) => s.markNotificationRead)
   const archive = useAppStore((s) => s.archiveNotification)
@@ -169,7 +186,15 @@ export function Inbox() {
                   <button onClick={() => archive(n.id)} className={rowButton}>
                     Archive
                   </button>
-                  <button className="rounded-md bg-ink px-3 py-1.5 font-medium text-white hover:bg-black">
+                  <button
+                    onClick={() => {
+                      // Reading it is what "open" means for something with no
+                      // page of its own, then go where the event happened.
+                      markRead(n.id)
+                      navigate(notificationTarget[n.category])
+                    }}
+                    className="rounded-md bg-ink px-3 py-1.5 font-medium text-white hover:bg-black"
+                  >
                     Open
                   </button>
                 </div>
@@ -209,7 +234,13 @@ export function Inbox() {
             {mail.map((m) => (
               <div
                 key={m.id}
-                className="flex flex-col gap-3 border-b border-line px-4 py-4 last:border-0 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-5"
+                // A row is what a person actually clicks, so the whole row opens
+                // the message. It stays a plain div rather than role="button":
+                // the Open button below is already in the tab order for keyboard
+                // users, and a button inside a button reads badly to a screen
+                // reader.
+                onClick={() => openMail(m)}
+                className="flex cursor-pointer flex-col gap-3 border-b border-line px-4 py-4 last:border-0 hover:bg-paper sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-5"
               >
                 <div className="flex min-w-0 items-center gap-3">
                   <span
@@ -219,7 +250,11 @@ export function Inbox() {
                   />
                   <div className="min-w-0">
                     <div className="text-xs font-semibold uppercase tracking-wide text-mute">
-                      {box === 'received' ? `From ${m.senderName}` : `To ${m.recipientName}`}
+                      {box === 'received'
+                        ? `From ${m.senderName}`
+                        : m.broadcast
+                          ? 'To Everyone'
+                          : `To ${m.recipientName}`}
                     </div>
                     <div
                       className={`truncate text-sm ${
@@ -235,16 +270,32 @@ export function Inbox() {
                   </div>
                 </div>
                 <div className="flex flex-wrap shrink-0 gap-2 text-xs">
-                  <button onClick={() => openMail(m)} className="rounded-md bg-ink px-3 py-1.5 font-medium text-white hover:bg-black">
+                  {/* Each button stops the click so acting on a row never also
+                      opens it — deleting used to leave the message it deleted
+                      on screen. */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      openMail(m)
+                    }}
+                    className="rounded-md bg-ink px-3 py-1.5 font-medium text-white hover:bg-black"
+                  >
                     Open
                   </button>
                   {box === 'received' && !m.read && (
-                    <button onClick={() => markMessageRead(m.id)} className={rowButton}>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        markMessageRead(m.id)
+                      }}
+                      className={rowButton}
+                    >
                       Mark read
                     </button>
                   )}
                   <button
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation()
                       if (openMessage?.id === m.id) setOpenMessage(null)
                       void deleteMessage(m.id)
                     }}

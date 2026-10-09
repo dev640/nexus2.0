@@ -7,6 +7,13 @@ const field =
   'w-full rounded-md border border-line px-3 py-2 text-sm outline-none focus:border-ink'
 
 /**
+ * The "everyone" choice in the recipient picker. A sentinel rather than a
+ * member id, because the audience is not a person: it is everyone in the
+ * workspace except the sender, resolved by the server.
+ */
+const EVERYONE = 'everyone'
+
+/**
  * Writing to a colleague. Also used for replies, where the recipient and
  * subject arrive pre-filled so replying is one click and one message.
  */
@@ -50,10 +57,16 @@ export function ComposeMessageModal({
     onClose()
   }
 
+  const toEveryone = recipientId === EVERYONE
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!recipientId) {
-      setError('Pick someone to send this to')
+      setError('Pick someone to send this to, or choose Everyone')
+      return
+    }
+    if (toEveryone && others.length === 0) {
+      setError('There is nobody else in the workspace to write to')
       return
     }
     if (!subject.trim()) {
@@ -66,7 +79,7 @@ export function ComposeMessageModal({
     }
     setSending(true)
     setError('')
-    const result = await sendMessage({ recipientId, subject, body })
+    const result = await sendMessage({ recipientId, subject, body, toEveryone })
     setSending(false)
     if (!result.ok) {
       setError(result.error ?? 'Could not send the message')
@@ -89,12 +102,20 @@ export function ComposeMessageModal({
             className={field}
           >
             <option value="">Pick a teammate…</option>
+            {others.length > 0 && (
+              <option value={EVERYONE}>Everyone ({others.length} teammates)</option>
+            )}
             {others.map((m) => (
               <option key={m.id} value={m.id}>
                 {m.name}
               </option>
             ))}
           </select>
+          {toEveryone && (
+            <p className="mt-1 text-xs text-mute">
+              Each teammate gets their own copy. It shows up once in your Sent box.
+            </p>
+          )}
         </div>
 
         <div>
@@ -133,7 +154,7 @@ export function ComposeMessageModal({
             disabled={sending}
             className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-black disabled:opacity-60"
           >
-            {sending ? 'Sending…' : 'Send'}
+            {sending ? 'Sending…' : toEveryone ? 'Send to everyone' : 'Send'}
           </button>
         </div>
       </form>

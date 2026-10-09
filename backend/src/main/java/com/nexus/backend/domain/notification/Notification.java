@@ -38,6 +38,14 @@ public class Notification {
     @Column(nullable = false, length = 500)
     private String text;
 
+    /**
+     * App-relative deep link to whatever this notification is about, e.g.
+     * {@code /board?task=12}. Null means there is nothing useful to open, and
+     * only paths are ever stored — an alert must never navigate off-site.
+     */
+    @Column(length = 300)
+    private String link;
+
     @Column(nullable = false)
     private boolean read;
 
@@ -55,6 +63,9 @@ public class Notification {
 
     public String getText() { return text; }
     public void setText(String text) { this.text = text; }
+
+    public String getLink() { return link; }
+    public void setLink(String link) { this.link = link; }
 
     public boolean isRead() { return read; }
     public void setRead(boolean read) { this.read = read; }

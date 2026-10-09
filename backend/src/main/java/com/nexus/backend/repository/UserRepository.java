@@ -2,6 +2,7 @@ package com.nexus.backend.repository;
 
 import com.nexus.backend.domain.user.User;
 import com.nexus.backend.domain.user.UserRole;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -22,6 +23,12 @@ public interface UserRepository extends JpaRepository<User, Long> {
      * which would leave the workspace with no one able to manage it.
      */
     long countByRole(UserRole role);
+
+    /**
+     * Everyone except this account, in a stable order. Backs mail written to the
+     * whole workspace, where the sender is the one person who does not get a copy.
+     */
+    List<User> findByIdNotOrderByIdAsc(Long id);
 
     /**
      * Returns the next value of the employee-code sequence so admin-created

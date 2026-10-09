@@ -1,7 +1,12 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useDeepLink } from '../hooks/useDeepLink'
+import { toSprintId } from '../store/ids'
 import { useAppStore } from '../store/useAppStore'
 import { NewSprintModal } from '../components/sprint/NewSprintModal'
 import { EditSprintModal } from '../components/sprint/EditSprintModal'
+
+/** How long a sprint stays outlined after an alert brings you to it. */
+const HIGHLIGHT_MS = 2500
 
 const statusLabel: Record<string, string> = {
   PLANNED: 'Planned',
@@ -23,7 +28,30 @@ export function Sprints() {
   const [modalOpen, setModalOpen] = useState(false)
   const [modalProjectId, setModalProjectId] = useState<string | undefined>(undefined)
   const [editingSprintId, setEditingSprintId] = useState<string | null>(null)
+  const [highlightId, setHighlightId] = useState<string | null>(null)
   const projects = useAppStore((s) => s.projects)
+  const loadWorkspace = useAppStore((s) => s.loadWorkspace)
+
+  // Sprint activity alerts arrive as ?sprint=<id>: scroll to that sprint's card
+  // and outline it, rather than opening the page at the top of a long list. A
+  // sprint created after this viewer loaded the workspace is fetched first.
+  useDeepLink(
+    ['sprint'],
+    (query) => {
+      const target = sprints.find((s) => s.id === toSprintId(Number(query.get('sprint'))))
+      if (!target) return 'gone'
+      setHighlightId(target.id)
+      document.getElementById(`sprint-${target.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      return 'open'
+    },
+    { refresh: loadWorkspace },
+  )
+
+  useEffect(() => {
+    if (!highlightId) return
+    const timer = window.setTimeout(() => setHighlightId(null), HIGHLIGHT_MS)
+    return () => window.clearTimeout(timer)
+  }, [highlightId])
 
   function openNewSprint(projectId?: string) {
     setModalProjectId(projectId)
@@ -89,7 +117,13 @@ export function Sprints() {
                         : 0
 
                     return (
-                      <div key={sprint.id} className="border border-line bg-white p-4 sm:p-6 lg:p-8">
+                      <div
+                        key={sprint.id}
+                        id={`sprint-${sprint.id}`}
+                        className={`border border-line bg-white p-4 transition-shadow sm:p-6 lg:p-8 ${
+                          highlightId === sprint.id ? 'ring-2 ring-accent' : ''
+                        }`}
+                      >
                         <div className="flex items-center justify-between">
                           <div className="text-xs font-semibold uppercase tracking-widest text-mute">
                             Sprint {sprint.number}

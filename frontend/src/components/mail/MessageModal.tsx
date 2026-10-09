@@ -23,6 +23,10 @@ export function MessageModal({
   if (!message) return null
 
   const received = box === 'received'
+  // A letter to everyone has no single person to answer, so the sender's own
+  // copy offers no Reply — it would quietly pick one teammate out of the
+  // audience. A recipient replying to the author is unaffected.
+  const canReply = received || !message.broadcast
 
   function handleReply() {
     if (!message) return
@@ -36,7 +40,11 @@ export function MessageModal({
         <div className="border-b border-line pb-3 text-sm">
           <div className="flex flex-wrap justify-between gap-1">
             <span className="font-medium text-ink">
-              {received ? `From ${message.senderName}` : `To ${message.recipientName}`}
+              {received
+                ? `From ${message.senderName}${message.broadcast ? ' (to everyone)' : ''}`
+                : message.broadcast
+                  ? 'To Everyone'
+                  : `To ${message.recipientName}`}
             </span>
             <span className="text-xs text-mute">{message.time}</span>
           </div>
@@ -57,13 +65,19 @@ export function MessageModal({
               Mark read
             </button>
           )}
-          <button
-            type="button"
-            onClick={handleReply}
-            className="rounded-md border border-line px-3 py-2 text-sm font-medium hover:bg-paper"
-          >
-            Reply
-          </button>
+          {canReply ? (
+            <button
+              type="button"
+              onClick={handleReply}
+              className="rounded-md border border-line px-3 py-2 text-sm font-medium hover:bg-paper"
+            >
+              Reply
+            </button>
+          ) : (
+            <span className="mr-auto self-center text-xs text-mute">
+              Sent to everyone in the workspace.
+            </span>
+          )}
           <button
             type="button"
             onClick={onClose}

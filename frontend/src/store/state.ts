@@ -1,3 +1,4 @@
+import type { AlertsSlice } from './slices/alerts'
 import type { AuthSlice } from './slices/auth'
 import type { MembersSlice } from './slices/members'
 import type { MessagesSlice } from './slices/messages'
@@ -21,6 +22,7 @@ import type { WikiSlice } from './slices/wiki'
  * which keeps that relationship from becoming a runtime import cycle.
  */
 export type AppState = AuthSlice &
+  AlertsSlice &
   SyncSlice &
   TasksSlice &
   ProjectsSlice &

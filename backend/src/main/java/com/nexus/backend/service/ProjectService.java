@@ -1,6 +1,7 @@
 package com.nexus.backend.service;
 
 import com.nexus.backend.domain.knowledge.KnowledgeSourceType;
+import com.nexus.backend.domain.notification.Notification;
 import com.nexus.backend.domain.project.Project;
 import com.nexus.backend.domain.project.ProjectHealth;
 import com.nexus.backend.domain.project.ProjectStatus;
@@ -8,6 +9,7 @@ import com.nexus.backend.dto.ProjectRequest;
 import com.nexus.backend.dto.ProjectResponse;
 import com.nexus.backend.exception.ResourceNotFoundException;
 import com.nexus.backend.repository.ProjectRepository;
+import com.nexus.backend.service.activity.ActivityEvents;
 import com.nexus.backend.service.knowledge.KnowledgeEvents;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -36,6 +38,9 @@ public class ProjectService {
 
         Project savedProject = projectRepository.save(project);
         KnowledgeEvents.changed(knowledgePublisher, KnowledgeSourceType.PROJECT, savedProject.getId());
+        ActivityEvents.workspace(knowledgePublisher, Notification.Category.PROJECTS,
+            "created the project \"" + savedProject.getName() + "\"",
+            "/projects?project=" + savedProject.getId());
         return mapToResponse(savedProject);
     }
 
@@ -64,6 +69,9 @@ public class ProjectService {
 
         Project updatedProject = projectRepository.save(project);
         KnowledgeEvents.changed(knowledgePublisher, KnowledgeSourceType.PROJECT, updatedProject.getId());
+        ActivityEvents.workspace(knowledgePublisher, Notification.Category.PROJECTS,
+            "updated the project \"" + updatedProject.getName() + "\"",
+            "/projects?project=" + updatedProject.getId());
         return mapToResponse(updatedProject);
     }
 

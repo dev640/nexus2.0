@@ -1,5 +1,6 @@
 package com.nexus.backend.web;
 
+import com.nexus.backend.dto.MessageBroadcastRequest;
 import com.nexus.backend.dto.MessageRequest;
 import com.nexus.backend.dto.MessageResponse;
 import com.nexus.backend.service.MessageService;
@@ -51,6 +52,15 @@ public class MessageController {
     @PostMapping
     public ResponseEntity<MessageResponse> send(@Valid @RequestBody MessageRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(messageService.send(request));
+    }
+
+    /**
+     * Writes to everyone at once. Returns the copy that lands in the caller's
+     * Sent box; each recipient sees the same letter in their own inbox.
+     */
+    @PostMapping("/broadcast")
+    public ResponseEntity<MessageResponse> broadcast(@Valid @RequestBody MessageBroadcastRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(messageService.broadcast(request));
     }
 
     @PatchMapping("/{id}/read")

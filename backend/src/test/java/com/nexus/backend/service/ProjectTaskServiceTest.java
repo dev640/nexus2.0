@@ -3,6 +3,7 @@ package com.nexus.backend.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -23,6 +24,7 @@ import com.nexus.backend.repository.ProjectRepository;
 import com.nexus.backend.repository.SprintRepository;
 import com.nexus.backend.repository.TaskRepository;
 import com.nexus.backend.repository.UserRepository;
+import com.nexus.backend.service.activity.WorkspaceActivity;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -32,6 +34,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 class ProjectTaskServiceTest {
@@ -47,6 +50,9 @@ class ProjectTaskServiceTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private ApplicationEventPublisher knowledgePublisher;
 
     @InjectMocks
     private ProjectService projectService;
@@ -82,6 +88,21 @@ class ProjectTaskServiceTest {
         assertThat(response.health()).isEqualTo(ProjectHealth.ON_TRACK);
         assertThat(response.progress()).isZero();
         assertThat(response.memberCount()).isEqualTo(1);
+    }
+
+    @Test
+    void creatingAProjectIsAnnouncedToTheWorkspace() {
+        when(projectRepository.save(any(Project.class))).thenAnswer(inv -> {
+            Project p = inv.getArgument(0);
+            p.setId(2L);
+            p.setCreatedAt(LocalDateTime.now());
+            p.setUpdatedAt(LocalDateTime.now());
+            return p;
+        });
+
+        projectService.create(new ProjectRequest("New Project", "desc", null, null));
+
+        verify(knowledgePublisher).publishEvent(isA(WorkspaceActivity.class));
     }
 
     @Test
@@ -122,6 +143,16 @@ class ProjectTaskServiceTest {
         assertThat(response.projectName()).isEqualTo("Demo");
         assertThat(response.storyPoints()).isZero();
         assertThat(response.labels()).containsExactly("docs");
+    }
+
+    @Test
+    void anUnassignedTaskIsAnnouncedToTheWholeWorkspace() {
+        when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
+        when(taskRepository.save(any(Task.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        taskService.create(taskRequest());
+
+        verify(knowledgePublisher).publishEvent(isA(WorkspaceActivity.class));
     }
 
     @Test

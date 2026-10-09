@@ -2,9 +2,25 @@ import { useState } from 'react'
 import { useAppStore, type NotificationCategory } from '../store/useAppStore'
 import { apiDeleteAvatar, apiErrorMessage, apiUploadAvatar, type ApiUserRole } from '../lib/api'
 import { forgetAvatar, invalidateAvatar } from '../hooks/useAvatar'
+import { emitAlert } from '../hooks/useDeviceAlerts'
+import {
+  alertPermission,
+  loadAlertPreferences,
+  requestAlertPermission,
+  saveAlertPreferences,
+  type AlertPermission,
+  type AlertPreferences,
+} from '../lib/deviceAlerts'
 import { UserAvatar } from '../components/user/UserAvatar'
 
 const assignableRoles: ApiUserRole[] = ['ADMIN', 'MANAGER', 'MEMBER', 'DEVELOPER', 'VIEWER']
+
+const permissionCopy: Record<AlertPermission, string> = {
+  granted: 'On — new activity pops up on your device and plays the alert sound.',
+  default: 'Not enabled yet. Allow notifications to get popups on this device.',
+  denied: 'Blocked. Allow notifications for this site in your browser, then reload.',
+  unsupported: 'This browser cannot show system notifications.',
+}
 
 const categories: { key: NotificationCategory; label: string }[] = [
   { key: 'MENTIONS', label: 'Mentions' },
@@ -42,6 +58,19 @@ export function Settings() {
   const [avatarError, setAvatarError] = useState('')
   const [avatarBusy, setAvatarBusy] = useState(false)
   const [hasAvatar, setHasAvatar] = useState(false)
+  const [alertPrefs, setAlertPrefs] = useState<AlertPreferences>(loadAlertPreferences)
+  const [permission, setPermission] = useState<AlertPermission>(alertPermission)
+
+  function updateAlertPrefs(next: AlertPreferences) {
+    setAlertPrefs(next)
+    saveAlertPreferences(next)
+  }
+
+  async function handleEnableAlerts() {
+    // Called from a click on purpose: browsers that require a gesture only show
+    // the permission prompt in response to one.
+    setPermission(await requestAlertPermission())
+  }
 
   async function handleAvatarPick(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -253,7 +282,7 @@ export function Settings() {
             Notifications
           </h2>
           <p className="mb-4 text-sm text-mute">
-            Choose which categories show up in your Inbox.
+            Choose which categories show up in your Inbox and alert you on this device.
           </p>
           <div className="flex flex-col gap-3">
             {categories.map((c) => (
@@ -268,6 +297,54 @@ export function Settings() {
               </label>
             ))}
           </div>
+        </section>
+
+        <section className="border border-line bg-white p-6">
+          <h2 className="mb-1 text-xs font-semibold uppercase tracking-widest text-mute">
+            Device Alerts
+          </h2>
+          <p className="mb-4 text-sm text-mute">
+            A popup and the alert sound for new activity — work tasks, projects, sprints,
+            wiki pages, whiteboard notes and Slack messages.
+          </p>
+          <div className="flex flex-col gap-3">
+            <label className="flex items-center justify-between text-sm">
+              <span>Alert me about new activity</span>
+              <input
+                type="checkbox"
+                checked={alertPrefs.enabled}
+                onChange={() => updateAlertPrefs({ ...alertPrefs, enabled: !alertPrefs.enabled })}
+                className="h-4 w-4 accent-ink"
+              />
+            </label>
+            <label className="flex items-center justify-between text-sm">
+              <span>Play the alert sound</span>
+              <input
+                type="checkbox"
+                checked={alertPrefs.sound}
+                onChange={() => updateAlertPrefs({ ...alertPrefs, sound: !alertPrefs.sound })}
+                className="h-4 w-4 accent-ink"
+              />
+            </label>
+          </div>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={() => void handleEnableAlerts()}
+              disabled={permission === 'granted' || permission === 'unsupported'}
+              className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-black disabled:opacity-40"
+            >
+              {permission === 'granted' ? 'Device notifications on' : 'Enable device notifications'}
+            </button>
+            <button
+              type="button"
+              onClick={() => emitAlert('Nexus', 'Test alert — this is what new activity looks like.')}
+              className="rounded-md border border-line px-4 py-2 text-sm font-medium hover:bg-paper"
+            >
+              Send test alert
+            </button>
+          </div>
+          <p className="mt-3 text-xs text-mute">{permissionCopy[permission]}</p>
         </section>
 
         <section className="border border-danger/30 bg-white p-6">

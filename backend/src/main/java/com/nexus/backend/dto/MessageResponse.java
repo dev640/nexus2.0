@@ -16,5 +16,7 @@ public record MessageResponse(
     String subject,
     String body,
     boolean read,
+    /** True when the letter was written to the whole workspace. */
+    boolean broadcast,
     LocalDateTime createdAt
 ) {}

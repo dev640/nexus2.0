@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { createAlertsSlice } from './slices/alerts'
 import { createAuthSlice } from './slices/auth'
 import { createMembersSlice } from './slices/members'
 import { createMessagesSlice } from './slices/messages'
@@ -21,6 +22,7 @@ import type { AppState } from './state'
  */
 export const useAppStore = create<AppState>()((set, get, store) => ({
   ...createAuthSlice(set, get, store),
+  ...createAlertsSlice(set, get, store),
   ...createSyncSlice(set, get, store),
   ...createTasksSlice(set, get, store),
   ...createProjectsSlice(set, get, store),
@@ -37,6 +39,7 @@ export const useAppStore = create<AppState>()((set, get, store) => ({
 export { numericUserId, toUserId } from './ids'
 export { noteColors, timeAgo } from './models'
 export type {
+  AppAlert,
   MailMessage,
   NoteColor,
   Notification,

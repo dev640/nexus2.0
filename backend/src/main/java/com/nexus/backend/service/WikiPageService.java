@@ -1,6 +1,7 @@
 package com.nexus.backend.service;
 
 import com.nexus.backend.domain.knowledge.KnowledgeSourceType;
+import com.nexus.backend.domain.notification.Notification;
 import com.nexus.backend.domain.project.Project;
 import com.nexus.backend.domain.wiki.WikiPage;
 import com.nexus.backend.dto.WikiPageRequest;
@@ -8,6 +9,7 @@ import com.nexus.backend.dto.WikiPageResponse;
 import com.nexus.backend.exception.ResourceNotFoundException;
 import com.nexus.backend.repository.ProjectRepository;
 import com.nexus.backend.repository.WikiPageRepository;
+import com.nexus.backend.service.activity.ActivityEvents;
 import com.nexus.backend.service.knowledge.KnowledgeEvents;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -60,6 +62,9 @@ public class WikiPageService {
         }
         WikiPage saved = wikiPageRepository.save(page);
         KnowledgeEvents.changed(knowledgePublisher, KnowledgeSourceType.WIKI_PAGE, saved.getId());
+        ActivityEvents.workspace(knowledgePublisher, Notification.Category.SYSTEM,
+            "created the wiki page \"" + saved.getTitle() + "\"",
+            "/wiki?page=" + saved.getId());
         return mapToResponse(saved);
     }
 
@@ -78,6 +83,9 @@ public class WikiPageService {
         }
         WikiPage saved = wikiPageRepository.save(page);
         KnowledgeEvents.changed(knowledgePublisher, KnowledgeSourceType.WIKI_PAGE, saved.getId());
+        ActivityEvents.workspace(knowledgePublisher, Notification.Category.SYSTEM,
+            "updated the wiki page \"" + saved.getTitle() + "\"",
+            "/wiki?page=" + saved.getId());
         return mapToResponse(saved);
     }
 

@@ -56,6 +56,14 @@ public class Message {
     @Column(name = "deleted_by_recipient", nullable = false)
     private boolean deletedByRecipient;
 
+    /**
+     * True when this row is one person's copy of a letter written to the whole
+     * workspace. The recipients are still individual — every row keeps its own
+     * read and delete state — but a reader can tell "to everyone" from "to me".
+     */
+    @Column(name = "is_broadcast", nullable = false)
+    private boolean broadcast;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
@@ -92,6 +100,9 @@ public class Message {
 
     public boolean isDeletedByRecipient() { return deletedByRecipient; }
     public void setDeletedByRecipient(boolean deletedByRecipient) { this.deletedByRecipient = deletedByRecipient; }
+
+    public boolean isBroadcast() { return broadcast; }
+    public void setBroadcast(boolean broadcast) { this.broadcast = broadcast; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

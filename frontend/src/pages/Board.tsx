@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { memberById, type TaskStatus } from '../lib/mockData'
+import { useDeepLink } from '../hooks/useDeepLink'
+import { toTaskId } from '../store/ids'
 import { useAppStore } from '../store/useAppStore'
 import { NewTaskModal } from '../components/task/NewTaskModal'
 import { EditTaskModal } from '../components/task/EditTaskModal'
@@ -39,6 +41,21 @@ export function Board() {
   const [modalOpen, setModalOpen] = useState(false)
   const [modalStatus, setModalStatus] = useState<TaskStatus>('BACKLOG')
   const [editingId, setEditingId] = useState<string | null>(null)
+  const loadWorkspace = useAppStore((s) => s.loadWorkspace)
+
+  // Clicking an alert about a task lands here with ?task=<id>, and the card it
+  // refers to opens ready to edit. A miss refreshes the workspace once, since
+  // the alert can describe a task created after this viewer's last load.
+  useDeepLink(
+    ['task'],
+    (query) => {
+      const target = tasks.find((t) => t.id === toTaskId(Number(query.get('task'))))
+      if (!target) return 'gone'
+      setEditingId(target.id)
+      return 'open'
+    },
+    { refresh: loadWorkspace },
+  )
 
   function openNewTask(status: TaskStatus) {
     setModalStatus(status)

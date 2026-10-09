@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useDeepLink } from '../hooks/useDeepLink'
 import { useAppStore } from '../store/useAppStore'
 import { NewWikiPageModal } from '../components/wiki/NewWikiPageModal'
 
@@ -22,6 +23,7 @@ export function Wiki() {
   const [draftContent, setDraftContent] = useState('')
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [saving, setSaving] = useState(false)
+  const loadWorkspace = useAppStore((s) => s.loadWorkspace)
 
   const selected = wikiPages.find((p) => p.id === selectedId)
 
@@ -30,6 +32,22 @@ export function Wiki() {
       setSelectedId(wikiPages[0].id)
     }
   }, [selected, wikiPages])
+
+  // An alert about a page arrives as ?page=<id>; open that page instead of the
+  // first one the list happens to hold. A page created after this viewer loaded
+  // the workspace is fetched rather than treated as deleted.
+  useDeepLink(
+    ['page'],
+    (query) => {
+      const target = wikiPages.find((p) => p.id === `w-${Number(query.get('page'))}`)
+      if (!target) return 'gone'
+      setSelectedId(target.id)
+      setEditing(false)
+      setConfirmingDelete(false)
+      return 'open'
+    },
+    { refresh: loadWorkspace },
+  )
 
   function selectPage(id: string) {
     setSelectedId(id)

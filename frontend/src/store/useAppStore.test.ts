@@ -64,9 +64,13 @@ const actions: Record<ActionKeys, true> = {
   deleteWikiPage: true,
   // notifications
   loadNotifications: true,
+  receiveNotification: true,
   markNotificationRead: true,
   archiveNotification: true,
   markAllNotificationsRead: true,
+  // device alerts
+  pushAlert: true,
+  dismissAlert: true,
   // mail
   loadMessages: true,
   sendMessage: true,
@@ -140,6 +144,7 @@ describe('useAppStore', () => {
     expect(state.members).toEqual([])
     expect(state.stickyNotes).toEqual([])
     expect(state.notifications).toEqual([])
+    expect(state.activeAlerts).toEqual([])
     expect(state.wikiPages).toEqual([])
     expect(state.teams.map((t) => t.id)).toEqual(['core-engineering'])
     expect(state.settings).toEqual({

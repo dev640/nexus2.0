@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
+import { useDeepLink } from '../hooks/useDeepLink'
 import { useAppStore, noteColors, type NoteColor } from '../store/useAppStore'
+
+/** How long an alert's note stays outlined after the board opens it. */
+const HIGHLIGHT_MS = 2500
 
 export function Whiteboard() {
   const stickyNotes = useAppStore((s) => s.stickyNotes)
@@ -19,7 +23,29 @@ export function Whiteboard() {
   const boardRef = useRef<HTMLDivElement>(null)
   const dragState = useRef<{ id: string; offsetX: number; offsetY: number } | null>(null)
   const [draggingId, setDraggingId] = useState<string | null>(null)
+  const [highlightId, setHighlightId] = useState<string | null>(null)
   const live = useAppStore((s) => s.whiteboardConnected)
+
+  // An alert about a sticky arrives as ?note=<id>. The note cannot be opened in
+  // a modal, so it is outlined where it sits on the board — after fetching the
+  // board once more, since the note may have been written after this viewer
+  // last loaded it.
+  useDeepLink(
+    ['note'],
+    (query) => {
+      const target = stickyNotes.find((n) => n.id === `n-${Number(query.get('note'))}`)
+      if (!target) return 'gone'
+      setHighlightId(target.id)
+      return 'open'
+    },
+    { refresh: loadStickyNotes },
+  )
+
+  useEffect(() => {
+    if (!highlightId) return
+    const timer = window.setTimeout(() => setHighlightId(null), HIGHLIGHT_MS)
+    return () => window.clearTimeout(timer)
+  }, [highlightId])
 
   // Load notes and subscribe to live updates while the board is open.
   useEffect(() => {
@@ -115,7 +141,9 @@ export function Whiteboard() {
             style={{ left: note.x, top: note.y, backgroundColor: note.color as NoteColor }}
             className={`group absolute flex h-44 w-44 flex-col rounded-sm shadow-md ${
               canWrite ? 'touch-none' : ''
-            } ${draggingId === note.id ? 'z-10 shadow-lg' : ''}`}
+            } ${draggingId === note.id ? 'z-10 shadow-lg' : ''} ${
+              highlightId === note.id ? 'z-10 ring-4 ring-ink/60' : ''
+            }`}
           >
             <div
               onPointerDown={canWrite ? (e) => handlePointerDown(e, note.id, note.x, note.y) : undefined}

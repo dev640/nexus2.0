@@ -15,10 +15,12 @@ import com.nexus.backend.repository.TaskRepository;
 import com.nexus.backend.repository.UserRepository;
 import com.nexus.backend.service.NotificationService;
 import com.nexus.backend.service.TaskService;
+import com.nexus.backend.service.activity.WorkspaceActivity;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
@@ -34,6 +36,9 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -112,6 +117,27 @@ class TaskAssignmentPolicyTest {
         when(taskRepository.save(any(Task.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         assertThat(taskService.create(request(null)).assignee()).isNull();
+    }
+
+    @Test
+    void anAssignedTaskTellsTheWorkspaceButNotTheAssigneeTwice() {
+        authenticateAs(UserRole.ADMIN);
+        when(userRepository.findById(bob.getId())).thenReturn(Optional.of(bob));
+        when(taskRepository.save(any(Task.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        taskService.create(request(bob.getId()));
+
+        // The assignee already has the personal "you were assigned" copy, so
+        // the workspace announcement leaves them out.
+        verify(notificationService).notifyTaskAssigned(any(Task.class), eq(bob));
+        ArgumentCaptor<Object> events = ArgumentCaptor.forClass(Object.class);
+        verify(knowledgePublisher, atLeastOnce()).publishEvent(events.capture());
+        WorkspaceActivity announcement = events.getAllValues().stream()
+            .filter(WorkspaceActivity.class::isInstance)
+            .map(WorkspaceActivity.class::cast)
+            .findFirst()
+            .orElseThrow();
+        assertThat(announcement.excludeIds()).containsExactly(bob.getId());
     }
 
     // ---------- update ----------

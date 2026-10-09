@@ -471,6 +471,7 @@ public void deleteChannel(Long channelId) {
             n.setCategory(Notification.Category.MENTIONS);
             n.setText(trim("You were mentioned by " + author.getName() + " in " + channelLabel(channel)
                 + ": " + message.getBody(), 500));
+            n.setLink("/slack?channel=" + channel.getId() + "&message=" + message.getId());
             notificationRepository.save(n);
         }
     }

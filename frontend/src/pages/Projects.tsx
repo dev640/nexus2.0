@@ -1,6 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { memberById } from '../lib/mockData'
 import { canManageWorkspace } from '../lib/roles'
+import { useDeepLink } from '../hooks/useDeepLink'
+import { toProjectId } from '../store/ids'
 import { useAppStore } from '../store/useAppStore'
 import { NewProjectModal } from '../components/project/NewProjectModal'
 import { EditProjectModal } from '../components/project/EditProjectModal'
@@ -19,6 +21,9 @@ const healthLabel: Record<string, string> = {
   OFF_TRACK: 'Off Track',
 }
 
+/** How long a project stays outlined after an alert brings you to it. */
+const HIGHLIGHT_MS = 2500
+
 export function Projects() {
   const projects = useAppStore((s) => s.projects)
   const teams = useAppStore((s) => s.teams)
@@ -33,6 +38,29 @@ export function Projects() {
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null)
   const [taskModalOpen, setTaskModalOpen] = useState(false)
   const [taskProjectId, setTaskProjectId] = useState<string | undefined>(undefined)
+  const [highlightId, setHighlightId] = useState<string | null>(null)
+  const loadWorkspace = useAppStore((s) => s.loadWorkspace)
+
+  // An alert about a project arrives as ?project=<id>; the list scrolls to that
+  // card and outlines it, since a project has no modal of its own. A project
+  // created after this viewer loaded the workspace is fetched, not ignored.
+  useDeepLink(
+    ['project'],
+    (query) => {
+      const target = projects.find((p) => p.id === toProjectId(Number(query.get('project'))))
+      if (!target) return 'gone'
+      setHighlightId(target.id)
+      document.getElementById(`project-${target.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      return 'open'
+    },
+    { refresh: loadWorkspace },
+  )
+
+  useEffect(() => {
+    if (!highlightId) return
+    const timer = window.setTimeout(() => setHighlightId(null), HIGHLIGHT_MS)
+    return () => window.clearTimeout(timer)
+  }, [highlightId])
 
   function openNewTask(projectId: string) {
     setTaskProjectId(projectId)
@@ -69,7 +97,13 @@ export function Projects() {
           const teamMembers = team ? team.memberIds.map((id) => memberById(members, id)).filter(Boolean) : []
 
           return (
-          <div key={project.id} className="border border-line bg-white p-4 sm:p-6 lg:p-8">
+          <div
+            key={project.id}
+            id={`project-${project.id}`}
+            className={`border border-line bg-white p-4 transition-shadow sm:p-6 lg:p-8 ${
+              highlightId === project.id ? 'ring-2 ring-accent' : ''
+            }`}
+          >
             <div className="flex items-center justify-between gap-3">
               <div className="text-xs font-semibold uppercase tracking-widest text-mute">
                 Project {String(i + 1).padStart(2, '0')}

@@ -187,6 +187,11 @@ class ViewerReadOnlySecurityTest {
                 .content("{\"recipientId\":2,\"subject\":\"s\",\"body\":\"b\"}")
                 .with(SecurityMockMvcRequestPostProcessors.user("v@nexus.com").roles("VIEWER")))
             .andExpect(status().isCreated());
+        // Writing to everyone is the same kind of act as writing to one person.
+        mockMvc.perform(request("POST", "/api/messages/broadcast")
+                .content("{\"subject\":\"s\",\"body\":\"b\"}")
+                .with(SecurityMockMvcRequestPostProcessors.user("v@nexus.com").roles("VIEWER")))
+            .andExpect(status().isCreated());
         mockMvc.perform(request("DELETE", "/api/messages/1")
                 .with(SecurityMockMvcRequestPostProcessors.user("v@nexus.com").roles("VIEWER")))
             .andExpect(status().isNoContent());

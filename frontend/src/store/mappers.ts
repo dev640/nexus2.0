@@ -54,6 +54,7 @@ export function mapMessage(m: ApiMessage): MailMessage {
     subject: m.subject,
     body: m.body,
     read: m.read,
+    broadcast: m.broadcast ?? false,
     time: timeAgo(m.createdAt),
   }
 }

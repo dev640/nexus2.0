@@ -33,9 +33,13 @@ import {
   type ApiChatMessage,
   type ApiUser,
 } from '../lib/api'
+import { useDeepLink } from '../hooks/useDeepLink'
 import { connectChatSocket, type ChatSocketEvent } from '../lib/chatSocket'
 
 const EMOJIS = ['👍', '🎉', '❤️', '😂', '👀', '✅']
+
+/** How long a message stays marked after an alert opens the channel it is in. */
+const HIGHLIGHT_MS = 2500
 
 function channelTitle(c: ApiChatChannel): string {
   return c.type === 'DM' ? c.partnerName || 'Direct message' : `#${c.name}`
@@ -72,6 +76,7 @@ export function ChatPage() {
   const [showDmPicker, setShowDmPicker] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editingBody, setEditingBody] = useState('')
+  const [highlightMessageId, setHighlightMessageId] = useState<number | null>(null)
 
   const bottomRef = useRef<HTMLDivElement | null>(null)
   const socketRef = useRef<{ dispose: () => void; send: (frame: Record<string, unknown>) => void } | null>(null)
@@ -129,6 +134,38 @@ export function ChatPage() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: 'end' })
   }, [messages.length, activeId])
+
+  // An alert about a message arrives as ?channel=<id>&message=<id>: open that
+  // channel, then bring the message itself into view and mark it. This runs
+  // after the scroll-to-bottom above, so it wins.
+  useDeepLink(
+    ['channel', 'message'],
+    (query) => {
+      const channelId = Number(query.get('channel'))
+      if (!Number.isFinite(channelId) || channelId <= 0) return 'gone'
+      if (!channels.some((c) => c.id === channelId)) return 'gone'
+      setActiveId(channelId)
+      const messageId = Number(query.get('message'))
+      if (Number.isFinite(messageId) && messageId > 0) setHighlightMessageId(messageId)
+      return 'open'
+    },
+    // The channel may have been created after this viewer's list was fetched.
+    { refresh: loadChannels },
+  )
+
+  // Only a message that is actually on screen is chased: one that was deleted,
+  // or that is older than the page that loaded, is silently ignored.
+  const visibleHighlightId =
+    highlightMessageId != null && messages.some((m) => m.id === highlightMessageId)
+      ? highlightMessageId
+      : null
+
+  useEffect(() => {
+    if (visibleHighlightId == null) return
+    document.getElementById(`chat-message-${visibleHighlightId}`)?.scrollIntoView({ block: 'center' })
+    const timer = window.setTimeout(() => setHighlightMessageId(null), HIGHLIGHT_MS)
+    return () => window.clearTimeout(timer)
+  }, [visibleHighlightId])
 
   // ---------- live socket ----------
 
@@ -512,7 +549,13 @@ export function ChatPage() {
                   const grouped = prev && prev.authorId === m.authorId
                     && new Date(m.createdAt).getTime() - new Date(prev.createdAt).getTime() < 5 * 60 * 1000
                   return (
-                    <div key={m.id} className={`group flex gap-2.5 ${grouped ? 'mt-0.5' : 'mt-3'}`}>
+                    <div
+                      key={m.id}
+                      id={`chat-message-${m.id}`}
+                      className={`group flex gap-2.5 rounded-md ${grouped ? 'mt-0.5' : 'mt-3'} ${
+                        visibleHighlightId === m.id ? 'bg-accent/10 ring-1 ring-accent/40' : ''
+                      }`}
+                    >
                       <div className="w-8 shrink-0">
                         {!grouped && (
                           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-line text-xs font-semibold text-ink">

@@ -1,6 +1,7 @@
 package com.nexus.backend.service;
 
 import com.nexus.backend.domain.knowledge.KnowledgeSourceType;
+import com.nexus.backend.domain.notification.Notification;
 import com.nexus.backend.domain.sprint.Sprint;
 import com.nexus.backend.domain.sprint.SprintStatus;
 import com.nexus.backend.domain.project.Project;
@@ -11,6 +12,7 @@ import com.nexus.backend.exception.ValidationException;
 import com.nexus.backend.repository.ProjectRepository;
 import com.nexus.backend.repository.SprintRepository;
 import com.nexus.backend.repository.TaskRepository;
+import com.nexus.backend.service.activity.ActivityEvents;
 import com.nexus.backend.service.knowledge.KnowledgeEvents;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -52,6 +54,9 @@ private final TaskRepository taskRepository;
 
         Sprint savedSprint = sprintRepository.save(sprint);
         KnowledgeEvents.changed(knowledgePublisher, KnowledgeSourceType.SPRINT, savedSprint.getId());
+        ActivityEvents.workspace(knowledgePublisher, Notification.Category.PROJECTS,
+            "created Sprint " + savedSprint.getNumber() + " in \"" + project.getName() + "\"",
+            "/sprints?sprint=" + savedSprint.getId());
 
         // Update project sprint number
         project.setSprintNumber(sprint.getNumber());
@@ -87,9 +92,18 @@ private final TaskRepository taskRepository;
     public SprintResponse updateStatus(Long id, SprintStatus status) {
         Sprint sprint = sprintRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Sprint", "id", id));
+        // Saving the same status again is not an event anyone needs to hear
+        // about — only an actual move is.
+        boolean moved = sprint.getStatus() != status;
         sprint.setStatus(status);
         Sprint updatedSprint = sprintRepository.save(sprint);
         KnowledgeEvents.changed(knowledgePublisher, KnowledgeSourceType.SPRINT, updatedSprint.getId());
+        if (moved) {
+            ActivityEvents.workspace(knowledgePublisher, Notification.Category.PROJECTS,
+                "moved Sprint " + updatedSprint.getNumber() + " of \"" + updatedSprint.getProject().getName()
+                    + "\" to " + status.name(),
+                "/sprints?sprint=" + updatedSprint.getId());
+        }
         return mapToResponse(updatedSprint);
     }
 
@@ -123,7 +137,11 @@ private final TaskRepository taskRepository;
         if (request.status() != null) {
             sprint.setStatus(request.status());
         }
-        return mapToResponse(sprintRepository.save(sprint));
+        Sprint saved = sprintRepository.save(sprint);
+        ActivityEvents.workspace(knowledgePublisher, Notification.Category.PROJECTS,
+            "updated Sprint " + saved.getNumber() + " of \"" + saved.getProject().getName() + "\"",
+            "/sprints?sprint=" + saved.getId());
+        return mapToResponse(saved);
     }
 
     /**
