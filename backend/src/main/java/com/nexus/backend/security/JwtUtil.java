@@ -16,7 +16,12 @@ import java.util.function.Function;
 @Component
 public class JwtUtil {
 
-    @Value("${jwt.secret:3f5a7c9e1b4d6f8a2c4e6f8a0b2d4e6f8a0c2e4f6a8b0c2d4e6f8a0b2c4d6e8}")
+    /**
+     * HMAC signing secret. There is deliberately no default: a shipped fallback
+     * would let anyone who reads the repository mint tokens for a deployment that
+     * forgot to set one. Startup fails fast when it is missing or too short.
+     */
+    @Value("${jwt.secret:}")
     private String secret;
 
     @Value("${jwt.expiration:86400000}") // 24 hours in milliseconds
@@ -26,7 +31,21 @@ public class JwtUtil {
     private Long refreshExpiration;
 
     private SecretKey getSigningKey() {
+        if (secret == null || secret.getBytes().length < 32) {
+            throw new IllegalStateException(
+                "jwt.secret (NEXUS_JWT_SECRET) is not set or is shorter than 32 bytes. "
+                    + "Refusing to sign or verify tokens with an unset or weak secret.");
+        }
         return Keys.hmacShaKeyFor(secret.getBytes());
+    }
+
+    /**
+     * Fail at startup rather than on the first login, so a misconfigured deployment
+     * is caught by health checks instead of by users.
+     */
+    @jakarta.annotation.PostConstruct
+    void requireSecret() {
+        getSigningKey();
     }
 
     public String extractUsername(String token) {

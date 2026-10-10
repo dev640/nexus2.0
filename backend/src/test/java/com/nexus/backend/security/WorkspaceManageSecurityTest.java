@@ -25,6 +25,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -100,6 +101,21 @@ class WorkspaceManageSecurityTest {
                 .content(PROJECT_BODY)
                 .with(user("a@nexus.com").roles("ADMIN")))
             .andExpect(status().isCreated());
+    }
+
+    @Test
+    void securityHeadersAreAppliedByTheRealFilterChain() throws Exception {
+        when(projectService.create(any())).thenReturn(projectResponse());
+
+        mockMvc.perform(post("/api/projects")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(PROJECT_BODY)
+                .with(user("a@nexus.com").roles("ADMIN")))
+            .andExpect(status().isCreated())
+            .andExpect(header().string("X-Content-Type-Options", "nosniff"))
+            .andExpect(header().string("X-Frame-Options", "DENY"))
+            // HSTS is opt-in; tests run over plain HTTP and must not pin a browser.
+            .andExpect(header().doesNotExist("Strict-Transport-Security"));
     }
 
     @Test

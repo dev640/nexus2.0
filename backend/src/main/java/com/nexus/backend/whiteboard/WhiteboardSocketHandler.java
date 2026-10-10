@@ -2,6 +2,7 @@ package com.nexus.backend.whiteboard;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -19,9 +20,19 @@ public class WhiteboardSocketHandler extends TextWebSocketHandler {
     private static final Logger log = LoggerFactory.getLogger(WhiteboardSocketHandler.class);
 
     private final Set<WebSocketSession> sessions = ConcurrentHashMap.newKeySet();
+    private final int maxTextMessageBytes;
+
+    public WhiteboardSocketHandler(
+        @Value("${nexus.ws.max-text-message-bytes:65536}") int maxTextMessageBytes
+    ) {
+        this.maxTextMessageBytes = maxTextMessageBytes;
+    }
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
+        // Clients only listen on this socket; bound the frames they may send anyway.
+        session.setTextMessageSizeLimit(maxTextMessageBytes);
+        session.setBinaryMessageSizeLimit(maxTextMessageBytes);
         sessions.add(session);
         log.debug("Whiteboard client connected ({} live)", sessions.size());
     }

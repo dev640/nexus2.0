@@ -13,6 +13,7 @@ import com.nexus.backend.repository.ChatChannelRepository;
 import com.nexus.backend.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -42,6 +43,14 @@ public class ChatSocketHandler extends TextWebSocketHandler {
 
     private final Map<WebSocketSession, Long> users = new ConcurrentHashMap<>();
 
+    /** Per-connection inbound frame budget: an open socket cannot be used as a flood source. */
+    private record MessageWindow(long startMillis, int count) {}
+
+    private final Map<String, MessageWindow> messageWindows = new ConcurrentHashMap<>();
+    private final int maxTextMessageBytes;
+    private final int maxMessagesPerWindow;
+    private final long messageWindowMillis;
+
     /**
      * Jackson 2 without the jsr310 module cannot serialize {@link LocalDateTime},
      * which message payloads carry — events would silently fail to write. This
@@ -68,15 +77,25 @@ public class ChatSocketHandler extends TextWebSocketHandler {
     public ChatSocketHandler(
         ChatChannelMemberRepository memberRepository,
         ChatChannelRepository channelRepository,
-        UserRepository userRepository
+        UserRepository userRepository,
+        @Value("${nexus.ws.max-text-message-bytes:65536}") int maxTextMessageBytes,
+        @Value("${nexus.ws.max-messages-per-window:120}") int maxMessagesPerWindow,
+        @Value("${nexus.ws.message-window-seconds:60}") long messageWindowSeconds
     ) {
         this.memberRepository = memberRepository;
         this.channelRepository = channelRepository;
         this.userRepository = userRepository;
+        this.maxTextMessageBytes = maxTextMessageBytes;
+        this.maxMessagesPerWindow = maxMessagesPerWindow;
+        this.messageWindowMillis = messageWindowSeconds * 1000;
     }
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
+        // Bound inbound frames before the socket is used for anything else.
+        session.setTextMessageSizeLimit(maxTextMessageBytes);
+        session.setBinaryMessageSizeLimit(maxTextMessageBytes);
+
         Long userId = userIdOf(session);
         if (userId == null) {
             closeQuietly(session, CloseStatus.POLICY_VIOLATION);
@@ -89,6 +108,7 @@ public class ChatSocketHandler extends TextWebSocketHandler {
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
         users.remove(session);
+        messageWindows.remove(session.getId());
         broadcastPresence();
     }
 
@@ -96,6 +116,13 @@ public class ChatSocketHandler extends TextWebSocketHandler {
     protected void handleTextMessage(WebSocketSession session, TextMessage message) {
         Long userId = users.get(session);
         if (userId == null) return;
+        if (!withinMessageBudget(session)) {
+            log.debug("Closing chat session {}: message rate exceeded", session.getId());
+            users.remove(session);
+            messageWindows.remove(session.getId());
+            closeQuietly(session, CloseStatus.POLICY_VIOLATION);
+            return;
+        }
         try {
             JsonNode frame = objectMapper.readTree(message.getPayload());
             String type = frame.path("type").asText("");
@@ -191,7 +218,23 @@ public class ChatSocketHandler extends TextWebSocketHandler {
         } catch (IOException e) {
             log.debug("Dropping chat session {}: {}", session.getId(), e.getMessage());
             users.remove(session);
+            messageWindows.remove(session.getId());
         }
+    }
+
+    /** False once the connection has spent its inbound frame budget for the window. */
+    private boolean withinMessageBudget(WebSocketSession session) {
+        long now = System.currentTimeMillis();
+        MessageWindow window = messageWindows.get(session.getId());
+        if (window == null || now - window.startMillis() > messageWindowMillis) {
+            messageWindows.put(session.getId(), new MessageWindow(now, 1));
+            return true;
+        }
+        if (window.count() >= maxMessagesPerWindow) {
+            return false;
+        }
+        messageWindows.put(session.getId(), new MessageWindow(window.startMillis(), window.count() + 1));
+        return true;
     }
 
     private void closeQuietly(WebSocketSession session, CloseStatus status) {
