@@ -1,0 +1,166 @@
+{
+  "generated_at": "2026-10-10T04:26:07.942837+00:00",
+  "nodes": {
+    "src_app_app": {
+      "code_fingerprint": "260374b3dc242dba60af32353223cebc9ec906ed05a8f670a070952f8fc4befe",
+      "label": "App()",
+      "last": "2026-10-10T04:08:46.784290+00:00",
+      "provenance": [
+        {
+          "date": "2026-10-10T04:08:46.784290+00:00",
+          "outcome": "useful",
+          "q": "Why does useAppStore connect so many application communities?"
+        }
+      ],
+      "score": 0.999721614,
+      "source_file": "src/App.tsx",
+      "status": "tentative",
+      "uses": 1
+    },
+    "src_hooks_usedevicealerts_usedevicealerts": {
+      "code_fingerprint": "c1f59c2633aa9a9e08198bf3eb614e05f58c8d343bec4b856667e93e953ee2bd",
+      "label": "useDeviceAlerts()",
+      "last": "2026-10-10T04:08:46.784290+00:00",
+      "provenance": [
+        {
+          "date": "2026-10-10T04:08:46.784290+00:00",
+          "outcome": "useful",
+          "q": "Why does useAppStore connect so many application communities?"
+        }
+      ],
+      "score": 0.999721614,
+      "source_file": "src/hooks/useDeviceAlerts.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "src_hooks_useunreadcount_useunreadcount": {
+      "code_fingerprint": "dd0cc78e2369b263c56b68444c16c0a5c0fa41c8fb6b598d8560d7110a46366b",
+      "label": "useUnreadCount()",
+      "last": "2026-10-10T04:08:46.784290+00:00",
+      "provenance": [
+        {
+          "date": "2026-10-10T04:08:46.784290+00:00",
+          "outcome": "useful",
+          "q": "Why does useAppStore connect so many application communities?"
+        }
+      ],
+      "score": 0.999721614,
+      "source_file": "src/hooks/useUnreadCount.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "src_pages_chat_chatpage": {
+      "code_fingerprint": "72d8dcff1a2f022b5927a9c85725c2d67d0de26bb9bcef2d3fe86ff4f9696efa",
+      "label": "ChatPage()",
+      "last": "2026-10-10T04:08:46.784290+00:00",
+      "provenance": [
+        {
+          "date": "2026-10-10T04:08:46.784290+00:00",
+          "outcome": "useful",
+          "q": "Why does useAppStore connect so many application communities?"
+        }
+      ],
+      "score": 0.999721614,
+      "source_file": "src/pages/Chat.tsx",
+      "status": "tentative",
+      "uses": 1
+    },
+    "src_pages_home_home": {
+      "code_fingerprint": "e1bd1b7297afc0bc7b6d668d93bdf833873abb7db599726f55bdf7ffa81f7cb0",
+      "label": "Home()",
+      "last": "2026-10-10T04:08:46.784290+00:00",
+      "provenance": [
+        {
+          "date": "2026-10-10T04:08:46.784290+00:00",
+          "outcome": "useful",
+          "q": "Why does useAppStore connect so many application communities?"
+        }
+      ],
+      "score": 0.999721614,
+      "source_file": "src/pages/Home.tsx",
+      "status": "tentative",
+      "uses": 1
+    },
+    "src_pages_settings_settings": {
+      "code_fingerprint": "c5e674ed59631c7d8ad61193202923a03a3a912d1b87af73084396f65ea05db3",
+      "label": "Settings()",
+      "last": "2026-10-10T04:08:46.784290+00:00",
+      "provenance": [
+        {
+          "date": "2026-10-10T04:08:46.784290+00:00",
+          "outcome": "useful",
+          "q": "Why does useAppStore connect so many application communities?"
+        }
+      ],
+      "score": 0.999721614,
+      "source_file": "src/pages/Settings.tsx",
+      "status": "tentative",
+      "uses": 1
+    },
+    "src_store_slices_auth_createauthslice": {
+      "code_fingerprint": "8aa73adde5cdf989b73f5c98866146236ff8a45a4169772f2413bb50a620e672",
+      "label": "createAuthSlice()",
+      "last": "2026-10-10T04:08:46.784290+00:00",
+      "provenance": [
+        {
+          "date": "2026-10-10T04:08:46.784290+00:00",
+          "outcome": "useful",
+          "q": "Why does useAppStore connect so many application communities?"
+        }
+      ],
+      "score": 0.999721614,
+      "source_file": "src/store/slices/auth.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "src_store_slices_settings_createsettingsslice": {
+      "code_fingerprint": "6fcf09053c6329602b3dd60d0802b3b907e53afe7748fc65e9f0c99a17984a7d",
+      "label": "createSettingsSlice()",
+      "last": "2026-10-10T04:08:46.784290+00:00",
+      "provenance": [
+        {
+          "date": "2026-10-10T04:08:46.784290+00:00",
+          "outcome": "useful",
+          "q": "Why does useAppStore connect so many application communities?"
+        }
+      ],
+      "score": 0.999721614,
+      "source_file": "src/store/slices/settings.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "src_store_slices_tasks_createtasksslice": {
+      "code_fingerprint": "857c5d4377fd8a6fc271a6ef66e281f7404264988104741d29fecf2a43939660",
+      "label": "createTasksSlice()",
+      "last": "2026-10-10T04:08:46.784290+00:00",
+      "provenance": [
+        {
+          "date": "2026-10-10T04:08:46.784290+00:00",
+          "outcome": "useful",
+          "q": "Why does useAppStore connect so many application communities?"
+        }
+      ],
+      "score": 0.999721614,
+      "source_file": "src/store/slices/tasks.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "src_store_useappstore_useappstore": {
+      "code_fingerprint": "3a81a06badabef3fccc59edaece45262bc1e7d2be75628ad0d5fe7542176cf30",
+      "label": "useAppStore",
+      "last": "2026-10-10T04:08:46.784290+00:00",
+      "provenance": [
+        {
+          "date": "2026-10-10T04:08:46.784290+00:00",
+          "outcome": "useful",
+          "q": "Why does useAppStore connect so many application communities?"
+        }
+      ],
+      "score": 0.999721614,
+      "source_file": "src/store/useAppStore.ts",
+      "status": "tentative",
+      "uses": 1
+    }
+  },
+  "version": 1
+}
