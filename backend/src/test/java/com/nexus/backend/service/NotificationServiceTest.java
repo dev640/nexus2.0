@@ -15,7 +15,9 @@ import com.nexus.backend.domain.user.UserRole;
 import com.nexus.backend.dto.NotificationResponse;
 import com.nexus.backend.repository.NotificationRepository;
 import com.nexus.backend.repository.UserRepository;
+import com.nexus.backend.service.push.WebPushSender;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -37,6 +39,7 @@ class NotificationServiceTest {
     @Mock private NotificationRepository notificationRepository;
     @Mock private UserRepository userRepository;
     @Mock private ChatSocketFacade socketFacade;
+    @Mock private WebPushSender webPushSender;
 
     @InjectMocks private NotificationService notificationService;
 
@@ -156,6 +159,48 @@ class NotificationServiceTest {
 
         verify(notificationRepository, never()).save(any(Notification.class));
         verify(socketFacade, never()).pushNotification(any(), any());
+    }
+
+    /**
+     * A closed app is exactly the case the socket cannot cover, so an offline
+     * recipient has to be reached by push or not at all.
+     */
+    @Test
+    void pushesToTheDeviceOfSomebodyWithNoOpenTab() {
+        rowsGetIds();
+        when(socketFacade.onlineUserIds()).thenReturn(List.of());
+
+        notificationService.notifyUsers(List.of(user(4L, "Palak", "palak@nexus.com")),
+            Notification.Category.PROJECTS, "Devendra created the project \"Nimbus\"", "/projects");
+
+        ArgumentCaptor<Map<String, Object>> payload = captorOfMap();
+        verify(webPushSender).sendToUserInBackground(eq(4L), payload.capture());
+        assertThat(payload.getValue())
+            .containsEntry("body", "Devendra created the project \"Nimbus\"")
+            .containsEntry("url", "/projects")
+            // Distinct notifications must stack rather than replace each other.
+            .containsEntry("tag", "nexus-notification-10");
+    }
+
+    /**
+     * An open tab alerts itself the instant the socket frame lands, so pushing as
+     * well would announce the same event twice on the same desk.
+     */
+    @Test
+    void staysOffTheDevicesOfSomebodyWhoseTabIsOpen() {
+        rowsGetIds();
+        when(socketFacade.onlineUserIds()).thenReturn(List.of(4L));
+
+        notificationService.notifyUsers(List.of(user(4L, "Palak", "palak@nexus.com")),
+            Notification.Category.PROJECTS, "Devendra created the project \"Nimbus\"", "/projects");
+
+        verify(socketFacade).pushNotification(eq(4L), any(NotificationResponse.class));
+        verify(webPushSender, never()).sendToUserInBackground(any(), any());
+    }
+
+    @SuppressWarnings("unchecked")
+    private static ArgumentCaptor<Map<String, Object>> captorOfMap() {
+        return ArgumentCaptor.forClass(Map.class);
     }
 
     private static void authenticateAs(String email) {

@@ -426,6 +426,43 @@ export async function apiArchiveNotification(id: number): Promise<void> {
   await api.delete(`/notifications/${id}`)
 }
 
+// ---------- Push (notifications while the app is closed) ----------
+
+/** A browser push subscription, exactly as the Push API serialises it. */
+export interface ApiPushSubscription {
+  endpoint: string
+  keys: { p256dh: string; auth: string }
+}
+
+/**
+ * The VAPID public key this deployment signs pushes with, base64url. Empty
+ * when the server has no key pair configured, which is how the app knows push
+ * is switched off rather than merely failing.
+ */
+export async function apiPushPublicKey(): Promise<string> {
+  const { data } = await api.get<{ publicKey: string }>('/push/public-key')
+  return data.publicKey
+}
+
+export async function apiSavePushSubscription(subscription: ApiPushSubscription): Promise<void> {
+  await api.post('/push/subscriptions', subscription)
+}
+
+/** Removes one device. The endpoint is the identity: it is long and unguessable. */
+export async function apiDeletePushSubscription(endpoint: string): Promise<void> {
+  await api.delete('/push/subscriptions', { data: { endpoint } })
+}
+
+/**
+ * Asks the server to push a notification to every device this account has
+ * registered, so the user can confirm push works without waiting for someone
+ * else to do something.
+ */
+export async function apiSendTestPush(): Promise<number> {
+  const { data } = await api.post<{ devices: number }>('/push/test')
+  return data.devices
+}
+
 // ---------- Mail (internal messages) ----------
 
 export interface ApiMessage {

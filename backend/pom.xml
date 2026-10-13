@@ -62,6 +62,18 @@
 			<groupId>com.fasterxml.jackson.core</groupId>
 			<artifactId>jackson-databind</artifactId>
 		</dependency>
+		<!--
+			Web Push (VAPID + aes128gcm payload encryption) for notifications that
+			have to reach a closed app. Deliberately the no-third-party-dependency
+			implementation: it signs with the JDK's own JCA and sends with
+			java.net.http, so it adds nothing to the dependency tree, no Bouncy
+			Castle and no HTTP client of its own. Requires Java 11+.
+		-->
+		<dependency>
+			<groupId>com.zerodeplibs</groupId>
+			<artifactId>zerodep-web-push-java</artifactId>
+			<version>2.1.5</version>
+		</dependency>
 
 		<dependency>
 			<groupId>org.postgresql</groupId>

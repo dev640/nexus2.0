@@ -216,6 +216,10 @@ runtime (Railway, server-only).
 | `NEXUS_AUTH_RATE_LIMIT` | Railway | no | Requests per 60 s per IP on `/api/auth/**`. Default 20 |
 | `NEXUS_LLM_*` | Railway | key only | §6 |
 | `NEXUS_SUPABASE_SERVICE_ROLE_KEY` | Railway | **yes** | Full-access admin credential; accepts a legacy `service_role` JWT or an `sb_secret_…` key. Server-only; never in a `VITE_` variable, never committed. Rotation: §12 |
+| `NEXUS_PUSH_VAPID_PUBLIC_KEY` | Railway | no | VAPID public half (base64url, 65 bytes). Served to browsers at `GET /api/push/public-key`. §13 |
+| `NEXUS_PUSH_VAPID_PRIVATE_KEY` | Railway | **yes** | VAPID private half (base64url, 32 bytes). Signs every push as this application; anyone holding it can notify your users |
+| `NEXUS_PUSH_SUBJECT` | Railway | no | Contact URL the push services require. Default `mailto:ops@nexus.app` |
+| `NEXUS_PUSH_TTL_HOURS` | Railway | no | How long an undelivered notification is held. Default 24 |
 | `PORT` | platform | no | Injected by the platform; defaults to 8080 |
 
 ---
@@ -236,6 +240,10 @@ runtime (Railway, server-only).
 | Admin → Create an account, or a password reset, returns 401 from Supabase | The key's generation does not match the headers sent, or the legacy keys were disabled before the new key was set | §12: a legacy `service_role` JWT needs `apikey` **and** `Authorization: Bearer`; an `sb_secret_…` key needs `apikey` alone |
 | `Supabase admin API is not configured` after a rotation | `NEXUS_SUPABASE_SERVICE_ROLE_KEY` is empty or was set on the wrong service/environment | Re-set it on the Railway backend service, then redeploy — the value is read at startup |
 | Copilot answers look generic | No LLM key/model, or the provider call is failing | §6; the Copilot names the reason next to the answer |
+| Notifications appear in the Inbox but never as a popup | The browser never granted notification permission, or nothing has asked for it with a user gesture | Settings → Device Alerts → **Enable notifications** (a click is required on Android and Safari) |
+| Popups work on the laptop but nothing arrives on the phone | No push subscription for that device, or iOS without the home-screen install | §13; the phone must be subscribed separately from the laptop, and iPhone/iPad require *Add to Home Screen* |
+| "Send a test notification" reports 0 devices | This browser has not subscribed, or the server has no key pair | Settings → Device Alerts; then confirm both `NEXUS_PUSH_VAPID_*` variables are set on Railway — a half-configured pair leaves push off |
+| Push worked, then silently stopped | The push service rotated or revoked the endpoint (410), and the row was pruned | Reload the app signed in: the browser re-files its subscription on load. `SELECT count(*) FROM push_subscriptions` should go back up |
 | 429 from `/api/auth/**` | Per-IP auth rate limit (20 requests / 60 s) | Wait out the window. A shared counter is still a known gap (see PRD §9) |
 
 ### Known inconsistencies
@@ -524,3 +532,275 @@ Record every rotation here. An undated key is a key nobody can age.
 - A key appears in a commit, a log, a screenshot, a ticket or an error report.
 - Someone with dashboard access leaves.
 - A key has been in service for more than a year, or nobody can say where it is used.
+
+---
+
+## 13. Web Push notifications
+
+Notifications have two delivery paths, and they cover different situations:
+
+| Path | Reaches | How |
+|------|---------|-----|
+| Live socket | a tab that is open, anywhere | `/ws/chat` push frame → the app raises the popup and plays the sound |
+| Web Push | a browser with the app closed, including a locked phone | VAPID-signed push → the service worker's `push` handler → a system notification |
+
+Both are best-effort: the notification itself is always stored, so a message that fails to pop up
+is still in the Inbox on the next load. A recipient with a live socket is deliberately **not**
+pushed to, so an open laptop does not announce the same event twice.
+
+### What is deployed where
+
+The frontend ships three things Vercel serves as static files — `sw.js`, `manifest.webmanifest` and
+the icons — and the backend owns the key pair and the subscriptions.
+
+```
+GET    /api/push/public-key      the VAPID public key browsers subscribe with ("" when off)
+POST   /api/push/subscriptions   record this browser against the signed-in account
+DELETE /api/push/subscriptions   silence this browser
+POST   /api/push/test            push to the caller's own devices; returns how many were accepted
+```
+
+Subscriptions live in `push_subscriptions` (V17), one row per browser. An endpoint is addressed to
+the browser that created it, so rows are never shared and never inspected by hand.
+
+### Generating the key pair
+
+One pair serves the whole deployment, split across two variables — there is no key file on the
+server. Run the generator at the repository root:
+
+```bash
+node gen-vapid.cjs
+```
+
+It prints the public key (safe to share) and writes both values to `.env.push.local`, which is
+gitignored — the private half must never appear in a commit, a transcript or a ticket. If the script
+is ever lost, this is the whole of it:
+
+```js
+// gen-vapid.cjs — writes .env.push.local and prints only the public half
+const { createHash, generateKeyPairSync } = require('node:crypto')
+const fs = require('node:fs')
+const { privateKey, publicKey } = generateKeyPairSync('ec', { namedCurve: 'prime256v1' })
+const dec = (v) => Buffer.from(v.replace(/-/g, '+').replace(/_/g, '/'), 'base64')
+const enc = (b) => b.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+const jwk = publicKey.export({ format: 'jwk' })
+const pub = Buffer.concat([Buffer.from([0x04]), dec(jwk.x), dec(jwk.y)]) // 65 bytes
+const priv = dec(privateKey.export({ format: 'jwk' }).d)                 // 32 bytes
+fs.writeFileSync('.env.push.local', [
+  `NEXUS_PUSH_VAPID_PUBLIC_KEY=${enc(pub)}`,
+  `NEXUS_PUSH_VAPID_PRIVATE_KEY=${enc(priv)}`,
+].join('\n'))
+console.log('public:', enc(pub))
+// The same fingerprint GET /api/push/self-check reports, so the deployed pair can be
+// compared against the one on disk without the private half leaving this file.
+console.log('fingerprint (sha256, first 12):', createHash('sha256').update(pub).digest('hex').slice(0, 12))
+```
+
+### Turning it on
+
+1. Generate the pair (above).
+2. Railway → the backend service → **Variables**: add `NEXUS_PUSH_VAPID_PUBLIC_KEY` and
+   `NEXUS_PUSH_VAPID_PRIVATE_KEY` as **two separate variables**, then redeploy. Both are read at
+   startup; setting one alone leaves push off, which is why the app logs
+   `Web Push is off: no VAPID key pair configured` when it happens.
+3. Open the deployed site and confirm the key is being served:
+
+   ```bash
+   curl -s -o /dev/null -w '%{http_code}\n' https://nexus20-production.up.railway.app/api/push/public-key
+   # 403 — this endpoint is behind authentication like the rest of /api. A 200 here
+   # would mean the security chain stopped covering it.
+   ```
+
+   The empty-key case answers `{"publicKey":""}` to a signed-in caller, which the UI reads as
+   "push is switched off" rather than as an error.
+4. On each device: **Settings → Device Alerts → Enable notifications**. Permission prompts, the
+   browser subscribes, and the row lands in `push_subscriptions`.
+5. Press **Send a test notification**. It reports how many devices the push service accepted, and
+   it re-files the subscription first, so it also works as a repair.
+
+### Verifying it end to end
+
+The only test that matters is a notification arriving while nothing is open.
+
+```bash
+# 1. One row per subscribed browser, and it belongs to the right account.
+#    (Railway → Postgres → Data, or psql with $DATABASE_URL)
+SELECT id, user_id, left(endpoint, 40) AS endpoint_prefix, created_at FROM push_subscriptions;
+
+# 2. From a second account, assign a task to the first. No tab open on the target device.
+# 3. The phone should buzz with a system notification, and tapping it opens /board?task=<id>.
+```
+
+On the desktop, the same thing is testable without a second account: press **Send a test
+notification** and then lock the screen. A push that arrives with the app closed is the entire
+feature; if it only works while a tab is open, the socket path is working and the push path is not.
+
+To watch the sender rather than the receiver, the backend logs `Push service refused a notification
+for subscription <id>: HTTP <status>` on a refusal and deletes the row on a 404/410.
+
+### One call that answers most of it
+
+`GET /api/push/self-check` reports what this deployment believes about push, for the account
+asking, and it is the first thing to run when a phone does not buzz. It is behind authentication, so
+start with a token:
+
+```bash
+API=https://nexus20-production.up.railway.app
+TOKEN=$(curl -s -X POST "$API/api/auth/login" -H 'Content-Type: application/json' \
+  -d '{"email":"you@nexus.com","password":"<your password>"}' \
+  | node -e 'process.stdout.write(JSON.parse(require("fs").readFileSync(0,"utf8")).token)')
+
+curl -s -H "Authorization: Bearer $TOKEN" "$API/api/push/self-check"
+```
+
+```json
+{
+  "pushEnabled": true,
+  "publicKeyFingerprint": "0123456789ab",
+  "publicKeyMatchesPrivateKey": true,
+  "subject": "mailto:ops@nexus.app",
+  "ttlHours": 24,
+  "devices": 1,
+  "lastAttempt": { "at": "2026-10-14T09:30:00Z", "attempted": 1, "accepted": 1, "outcome": "ACCEPTED", "status": 201 }
+}
+```
+
+| Field | What it rules out |
+|---|---|
+| `pushEnabled` false, `publicKeyFingerprint` null | No key pair, or only one half of it set — step 2 of "Turning it on" |
+| `publicKeyMatchesPrivateKey` **false** | The two halves come from different generations. Nothing else matters until this reads `true`: every push is signed with a key the browser did not subscribe with, and refused with 403 |
+| `publicKeyMatchesPrivateKey` null | The check could not be made on this JVM, which is not the same as a mismatch. The startup log says why |
+| `publicKeyFingerprint` | Compare with the pair on disk (below). Matching *and* a `true` above is what proves the deployed pair is the intended one |
+| `devices` 0 | This account has no registered browser, so there is nowhere to send |
+| `lastAttempt` null | Nothing has been sent to this account since the process started. Press **Send a test notification** and read it again |
+| `lastAttempt.outcome` `ACCEPTED` | The push service took it. A silent phone after this is a device-side problem, not a server-side one |
+| `REFUSED`, `status` 403 | The push service rejected the signature or the subject: a rotated pair, or a subject it will not accept |
+| `GONE`, `status` 410 | That browser is gone and the row has been deleted — re-subscribe on the device |
+| `UNREACHABLE`, `status` 0 | No answer at all: DNS, a refused connection, TLS, or the ten-second deadline. The application's network, not the phone |
+| `NOT_SENT` / `UNSENDABLE` | The request or its payload could not be built. An application fault, not the push service's |
+
+The fingerprint is the first twelve hex characters of the SHA-256 of the public key — the value
+browsers subscribe with, and never the private half. Compute the same digest from the pair on disk
+and the two must match character for character:
+
+```bash
+node -e '
+const { createHash } = require("node:crypto")
+const line = require("node:fs").readFileSync(".env.push.local", "utf8")
+  .split("\n").find((l) => l.startsWith("NEXUS_PUSH_VAPID_PUBLIC_KEY="))
+const pub = Buffer.from(line.split("=")[1].trim().replace(/-/g, "+").replace(/_/g, "/"), "base64")
+console.log(createHash("sha256").update(pub).digest("hex").slice(0, 12))
+'
+```
+
+The last attempt is held in memory for the most recent 512 accounts and is forgotten on restart: it
+answers "did the thing I just did work?", not "what has ever happened".
+
+### The phone test, in order
+
+Work through this in sequence — each step rules out a whole class of cause, and stopping at the
+first failure is much faster than guessing at the end.
+
+**0. The deployment carries the worker.** A subscription needs `sw.js`, and the deploy has to be
+newer than the change that added it:
+
+```bash
+WEB=https://nexus-2-0-omega.vercel.app
+curl -s -o /dev/null -w 'sw.js: %{http_code} %{content_type}\n' "$WEB/sw.js"
+curl -s -o /dev/null -w 'manifest: %{http_code}\n' "$WEB/manifest.webmanifest"
+```
+
+`sw.js` must be **200 with a JavaScript content type**. A 404, or `text/html`, means the running
+frontend predates the worker and no device can subscribe from it — redeploy before going further.
+"200 text/html" is the SPA fallback answering for a file that is not there, not a worker.
+
+**1. The server is holding the key pair you think it is.** Read the self-check above: `pushEnabled`
+must be true, `publicKeyMatchesPrivateKey` must be `true` rather than `false` or `null`, and
+`publicKeyFingerprint` must equal the digest of the pair on disk. All three together are what proves
+the deployed pair; any one of them alone does not.
+
+Both endpoints answer **403 with an empty body** to a request without a token, which is the security
+chain working and not a symptom.
+
+**2. This device is registered.** Enable in Settings, then confirm the row:
+
+```sql
+SELECT id, user_id, left(endpoint, 40) AS endpoint_prefix, created_at
+FROM push_subscriptions ORDER BY created_at DESC;
+```
+
+**3. The device is reachable at all.** Press **Send a test notification** and check the phone. This
+is the only check that isolates keys + transport, and it is worth passing before touching anything
+else.
+
+**4. The notification path.** Assign a task from a second account, with the target account signed out
+or closed everywhere — see the suppression rule below for why that matters.
+
+### Two silent suppressions that look like a broken push
+
+Both of these drop a push on purpose, and neither leaves an error:
+
+| Suppression | Rule | How to test around it |
+|-------------|------|-----------------------|
+| Connected user | `NotificationService.notifyUsers` skips Web Push for any recipient with a **live socket anywhere** — a laptop tab left open is enough | Close every tab for the target account, or use a second account that has none |
+| Watched window | `sw.js` refuses to draw the system notification when a window of this app is **visible and focused**, because the app has already alerted off the socket | Lock the screen or switch away — the phone must not be showing the app |
+
+The first one also means the **test button is not a test of the notification path**: `/api/push/test`
+posts straight to the devices and bypasses the socket check entirely. Passing it proves keys, worker
+and transport are fine; it says nothing about whether a real assignment will buzz.
+
+### Why nothing arrived
+
+| What you see | What it means | Where to look |
+|---|---|---|
+| The panel says *"The server has no push key configured, so nothing can be sent yet."* | No key pair, or only one of the two variables set | Railway variables; startup log `Web Push is off` |
+| Push off, and the log names a cause | `VAPID key pair could not be read, so Web Push stays off: <cause>` — the two halves are from different generations, or the value was truncated on paste | Regenerate as one pair |
+| `/sw.js` 404 or `text/html` | The deployed frontend predates the worker | Redeploy the frontend (step 0) |
+| *"This page is not served over HTTPS, so notifications cannot work."* | No secure context — an `http://` LAN address has no service worker at all | Use the https origin, or `localhost` |
+| *"On iPhone and iPad, add Nexus to your Home Screen first…"* | iOS Safari in a tab: `PushManager` exists only in an installed app | Share → Add to Home Screen, then open from there |
+| *"Not allowed yet. Press the button again and choose Allow."* | No gesture on the stack, or the prompt was dismissed | Press **Enable notifications** itself |
+| *"Blocked. Allow notifications for this site in your browser, then reload."* | The origin's notifications are blocked in the browser's own settings | Site settings → Notifications → allow |
+| *"This browser cannot show system notifications."* | No `Notification`/`PushManager`/service worker in this browser | Try a current Chrome, Edge, Firefox or Safari |
+| *"No device is registered yet. Press \"Enable notifications\" first."* | Nothing subscribed for this account, so the send had nowhere to go | Step 2 above |
+| *"Sent to 1 device. Lock your phone — it should still arrive."* and nothing does | The push was accepted; the delivery failure is at the device or the push service | The two rows below |
+| Test reports `devices: 1` and `HTTP 403` in the log | The subscription was created under a **different VAPID key** (a rotation). A 403 is deliberately not pruned | Switch Device Alerts off and on for that device |
+| Test works, real assignments never do, and the log says **nothing** | The connected-user suppression above | Close the target account's other sessions |
+| `Dropped push subscription <id>`, row gone | HTTP 404/410: the browser is gone, or replaced its subscription | Re-subscribe on the device |
+| `HTTP 413`, `429` or `5xx` | Not now, not never — the row is kept | Nothing; the next notification retries |
+
+### Platform requirements
+
+| Platform | Requirement |
+|----------|-------------|
+| Chrome / Edge / Firefox, desktop | Works signed in on an https origin. Nothing else needed |
+| Android Chrome | Works in the browser. `new Notification(...)` does **not** — every alert goes through `ServiceWorkerRegistration.showNotification`, which is what the shipped `sw.js` exists for |
+| iOS / iPadOS 16.4+ Safari | The app **must be added to the Home Screen** (Share → Add to Home Screen) and opened from there. A Safari tab cannot subscribe at all, which the Settings page says outright when it detects the situation |
+
+Two consequences worth knowing before debugging: push needs a **secure origin** (`https://`, or
+`localhost`), so a phone pointed at a plain-http LAN address has no service worker and cannot
+subscribe; and the browser only re-files its subscription when the app is loaded signed in, so a
+rotated endpoint is repaired by opening the app rather than by waiting.
+
+### Rotating the VAPID pair
+
+Rotating signs out nothing and loses nothing — every notification is stored regardless — but it does
+invalidate every existing subscription, because the browser rejects a push it cannot verify.
+
+1. Generate a new pair.
+2. Update both Railway variables and redeploy.
+3. Expect the first push after that to fail to arrive. Each device repairs itself the next time the
+   app is opened signed in; to force it sooner, press **Send a test notification** on that device,
+   which re-files the subscription before sending.
+4. Optionally clear the stale rows — they are harmless, and the next registration for the same
+   endpoint updates the row in place:
+
+   ```sql
+   DELETE FROM push_subscriptions;
+   ```
+
+### Rotate when
+
+- The private key appears anywhere outside Railway and `.env.push.local`.
+- A phone or laptop is lost or handed on, and the user cannot sign in to silence it (signing out
+  does not unsubscribe — the row follows the *browser*).
+- Nobody can account for the deployment that holds the key.

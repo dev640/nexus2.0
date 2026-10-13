@@ -73,22 +73,22 @@ afterEach(() => {
 })
 
 describe('opening what an alert is about', () => {
-  it('sends a click on the popup to the page the alert carries', () => {
+  it('sends a click on the popup to the page the alert carries', async () => {
     const navigate = vi.fn()
     setAlertNavigator(navigate)
 
-    showDeviceAlert('Nexus', 'You were assigned to "Ship it"', '/board?task=42')
+    await showDeviceAlert('Nexus', 'You were assigned to "Ship it"', '/board?task=42')
     instances.at(-1)?.onclick?.()
 
     expect(navigate).toHaveBeenCalledWith('/board?task=42')
     expect(instances.at(-1)?.closed).toBe(true)
   })
 
-  it('leaves a click inert when the alert has no link', () => {
+  it('leaves a click inert when the alert has no link', async () => {
     const navigate = vi.fn()
     setAlertNavigator(navigate)
 
-    showDeviceAlert('Nexus', 'Something happened')
+    await showDeviceAlert('Nexus', 'Something happened')
     instances.at(-1)?.onclick?.()
 
     expect(navigate).not.toHaveBeenCalled()
@@ -123,26 +123,85 @@ describe('alert preferences', () => {
 })
 
 describe('device popups', () => {
-  it('shows a system notification when the browser allows it', () => {
-    expect(showDeviceAlert('Nexus', 'You were assigned to "Ship it"')).toBe(true)
+  it('shows a system notification when the browser allows it', async () => {
+    await expect(showDeviceAlert('Nexus', 'You were assigned to "Ship it"')).resolves.toBe(true)
 
     expect(popups).toHaveLength(1)
     expect(popups[0].title).toBe('Nexus')
     expect(popups[0].options?.body).toBe('You were assigned to "Ship it"')
   })
 
-  it('reports failure when permission was not granted, so callers can fall back', () => {
+  it('reports failure when permission was not granted, so callers can fall back', async () => {
     FakeNotification.permission = 'denied'
 
-    expect(showDeviceAlert('Nexus', 'nope')).toBe(false)
+    await expect(showDeviceAlert('Nexus', 'nope')).resolves.toBe(false)
     expect(popups).toHaveLength(0)
   })
 
-  it('reports failure on a browser that has no Notification API at all', () => {
+  it('reports failure on a browser that has no Notification API at all', async () => {
     vi.stubGlobal('Notification', undefined)
 
     expect(alertPermission()).toBe('unsupported')
-    expect(showDeviceAlert('Nexus', 'nope')).toBe(false)
+    await expect(showDeviceAlert('Nexus', 'nope')).resolves.toBe(false)
+  })
+})
+
+/**
+ * The phone case, which is the whole reason the worker is involved.
+ *
+ * An Android browser throws "Illegal constructor, use
+ * ServiceWorkerRegistration.showNotification()" on `new Notification(...)`, and
+ * iOS Safari has no such constructor. Going through the registration is what
+ * makes an alert appear on a phone at all, so it is asserted on its own.
+ */
+describe('device popups on a phone', () => {
+  const shown: { title: string; options?: NotificationOptions }[] = []
+
+  function stubWorker() {
+    const registration = {
+      active: {},
+      showNotification: vi.fn(async (title: string, options?: NotificationOptions) => {
+        shown.push({ title, options })
+      }),
+    }
+    Object.defineProperty(navigator, 'serviceWorker', {
+      value: { getRegistration: vi.fn(async () => registration) },
+      configurable: true,
+    })
+    return registration
+  }
+
+  beforeEach(() => {
+    shown.length = 0
+  })
+
+  afterEach(() => {
+    delete (navigator as { serviceWorker?: unknown }).serviceWorker
+  })
+
+  it('shows it through the service worker instead of the constructor', async () => {
+    const registration = stubWorker()
+
+    await expect(showDeviceAlert('Nexus', 'You were assigned to "Ship it"', '/board?task=42'))
+      .resolves.toBe(true)
+
+    expect(registration.showNotification).toHaveBeenCalledTimes(1)
+    expect(shown[0].title).toBe('Nexus')
+    expect(shown[0].options?.body).toBe('You were assigned to "Ship it"')
+    // The link rides in the notification's data, which is what the worker's click
+    // handler reads to focus the app and route it.
+    expect(shown[0].options?.data).toEqual({ url: '/board?task=42' })
+    // And the desktop-only constructor was not used at all.
+    expect(popups).toHaveLength(0)
+  })
+
+  it('falls back to the constructor when the worker refuses', async () => {
+    const registration = stubWorker()
+    registration.showNotification.mockRejectedValueOnce(new Error('nope'))
+
+    await expect(showDeviceAlert('Nexus', 'still delivered')).resolves.toBe(true)
+
+    expect(popups).toHaveLength(1)
   })
 
   it('asks the browser for permission and answers with the outcome', async () => {

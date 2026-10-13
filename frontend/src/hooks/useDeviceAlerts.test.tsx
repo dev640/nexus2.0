@@ -89,10 +89,12 @@ afterEach(() => {
 })
 
 describe('useDeviceAlerts', () => {
-  it('pops a device notification for a pushed notification and files it in the feed', () => {
+  it('pops a device notification for a pushed notification and files it in the feed', async () => {
     renderHook(() => useDeviceAlerts())
 
-    act(() => latestHandler()({ type: 'notification.created', notification: notification() }))
+    await act(async () => {
+      latestHandler()({ type: 'notification.created', notification: notification() })
+    })
 
     expect(popups).toEqual([{ title: 'Nexus', body: 'Devendra added the task "Ship it"' }])
     expect(plays).toHaveLength(1)
@@ -127,28 +129,30 @@ describe('useDeviceAlerts', () => {
     expect(plays).toHaveLength(0)
   })
 
-  it('falls back to an in-app toast when the browser will not show a popup', () => {
+  it('falls back to an in-app toast when the browser will not show a popup', async () => {
     FakeNotification.permission = 'denied'
     renderHook(() => useDeviceAlerts())
 
-    act(() => latestHandler()({ type: 'notification.created', notification: notification() }))
+    await act(async () => {
+      latestHandler()({ type: 'notification.created', notification: notification() })
+    })
 
     const alerts = useAppStore.getState().activeAlerts
     expect(alerts).toHaveLength(1)
     expect(alerts[0].body).toBe('Devendra added the task "Ship it"')
   })
 
-  it('announces a chat message from somebody else, naming the channel', () => {
+  it('announces a chat message from somebody else, naming the channel', async () => {
     renderHook(() => useDeviceAlerts())
 
-    act(() =>
+    await act(async () => {
       latestHandler()({
         type: 'message.created',
         channelId: 4,
         channelName: 'general',
         message: chatMessage({ authorId: 1, authorName: 'Devendra', body: 'Sprint review at 4' }),
-      }),
-    )
+      })
+    })
 
     expect(popups).toEqual([{ title: 'Devendra in #general', body: 'Sprint review at 4' }])
     expect(plays).toHaveLength(1)
@@ -189,62 +193,93 @@ describe('useDeviceAlerts', () => {
     expect(FakeNotification.requestPermission).toHaveBeenCalledTimes(1)
   })
 
-  it('carries the link into the fallback toast, so it stays clickable', () => {
+  it('carries the link into the fallback toast, so it stays clickable', async () => {
     FakeNotification.permission = 'denied'
     renderHook(() => useDeviceAlerts())
 
-    act(() =>
+    await act(async () => {
       latestHandler()({
         type: 'notification.created',
         notification: notification({ link: '/board?task=7' }),
-      }),
-    )
+      })
+    })
 
     expect(useAppStore.getState().activeAlerts[0].link).toBe('/board?task=7')
   })
 
-  it('opens the task from the system popup when it is clicked', () => {
+  it('opens the task from the system popup when it is clicked', async () => {
     const navigate = vi.fn()
     setAlertNavigator(navigate)
     renderHook(() => useDeviceAlerts())
 
-    act(() =>
+    await act(async () => {
       latestHandler()({
         type: 'notification.created',
         notification: notification({ link: '/board?task=7' }),
-      }),
-    )
+      })
+    })
     act(() => instances.at(-1)?.onclick?.())
 
     expect(navigate).toHaveBeenCalledWith('/board?task=7')
   })
 
-  it('opens the channel at the message an alert is about', () => {
+  it('opens the channel at the message an alert is about', async () => {
     const navigate = vi.fn()
     setAlertNavigator(navigate)
     renderHook(() => useDeviceAlerts())
 
-    act(() =>
+    await act(async () => {
       latestHandler()({
         type: 'message.created',
         channelId: 4,
         channelName: 'general',
         message: chatMessage({ authorId: 1, authorName: 'Devendra', body: 'Sprint review at 4' }),
-      }),
-    )
+      })
+    })
     act(() => instances.at(-1)?.onclick?.())
 
     expect(navigate).toHaveBeenCalledWith('/slack?channel=4&message=9')
   })
 
-  it('sends a test alert through exactly the same path as a real one', () => {
-    emitAlert('Nexus', 'Test alert — this is what new activity looks like.')
+  it('sends a test alert through exactly the same path as a real one', async () => {
+    await emitAlert('Nexus', 'Test alert — this is what new activity looks like.')
 
     expect(popups[0]).toEqual({
       title: 'Nexus',
       body: 'Test alert — this is what new activity looks like.',
     })
     expect(plays).toHaveLength(1)
+  })
+
+  /**
+   * A tap on a notification that arrived while the app was closed.
+   *
+   * The worker focuses the tab and posts the path over, because it holds no
+   * router of its own; the app then routes in place, which keeps the workspace's
+   * state where a full navigation would have reloaded it.
+   */
+  it('routes the app to the page a push notification was about', async () => {
+    const listeners: ((event: MessageEvent) => void)[] = []
+    Object.defineProperty(navigator, 'serviceWorker', {
+      value: {
+        addEventListener: (type: string, listener: (event: MessageEvent) => void) => {
+          if (type === 'message') listeners.push(listener)
+        },
+        removeEventListener: vi.fn(),
+        getRegistration: vi.fn(async () => null),
+      },
+      configurable: true,
+    })
+    const navigate = vi.fn()
+    setAlertNavigator(navigate)
+
+    renderHook(() => useDeviceAlerts())
+    act(() => {
+      listeners.forEach((listener) => listener({ data: { type: 'nexus:open-alert', url: '/board?task=7' } } as MessageEvent))
+    })
+
+    expect(navigate).toHaveBeenCalledWith('/board?task=7')
+    delete (navigator as { serviceWorker?: unknown }).serviceWorker
   })
 })
 

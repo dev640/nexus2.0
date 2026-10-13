@@ -1,6 +1,12 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useAppStore, type NotificationCategory } from '../store/useAppStore'
-import { apiDeleteAvatar, apiErrorMessage, apiUploadAvatar, type ApiUserRole } from '../lib/api'
+import {
+  apiDeleteAvatar,
+  apiErrorMessage,
+  apiSendTestPush,
+  apiUploadAvatar,
+  type ApiUserRole,
+} from '../lib/api'
 import { forgetAvatar, invalidateAvatar } from '../hooks/useAvatar'
 import { emitAlert } from '../hooks/useDeviceAlerts'
 import {
@@ -11,6 +17,14 @@ import {
   type AlertPermission,
   type AlertPreferences,
 } from '../lib/deviceAlerts'
+import {
+  disablePushNotifications,
+  enablePushNotifications,
+  pushSubscriptionState,
+  pushSupport,
+  subscribeThisDevice,
+  type PushEnableResult,
+} from '../lib/push'
 import { UserAvatar } from '../components/user/UserAvatar'
 
 const assignableRoles: ApiUserRole[] = ['ADMIN', 'MANAGER', 'MEMBER', 'DEVELOPER', 'VIEWER']
@@ -20,6 +34,19 @@ const permissionCopy: Record<AlertPermission, string> = {
   default: 'Not enabled yet. Allow notifications to get popups on this device.',
   denied: 'Blocked. Allow notifications for this site in your browser, then reload.',
   unsupported: 'This browser cannot show system notifications.',
+}
+
+/** What each outcome of the enable flow says to the person who pressed it. */
+const pushCopy: Record<PushEnableResult['status'], string> = {
+  subscribed: 'On — this device will get notifications even when the app is closed.',
+  denied: 'Blocked. Allow notifications for this site in your browser, then reload.',
+  dismissed: 'Not allowed yet. Press the button again and choose Allow.',
+  'needs-install':
+    'On iPhone and iPad, add Nexus to your Home Screen first (Share → Add to Home Screen), then open it from there and press the button again.',
+  insecure: 'This page is not served over HTTPS, so notifications cannot work.',
+  unsupported: 'This browser cannot show system notifications.',
+  unavailable: 'The server has no push key configured, so nothing can be sent yet.',
+  failed: 'Notifications could not be enabled on this device.',
 }
 
 const categories: { key: NotificationCategory; label: string }[] = [
@@ -60,6 +87,21 @@ export function Settings() {
   const [hasAvatar, setHasAvatar] = useState(false)
   const [alertPrefs, setAlertPrefs] = useState<AlertPreferences>(loadAlertPreferences)
   const [permission, setPermission] = useState<AlertPermission>(alertPermission)
+  const [pushNote, setPushNote] = useState('')
+  const [pushBusy, setPushBusy] = useState(false)
+  const [pushOn, setPushOn] = useState(false)
+
+  // Read the real subscription rather than assume it: it survives reloads, and
+  // a stale "enabled" button is worse than no button.
+  useEffect(() => {
+    let cancelled = false
+    void pushSubscriptionState().then((state) => {
+      if (!cancelled) setPushOn(state === 'subscribed')
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   function updateAlertPrefs(next: AlertPreferences) {
     setAlertPrefs(next)
@@ -68,8 +110,44 @@ export function Settings() {
 
   async function handleEnableAlerts() {
     // Called from a click on purpose: browsers that require a gesture only show
-    // the permission prompt in response to one.
+    // the permission prompt in response to one, so this is the one place that
+    // can turn notifications on for a phone.
+    setPushBusy(true)
     setPermission(await requestAlertPermission())
+    const result = await enablePushNotifications()
+    setPushNote(pushCopy[result.status])
+    if (result.status === 'failed') setPushNote(`${pushCopy.failed} ${result.message}`)
+    setPushOn(result.status === 'subscribed')
+    setPushBusy(false)
+  }
+
+  async function handleDisableAlerts() {
+    setPushBusy(true)
+    await disablePushNotifications()
+    setPushOn(false)
+    setPushNote('Notifications are off on this device. Your other devices are unaffected.')
+    setPushBusy(false)
+  }
+
+  async function handleTestPush() {
+    setPushBusy(true)
+    try {
+      // Re-file the subscription first: after a reload or a cleared endpoint the
+      // server may have nothing to send to, and the test would fail for a reason
+      // that has nothing to do with push.
+      await subscribeThisDevice()
+      const devices = await apiSendTestPush()
+      setPushOn(devices > 0)
+      setPushNote(
+        devices > 0
+          ? `Sent to ${devices} device${devices === 1 ? '' : 's'}. Lock your phone — it should still arrive.`
+          : 'No device is registered yet. Press "Enable notifications" first.',
+      )
+    } catch (err) {
+      setPushNote(apiErrorMessage(err, 'The test notification could not be sent.'))
+    } finally {
+      setPushBusy(false)
+    }
   }
 
   async function handleAvatarPick(e: React.ChangeEvent<HTMLInputElement>) {
@@ -305,7 +383,9 @@ export function Settings() {
           </h2>
           <p className="mb-4 text-sm text-mute">
             A popup and the alert sound for new activity — work tasks, projects, sprints,
-            wiki pages, whiteboard notes and Slack messages.
+            wiki pages, whiteboard notes and Slack messages. Allowing notifications also
+            registers this device with the server, so alerts arrive on your phone even when
+            Nexus is closed.
           </p>
           <div className="flex flex-col gap-3">
             <label className="flex items-center justify-between text-sm">
@@ -331,20 +411,41 @@ export function Settings() {
             <button
               type="button"
               onClick={() => void handleEnableAlerts()}
-              disabled={permission === 'granted' || permission === 'unsupported'}
+              disabled={pushBusy || pushOn || permission === 'unsupported'}
               className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-black disabled:opacity-40"
             >
-              {permission === 'granted' ? 'Device notifications on' : 'Enable device notifications'}
+              {pushOn ? 'Notifications on for this device' : 'Enable notifications'}
+            </button>
+            {pushOn && (
+              <button
+                type="button"
+                onClick={() => void handleDisableAlerts()}
+                disabled={pushBusy}
+                className="rounded-md border border-line px-4 py-2 text-sm font-medium hover:bg-paper disabled:opacity-40"
+              >
+                Turn off on this device
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => void handleTestPush()}
+              disabled={pushBusy}
+              className="rounded-md border border-line px-4 py-2 text-sm font-medium hover:bg-paper disabled:opacity-40"
+            >
+              Send a test notification
             </button>
             <button
               type="button"
               onClick={() => emitAlert('Nexus', 'Test alert — this is what new activity looks like.')}
               className="rounded-md border border-line px-4 py-2 text-sm font-medium hover:bg-paper"
             >
-              Send test alert
+              Test in-app alert
             </button>
           </div>
-          <p className="mt-3 text-xs text-mute">{permissionCopy[permission]}</p>
+          <p className="mt-3 text-xs text-mute">{pushNote || permissionCopy[permission]}</p>
+          {pushSupport() === 'needs-install' && (
+            <p className="mt-2 text-xs text-mute">{pushCopy['needs-install']}</p>
+          )}
         </section>
 
         <section className="border border-danger/30 bg-white p-6">

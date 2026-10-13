@@ -1,12 +1,13 @@
 /**
  * Device alerts: the system popup and the workspace sound.
- *
- * Deliberately free of React and of the app store, so an alert can be fired
+ * * Deliberately free of React and of the app store, so an alert can be fired
  * from a websocket callback or a button with no plumbing. Preferences live in
  * localStorage because they belong to this browser, not to the account.
  */
 
-export interface AlertPreferences {
+import { alertWorkerRegistration } from './push'
+
+export interface AlertPreferences {
   /** Master switch for both the popup and the sound. */
   enabled: boolean
   /** Whether the alert sound plays alongside each popup. */
@@ -107,17 +108,49 @@ export function openAlertLink(link: string): void {
 }
 
 /**
- * Shows a system notification. Returns false when no popup appeared — no
+ * Shows a system notification. Resolves false when no popup appeared — no
  * permission, an unsupported browser, or a refused constructor — which callers
  * use to fall back to an in-app toast.
  *
- * A `link` makes the popup clickable, so an alert about a task takes you to
- * that task rather than to whatever page you happened to be on.
+ * The service worker is tried first, and it is not a stylistic choice: an
+ * Android browser throws "Illegal constructor, use
+ * ServiceWorkerRegistration.showNotification()" on `new Notification(...)`, and
+ * iOS Safari has no such constructor at all. Going through the worker is what
+ * makes an alert appear on a phone; the constructor stays as the fallback for a
+ * desktop page whose worker has not registered yet.
+ *
+ * A `link` makes the popup clickable. On the worker path the link travels in
+ * the notification's data and the worker's click handler uses it (focusing the
+ * open app and asking it to route); on the constructor path the click is handled
+ * here.
  */
-export function showDeviceAlert(title: string, body: string, link?: string | null): boolean {
+export async function showDeviceAlert(
+  title: string,
+  body: string,
+  link?: string | null,
+): Promise<boolean> {
   if (alertPermission() !== 'granted') return false
+
+  const options: NotificationOptions = {
+    body,
+    icon: '/logo-mark.png',
+    badge: '/favicon-v2.png',
+    data: { url: link ?? null },
+  }
+
+  const registration = await alertWorkerRegistration()
+  if (registration) {
+    try {
+      await registration.showNotification(title, options)
+      return true
+    } catch {
+      // Fall through: a worker that will not show it does not mean the page
+      // cannot.
+    }
+  }
+
   try {
-    const popup = new Notification(title, { body, icon: '/logo-mark.png' })
+    const popup = new Notification(title, options)
     popup.onclick = () => {
       window.focus()
       popup.close()
