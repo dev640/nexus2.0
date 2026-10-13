@@ -3,7 +3,6 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { Login } from './pages/Login'
 import { Landing } from './pages/Landing'
 import { useAppStore } from './store/useAppStore'
-import { TeamLoader } from './components/ui/TeamLoader'
 
 // The marketing site is the entry point for every visitor, so Landing and Login
 // stay in the initial bundle and paint immediately. The workspace is only ever
@@ -49,7 +48,9 @@ const NotFound = lazy(() => import('./pages/NotFound').then((m) => ({ default: m
 function RouteFallback() {
   return (
     <div className="flex h-screen w-full items-center justify-center bg-paper" role="status" aria-label="Loading">
-      <TeamLoader />
+      <div className="h-0.5 w-24 overflow-hidden rounded-full bg-line">
+        <div className="h-full w-1/2 animate-pulse bg-ink/40" />
+      </div>
     </div>
   )
 }
