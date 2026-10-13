@@ -136,9 +136,21 @@ export async function apiRegister(name: string, email: string, password: string)
 /**
  * Files a password-reset request. Public, and always resolves successfully —
  * the endpoint never reveals whether the address is registered.
+ *
+ * `company` is the anti-bot honeypot, not user input: the form renders a hidden
+ * field with that name, and a bot that fills everything it finds hands us a
+ * value the server can recognise. See AuthController.
  */
-export async function apiRequestPasswordReset(email: string, note?: string): Promise<void> {
-  await api.post('/auth/password-reset-request', { email, note: note || null })
+export async function apiRequestPasswordReset(
+  email: string,
+  note?: string,
+  company?: string,
+): Promise<void> {
+  await api.post('/auth/password-reset-request', {
+    email,
+    note: note || null,
+    company: company || null,
+  })
 }
 
 // ---------- Users ----------

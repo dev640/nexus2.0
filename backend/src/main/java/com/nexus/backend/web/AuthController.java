@@ -7,6 +7,8 @@ import com.nexus.backend.service.AdminAccountService;
 import com.nexus.backend.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -15,6 +17,8 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
 public class AuthController {
+
+    private static final Logger log = LoggerFactory.getLogger(AuthController.class);
 
     private final UserService userService;
     private final AdminAccountService adminAccountService;
@@ -50,8 +54,26 @@ public class AuthController {
      */
     @PostMapping("/password-reset-request")
     public ResponseEntity<Void> requestPasswordReset(@Valid @RequestBody PasswordResetRequestBody payload) {
+        if (isBot(payload.company())) {
+            // Answered exactly like a real request so a bot cannot learn that it
+            // was spotted, and nothing is filed for an admin to read later. This
+            // is the endpoint worth protecting: it is public, unauthenticated,
+            // and every request costs a person's attention.
+            log.info("Password-reset request dropped: honeypot field was filled");
+            return ResponseEntity.ok().build();
+        }
         adminAccountService.requestPasswordReset(payload.email(), payload.note());
         return ResponseEntity.ok().build();
+    }
+
+    /**
+     * The web form renders a field no person can see or reach, so anything in it
+     * was typed by something reading the DOM rather than the page. It is checked
+     * here rather than only in the browser because a bot that walks the markup
+     * posts straight to this endpoint without running any of our JavaScript.
+     */
+    private static boolean isBot(String honeypot) {
+        return honeypot != null && !honeypot.isBlank();
     }
 
     public record RefreshRequest(
@@ -65,6 +87,13 @@ public class AuthController {
         String email,
 
         @jakarta.validation.constraints.Size(max = 500, message = "Note must be 500 characters or fewer")
-        String note
+        String note,
+
+        /**
+         * Honeypot. Deliberately unannotated and undocumented to the client: it
+         * must stay empty, and a validation message about it would tell a bot
+         * exactly which field gave it away.
+         */
+        String company
     ) {}
 }

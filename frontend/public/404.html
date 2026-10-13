@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#111111" />
+    <!--
+      Served by Vercel with a real 404 status for any path that matches neither a
+      static file nor one of the SPA route rewrites in vercel.json.
+
+      It has to stand alone: the hashed JS and CSS of the app are not referenced
+      here on purpose, because those filenames change on every build and a stale
+      reference would turn a wrong-URL 404 into a broken page. The styles are
+      inlined and the only asset is the logo, which has a stable name.
+
+      Keep the copy and the layout in step with the React 404 (src/pages/
+      NotFound.tsx) — this is what a visitor sees when the URL never reaches the
+      app, that one is what they see when it does.
+    -->
+    <title>Page not found · Nexus</title>
+    <meta name="robots" content="noindex" />
+    <style>
+      :root {
+        --ink: #111111;
+        --paper: #f5f4f0;
+        --line: #e7e6e2;
+        --mute: #6b6b67;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      .wrap {
+        display: flex;
+        min-height: 100vh;
+        min-height: 100dvh;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 4rem 1.5rem;
+        text-align: center;
+      }
+      .logo {
+        height: 48px;
+        width: auto;
+      }
+      .eyebrow {
+        margin: 2rem 0 0;
+        color: var(--mute);
+        font-size: 0.75rem;
+        font-weight: 500;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+      }
+      h1 {
+        margin: 0.75rem 0 0;
+        font-size: 1.875rem;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+      }
+      p {
+        max-width: 28rem;
+        margin: 1rem 0 0;
+        color: rgba(17, 17, 17, 0.7);
+        font-size: 0.875rem;
+        line-height: 1.7;
+      }
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.75rem;
+        margin-top: 2rem;
+      }
+      a {
+        border-radius: 6px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        padding: 0.5rem 1rem;
+        text-decoration: none;
+      }
+      a.primary {
+        background: var(--ink);
+        color: #ffffff;
+      }
+      a.primary:hover {
+        background: #000000;
+      }
+      a.secondary {
+        background: #ffffff;
+        border: 1px solid var(--line);
+        color: var(--ink);
+      }
+      a.secondary:hover {
+        border-color: var(--ink);
+      }
+      @media (min-width: 640px) {
+        h1 {
+          font-size: 2.25rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="wrap">
+      <img class="logo" src="/logo-mark.png" alt="" aria-hidden="true" />
+      <p class="eyebrow">404</p>
+      <h1>We could not find that page</h1>
+      <p>
+        The link may be out of date, or the page may have moved. Nothing in your workspace has
+        changed.
+      </p>
+      <div class="actions">
+        <a class="primary" href="/">Back to home</a>
+        <a class="secondary" href="/login">Sign in</a>
+      </div>
+    </main>
+  </body>
+</html>

@@ -96,6 +96,7 @@ export function NewTaskModal({
           </label>
           <input
             autoFocus
+            required
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             className="w-full rounded-md border border-line px-3 py-2 text-sm outline-none focus:border-ink"

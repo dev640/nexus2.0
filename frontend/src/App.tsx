@@ -34,6 +34,12 @@ const Team = lazy(() => import('./pages/Team').then((m) => ({ default: m.Team })
 const Settings = lazy(() => import('./pages/Settings').then((m) => ({ default: m.Settings })))
 const Help = lazy(() => import('./pages/Help').then((m) => ({ default: m.Help })))
 const Admin = lazy(() => import('./pages/Admin').then((m) => ({ default: m.Admin })))
+// Public, so they are reachable signed out as well as signed in — a policy
+// behind a login is not much of a policy. NotFound replaces a catch-all
+// redirect that silently sent mistyped links to the marketing page.
+const Privacy = lazy(() => import('./pages/Privacy').then((m) => ({ default: m.Privacy })))
+const Terms = lazy(() => import('./pages/Terms').then((m) => ({ default: m.Terms })))
+const NotFound = lazy(() => import('./pages/NotFound').then((m) => ({ default: m.NotFound })))
 
 /**
  * Stands in while a route's chunk is in flight. Matches the shell's own
@@ -68,11 +74,15 @@ function App() {
 
   if (!isAuthenticated) {
     return (
-      <Routes>
-        <Route path="/" element={<Landing />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      <Suspense fallback={<RouteFallback />}>
+        <Routes>
+          <Route path="/" element={<Landing />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </Suspense>
     )
   }
 
@@ -80,6 +90,10 @@ function App() {
     <Suspense fallback={<RouteFallback />}>
       <Routes>
         <Route path="/login" element={<Navigate to="/" replace />} />
+        {/* Standalone rather than inside the workspace shell: the same page a
+            signed-out visitor reads, which is the point of publishing it. */}
+        <Route path="/privacy" element={<Privacy />} />
+        <Route path="/terms" element={<Terms />} />
         <Route
           path="/*"
           element={
@@ -112,6 +126,7 @@ function App() {
                     )
                   }
                 />
+                <Route path="*" element={<NotFound secondaryTo="/help" secondaryLabel="Get help" />} />
               </Routes>
             </AppShell>
           }

@@ -8,14 +8,27 @@
   --color-paper: #f5f4f0;
   --color-white: #ffffff;
   --color-line: #e7e6e2;
-  --color-mute: #8a8a86;
+  /**
+   * Secondary text. Was #8a8a86, which measured 3.15:1 on paper and 3.47:1 on
+   * white — below the 4.5:1 WCAG AA floor for normal text, and it carries small
+   * uppercase labels across the whole app. This value clears AA on both
+   * backgrounds (4.86:1 and 5.35:1) while staying visibly secondary.
+   */
+  --color-mute: #6b6b67;
 
   --color-accent: #c6ff4a;
 
-  --color-success: #22c55e;
-  --color-warning: #f59e0b;
-  --color-danger: #ef4444;
-  --color-info: #3b82f6;
+  /*
+   * Semantic colours are darkened from their 500-weight defaults for the same
+   * reason: each is used as small text on white or paper as well as a fill.
+   * The originals failed AA as text (success 2.28:1, warning 2.15:1, danger
+   * 3.76:1, info 3.68:1 on white). Fills only get easier to read against the
+   * white text they carry.
+   */
+  --color-success: #15803d;
+  --color-warning: #b45309;
+  --color-danger: #b91c1c;
+  --color-info: #1d4ed8;
 
   --radius-sm: 4px;
   --radius-md: 6px;

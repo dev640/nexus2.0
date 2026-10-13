@@ -341,6 +341,7 @@ full list and generation hints.
 | `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` (frontend) | Supabase Auth on the login screen | empty → built-in email/password login |
 | `VITE_API_URL` (frontend) | Backend API base **including `/api`**, baked into the build at build time | `/api` via dev proxy |
 | `VITE_WS_URL` (frontend) | Explicit whiteboard socket URL | derived from `VITE_API_URL` (http→ws, trailing `/api` stripped) |
+| `VITE_ANALYTICS_SCRIPT_SRC` / `_DOMAIN` / `_WEBSITE_ID` / `_SITE_ID` (frontend) | Cookieless analytics script; unset means no third-party script **and no consent banner** | all unset |
 
 ---
 

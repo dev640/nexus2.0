@@ -1,0 +1,30 @@
+# Nexus
+#
+# The public pages are worth indexing. Everything behind the login renders an
+# empty shell for a crawler, so it is excluded: indexing those paths would add
+# pages with no content to the index, and the crawler would spend its budget
+# fetching pages that never render.
+User-agent: *
+Allow: /
+Disallow: /login
+
+# Workspace routes (authenticated)
+Disallow: /my-work
+Disallow: /inbox
+Disallow: /projects
+Disallow: /sprints
+Disallow: /board
+Disallow: /backlog
+Disallow: /calendar
+Disallow: /wiki
+Disallow: /whiteboard
+Disallow: /slack
+Disallow: /analytics
+Disallow: /copilot
+Disallow: /ai
+Disallow: /team
+Disallow: /settings
+Disallow: /help
+Disallow: /admin
+
+Sitemap: https://nexus-2-0-omega.vercel.app/sitemap.xml

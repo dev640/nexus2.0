@@ -35,7 +35,14 @@ services:
       NEXUS_SUPABASE_URL: https://ktvjotwmpynbjgnqjitg.supabase.co
       NEXUS_SUPABASE_USE_JWKS: true
       NEXUS_SUPABASE_AUDIENCE: authenticated
-      NEXUS_SUPABASE_SERVICE_ROLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt0dmpvdHdtcHluYmpnbnFqaXRnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MDg3NTk1MCwiZXhwIjoyMTA2NDUxOTUwfQ.ZhWq_YLFpf2AyzsJgiexMmQ8aIuyO6B-vz_oUK39sFU
+      # SERVER ONLY — never commit a value, never prefix it with VITE_. Local
+      # development reads it from a .env file beside this one (Compose loads it
+      # automatically and .gitignore excludes it), or from the shell. Left empty,
+      # admin account creation and password resets report themselves as unavailable
+      # instead of failing at request time.
+      # Accepts either the legacy service_role JWT or a newer sb_secret_ key; see
+      # OPERATIONS.md §12 for how to rotate one that has been exposed.
+      NEXUS_SUPABASE_SERVICE_ROLE_KEY: ${NEXUS_SUPABASE_SERVICE_ROLE_KEY:-}
     depends_on:
       - postgres
       - redis

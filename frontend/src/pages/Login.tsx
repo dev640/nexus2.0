@@ -11,6 +11,10 @@ export function Login() {
   const login = useAppStore((s) => s.login)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  // Honeypot. The name is deliberately plausible to a form-filling bot and the
+  // field is hidden from people, so anything typed here came from something that
+  // was not reading the page. See the guard in handleSubmit.
+  const [company, setCompany] = useState('')
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
@@ -18,6 +22,13 @@ export function Login() {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
+    // A filled honeypot is not a validation mistake, so it must not get the
+    // helpful "enter your password" reply. It stops here instead of spending a
+    // request and an auth attempt on a bot.
+    if (company) {
+      setError('Could not sign you in. Please try again.')
+      return
+    }
     if (!email || !password) {
       setError('Enter email and password.')
       return
@@ -47,7 +58,7 @@ export function Login() {
     setError('')
     setRequesting(true)
     try {
-      await apiRequestPasswordReset(email)
+      await apiRequestPasswordReset(email, undefined, company)
       setNotice(
         'Request sent. An admin will issue you a new password — check with them, then sign in with it.',
       )
@@ -89,9 +100,15 @@ export function Login() {
               Email
             </label>
             <input
+              id="login-email"
+              name="email"
               type="email"
+              required
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              aria-invalid={Boolean(error)}
+              aria-describedby={error ? 'login-error' : undefined}
               className="w-full rounded-md border border-line px-3 py-2 text-sm outline-none focus:border-ink"
             />
           </div>
@@ -100,14 +117,41 @@ export function Login() {
               Password
             </label>
             <input
+              id="login-password"
+              name="password"
               type="password"
+              required
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              aria-invalid={Boolean(error)}
+              aria-describedby={error ? 'login-error' : undefined}
               className="w-full rounded-md border border-line px-3 py-2 text-sm outline-none focus:border-ink"
             />
           </div>
-          {error && <p className="text-xs text-red-600">{error}</p>}
-          {notice && <p className="text-xs text-emerald-600">{notice}</p>}
+          {/* Hidden from people, reachable by a form-filling bot. */}
+          <div className="hidden" aria-hidden="true">
+            <label htmlFor="login-company">Company</label>
+            <input
+              id="login-company"
+              name="company"
+              type="text"
+              tabIndex={-1}
+              autoComplete="off"
+              value={company}
+              onChange={(e) => setCompany(e.target.value)}
+            />
+          </div>
+          {error && (
+            <p id="login-error" role="alert" className="text-xs text-danger">
+              {error}
+            </p>
+          )}
+          {notice && (
+            <p role="status" className="text-xs text-success">
+              {notice}
+            </p>
+          )}
           <MagneticButton
             type="submit"
             disabled={busy}

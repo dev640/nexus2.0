@@ -324,11 +324,30 @@ function SiteNav() {
   )
 }
 
+/** A footer entry either walks to a section of this page or navigates to a route. */
+type FooterLink = { label: string; href?: string; to?: string }
+
 function SiteFooter() {
-  const columns = [
-    { title: 'Product', links: ['Features', 'How it works', 'Roadmap', 'Changelog'] },
-    { title: 'Company', links: ['About', 'Careers', 'Blog', 'Contact'] },
-    { title: 'Resources', links: ['Docs', 'API', 'Community', 'Status'] },
+  // Only destinations that exist. Every entry here used to point at "#", so
+  // clicking Roadmap, Careers, Docs or Status did nothing at all — which reads
+  // as a broken site rather than an unbuilt one. Sections that do not exist yet
+  // are left out until they do.
+  const columns: { title: string; links: FooterLink[] }[] = [
+    {
+      title: 'Product',
+      links: [
+        { label: 'Features', href: '#features' },
+        { label: 'How it works', href: '#workflow' },
+        { label: 'Sign in', to: '/login' },
+      ],
+    },
+    {
+      title: 'Legal',
+      links: [
+        { label: 'Privacy', to: '/privacy' },
+        { label: 'Terms', to: '/terms' },
+      ],
+    },
   ]
   return (
     <footer className="border-t border-line bg-paper">
@@ -346,13 +365,27 @@ function SiteFooter() {
                 {col.title}
               </h4>
               <ul className="mt-4 flex flex-col gap-2.5">
-                {col.links.map((link) => (
-                  <li key={link}>
-                    <a href="#" className="text-sm text-ink/70 transition-colors hover:text-ink">
-                      {link}
-                    </a>
-                  </li>
-                ))}
+                {col.links.map((link) =>
+                  link.to ? (
+                    <li key={link.label}>
+                      <Link
+                        to={link.to}
+                        className="text-sm text-ink/70 transition-colors hover:text-ink"
+                      >
+                        {link.label}
+                      </Link>
+                    </li>
+                  ) : (
+                    <li key={link.label}>
+                      <a
+                        href={link.href}
+                        className="text-sm text-ink/70 transition-colors hover:text-ink"
+                      >
+                        {link.label}
+                      </a>
+                    </li>
+                  ),
+                )}
               </ul>
             </div>
           ))}
@@ -360,15 +393,12 @@ function SiteFooter() {
         <div className="mt-12 flex flex-col gap-3 border-t border-line pt-6 text-xs text-mute sm:flex-row sm:items-center sm:justify-between">
           <span>&copy; {new Date().getFullYear()} Nexus. All rights reserved.</span>
           <div className="flex gap-5">
-            <a href="#" className="transition-colors hover:text-ink">
+            <Link to="/privacy" className="transition-colors hover:text-ink">
               Privacy
-            </a>
-            <a href="#" className="transition-colors hover:text-ink">
+            </Link>
+            <Link to="/terms" className="transition-colors hover:text-ink">
               Terms
-            </a>
-            <a href="#" className="transition-colors hover:text-ink">
-              Security
-            </a>
+            </Link>
           </div>
         </div>
       </div>

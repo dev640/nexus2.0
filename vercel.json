@@ -3,9 +3,192 @@
   "installCommand": "echo skip",
   "buildCommand": "cd frontend && npm install && npm run build",
   "outputDirectory": "frontend/dist",
-  "rewrites": [
+  "headers": [
     {
       "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Strict-Transport-Security",
+          "value": "max-age=63072000"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        }
+      ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/admin",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/admin/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/ai",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/ai/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/analytics",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/analytics/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/backlog",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/backlog/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/board",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/board/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/calendar",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/calendar/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/copilot",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/copilot/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/help",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/help/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/inbox",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/inbox/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/login",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/login/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/my-work",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/my-work/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/privacy",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/privacy/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/projects",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/projects/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/settings",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/settings/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/slack",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/slack/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/sprints",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/sprints/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/team",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/team/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/terms",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/terms/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/whiteboard",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/whiteboard/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/wiki",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/wiki/",
       "destination": "/index.html"
     }
   ]

@@ -121,6 +121,7 @@ export function ComposeMessageModal({
         <div>
           <label className={fieldLabel}>Subject</label>
           <input
+            required
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
             className={field}
@@ -131,6 +132,7 @@ export function ComposeMessageModal({
         <div>
           <label className={fieldLabel}>Message</label>
           <textarea
+            required
             value={body}
             onChange={(e) => setBody(e.target.value)}
             rows={6}

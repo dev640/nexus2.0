@@ -36,7 +36,15 @@ function AlertToast({ id, title, body, link }: AppAlert) {
         title={link ? 'Open' : undefined}
         className="flex min-w-0 flex-1 items-start gap-3 text-left disabled:cursor-default"
       >
-        <Bell size={16} strokeWidth={1.5} className="mt-0.5 shrink-0 text-accent" />
+        {/*
+          The accent is a light lime (#c6ff4a): as an icon stroke on this white
+          card it measured about 1.2:1, which is invisible. Filling a small tile
+          with the accent and drawing the glyph in ink keeps the accent identity
+          and makes the icon legible.
+        */}
+        <span className="mt-0.5 shrink-0 rounded bg-accent p-1">
+          <Bell size={14} strokeWidth={2} className="block text-ink" />
+        </span>
         <div className="min-w-0 flex-1">
           <div className="text-sm font-semibold text-ink">{title}</div>
           <p className="mt-0.5 break-words text-xs text-ink/80">{body}</p>

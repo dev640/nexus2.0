@@ -26,8 +26,10 @@ import java.util.UUID;
  * account, so admins provisioning users or issuing a password reset have to go
  * through this API rather than the local {@code users.password} column.
  *
- * <p>The service-role key it uses is a full-access credential. It is read only
- * from server configuration and is never returned to a client or logged.
+ * <p>The admin key it uses is a full-access credential, and it is read only from
+ * server configuration — never returned to a client, never logged. Both key
+ * generations are accepted; {@link #authHeaders(String)} documents how the
+ * header shape differs between them.
  */
 @Component
 public class SupabaseAdminClient {
@@ -144,13 +146,66 @@ public class SupabaseAdminClient {
         }
     }
 
+    /**
+     * The headers Supabase's gateway requires for an admin call.
+     *
+     * <p>The two key generations are not sent the same way, and getting this wrong
+     * fails every admin call with a bare 401:
+     *
+     * <ul>
+     *   <li>A legacy {@code service_role} JWT needs <em>both</em> headers. Measured
+     *       against the live project: {@code apikey} alone answers 401, {@code
+     *       Authorization} alone answers 401, and only the pair answers 200.</li>
+     *   <li>A newer {@code sb_secret_…} key is not a JWT. It belongs in {@code apikey};
+     *       sending it as a Bearer token makes the gateway try to parse it as a JWT and
+     *       reject it.</li>
+     * </ul>
+     *
+     * <p>So the Bearer header is added only for a JWT-shaped key. That is deliberate:
+     * it is what lets a rotation from the exposed legacy key to a secret key be a
+     * variable change rather than a code change.
+     *
+     * <p>Package-private rather than private so the decision is unit-tested without a
+     * network call.
+     */
+    static Map<String, String> authHeaders(String key) {
+        Map<String, String> headers = new LinkedHashMap<>();
+        headers.put("apikey", key);
+        if (isJwt(key)) {
+            headers.put("Authorization", "Bearer " + key);
+        }
+        return headers;
+    }
+
+    /**
+     * True for the compact JWS form ({@code header.payload.signature}) — which is what a
+     * legacy Supabase key and a signed-in user's access token both are. The {@code eyJ}
+     * prefix is base64url for the start of a JSON header, so an opaque secret that merely
+     * happens to contain two dots is not mistaken for a token and sent as one.
+     */
+    static boolean isJwt(String key) {
+        if (key == null || !key.startsWith("eyJ")) {
+            return false;
+        }
+        int firstDot = key.indexOf('.');
+        if (firstDot <= 0) {
+            return false;
+        }
+        int secondDot = key.indexOf('.', firstDot + 1);
+        if (secondDot <= firstDot + 1 || secondDot >= key.length() - 1) {
+            return false;
+        }
+        // Exactly three segments: a JWTs payload and signature are both non-empty, and a
+        // fourth dot means this is not the compact JWS form at all.
+        return key.indexOf('.', secondDot + 1) < 0;
+    }
+
     private JsonNode send(String method, String path, Map<String, Object> body) {
         String url = properties.getUrl() + "/auth/v1" + path;
         try {
             HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(url))
-                .header("apikey", properties.getServiceRoleKey())
-                .header("Authorization", "Bearer " + properties.getServiceRoleKey())
                 .timeout(Duration.ofSeconds(15));
+            authHeaders(properties.getServiceRoleKey()).forEach(builder::header);
 
             if (body == null) {
                 builder.method(method, HttpRequest.BodyPublishers.noBody());
