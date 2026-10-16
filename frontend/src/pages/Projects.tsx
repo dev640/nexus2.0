@@ -158,7 +158,7 @@ export function Projects() {
                 {team ? (
                   <>
                     <div className="text-sm font-medium">{team.name}</div>
-                    <div className="mt-1 flex min-w-0 flex-wrap gap-1">
+                    <div className="mt-1 flex -space-x-3">
                       {teamMembers.map((m) =>
                         m ? (
                           <UserAvatar
