@@ -158,7 +158,7 @@ export function Projects() {
                 {team ? (
                   <>
                     <div className="text-sm font-medium">{team.name}</div>
-                    <div className="mt-1 flex -space-x-2">
+                    <div className="mt-1 flex min-w-0 flex-wrap gap-1">
                       {teamMembers.map((m) =>
                         m ? (
                           <UserAvatar
@@ -166,8 +166,8 @@ export function Projects() {
                             memberId={m.id}
                             name={m.name}
                             initials={m.initials}
-                            size="md"
-                            className="h-8 w-8 border-2 border-white text-xs"
+                            size="stack"
+                            className="border-2 border-white text-xs"
                           />
                         ) : null,
                       )}

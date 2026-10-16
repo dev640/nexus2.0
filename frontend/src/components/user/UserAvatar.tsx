@@ -1,11 +1,13 @@
 import { useAvatar } from '../../hooks/useAvatar'
 import { numericUserId } from '../../store/useAppStore'
 
-type Size = 'xs' | 'sm' | 'md'
+type Size = 'xs' | 'sm' | 'stack' | 'md'
 
 const sizeClass: Record<Size, string> = {
   xs: 'h-5 w-5 text-[9px]',
   sm: 'h-6 w-6 text-[9px]',
+  /** Overlapping stacks (team cards): bigger than a card chip, but a strip of them must stay inside a grid column. */
+  stack: 'h-8 w-8 text-[10px]',
   md: 'h-14 w-14 text-base',
 }
 
