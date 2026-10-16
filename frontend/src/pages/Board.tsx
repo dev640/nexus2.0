@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { memberById, type TaskStatus } from '../lib/mockData'
 import { useDeepLink } from '../hooks/useDeepLink'
+import { canManageWorkspace } from '../lib/roles'
 import { toTaskId } from '../store/ids'
 import { useAppStore } from '../store/useAppStore'
 import { NewTaskModal } from '../components/task/NewTaskModal'
@@ -38,6 +39,9 @@ export function Board() {
   const members = useAppStore((s) => s.members)
   const updateTaskStatus = useAppStore((s) => s.updateTaskStatus)
   const canWrite = useAppStore((s) => s.currentUser?.role !== 'VIEWER')
+  // Creating tasks is manager-or-admin work on the API, so other roles see
+  // no button rather than one that comes back 403.
+  const canManage = useAppStore((s) => canManageWorkspace(s.currentUser?.role))
   const [modalOpen, setModalOpen] = useState(false)
   const [modalStatus, setModalStatus] = useState<TaskStatus>('BACKLOG')
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -67,7 +71,7 @@ export function Board() {
       <div className="mb-1 flex items-center justify-between px-4 sm:px-6 lg:px-8">
         <div className="text-xs font-medium uppercase tracking-widest text-mute">
           Delivery
-        </div>          {canWrite ? (
+        </div>          {canManage ? (
             <button
               onClick={() => openNewTask('BACKLOG')}
               className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-black"
@@ -75,7 +79,12 @@ export function Board() {
               + New Task
             </button>
           ) : (
-            <span className="rounded-md bg-mute px-4 py-2 text-sm font-medium text-mute">+ New Task</span>
+            <span
+              className="rounded-md bg-mute px-4 py-2 text-sm font-medium text-mute"
+              title="Only admins and managers can create tasks"
+            >
+              + New Task
+            </span>
           )}
       </div>
       <h1 className="px-4 text-3xl font-semibold tracking-tight text-ink sm:px-6 lg:px-8">Board</h1>
@@ -199,12 +208,14 @@ export function Board() {
                     </div>
                   )
                 })}
-                <button
-                  onClick={() => openNewTask(col.key)}
-                  className="rounded-md border border-dashed border-line py-2 text-xs text-mute hover:border-ink hover:text-ink"
-                >
-                  + Add task
-                </button>
+                {canManage && (
+                  <button
+                    onClick={() => openNewTask(col.key)}
+                    className="rounded-md border border-dashed border-line py-2 text-xs text-mute hover:border-ink hover:text-ink"
+                  >
+                    + Add task
+                  </button>
+                )}
               </div>
             </div>
           )

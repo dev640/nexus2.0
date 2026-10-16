@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { memberById } from '../lib/mockData'
+import { canManageWorkspace } from '../lib/roles'
 import { useAppStore } from '../store/useAppStore'
 import { NewTaskModal } from '../components/task/NewTaskModal'
 import { EditTaskModal } from '../components/task/EditTaskModal'
@@ -17,6 +18,9 @@ export function Backlog() {
   const tasks = useAppStore((s) => s.tasks)
   const members = useAppStore((s) => s.members)
   const canWrite = useAppStore((s) => s.currentUser?.role !== 'VIEWER')
+  // Creating tasks is manager-or-admin work on the API, so other roles see
+  // no button rather than one that comes back 403.
+  const canManage = useAppStore((s) => canManageWorkspace(s.currentUser?.role))
   const [modalOpen, setModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
 
@@ -26,7 +30,7 @@ export function Backlog() {
         <div className="text-xs font-medium uppercase tracking-widest text-mute">
           Delivery
         </div>
-        {canWrite ? (
+        {canManage ? (
           <button
             onClick={() => setModalOpen(true)}
             className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-black"
@@ -34,7 +38,12 @@ export function Backlog() {
             + New Task
           </button>
         ) : (
-          <span className="rounded-md bg-mute px-4 py-2 text-sm font-medium text-mute">+ New Task</span>
+          <span
+            className="rounded-md bg-mute px-4 py-2 text-sm font-medium text-mute"
+            title="Only admins and managers can create tasks"
+          >
+            + New Task
+          </span>
         )}
       </div>
       <h1 className="text-3xl font-semibold tracking-tight text-ink sm:text-4xl lg:text-5xl">Backlog</h1>

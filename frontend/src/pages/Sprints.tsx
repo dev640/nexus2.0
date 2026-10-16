@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useDeepLink } from '../hooks/useDeepLink'
 import { toSprintId } from '../store/ids'
+import { canManageWorkspace } from '../lib/roles'
 import { useAppStore } from '../store/useAppStore'
 import { NewSprintModal } from '../components/sprint/NewSprintModal'
 import { EditSprintModal } from '../components/sprint/EditSprintModal'
@@ -25,6 +26,9 @@ export function Sprints() {
   const tasks = useAppStore((s) => s.tasks)
   const setSprintStatus = useAppStore((s) => s.setSprintStatus)
   const canWrite = useAppStore((s) => s.currentUser?.role !== 'VIEWER')
+  // Creating sprints is manager-or-admin work on the API, so other roles see
+  // no button rather than one that comes back 403.
+  const canManage = useAppStore((s) => canManageWorkspace(s.currentUser?.role))
   const [modalOpen, setModalOpen] = useState(false)
   const [modalProjectId, setModalProjectId] = useState<string | undefined>(undefined)
   const [editingSprintId, setEditingSprintId] = useState<string | null>(null)
@@ -62,7 +66,7 @@ export function Sprints() {
     <div className="px-4 py-6 sm:px-8 sm:py-8 lg:px-16 lg:py-12">
       <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
         <div className="text-xs font-medium uppercase tracking-widest text-mute">Delivery</div>
-        {canWrite ? (
+        {canManage ? (
           <button
             onClick={() => openNewSprint(undefined)}
             className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-black"
@@ -70,7 +74,12 @@ export function Sprints() {
             + New Sprint
           </button>
         ) : (
-          <span className="rounded-md bg-mute px-4 py-2 text-sm font-medium text-mute">+ New Sprint</span>
+          <span
+            className="rounded-md bg-mute px-4 py-2 text-sm font-medium text-mute"
+            title="Only admins and managers can create sprints"
+          >
+            + New Sprint
+          </span>
         )}
       </div>
       <h1 className="text-3xl font-semibold tracking-tight text-ink sm:text-4xl lg:text-5xl">Sprints</h1>
@@ -85,23 +94,27 @@ export function Sprints() {
             <div key={project.id}>
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <h2 className="text-lg font-semibold tracking-tight text-ink">{project.name}</h2>
-                <button
-                  onClick={() => openNewSprint(project.id)}
-                  className="rounded-md border border-line px-3 py-1.5 text-xs font-medium hover:bg-white"
-                >
-                  + Sprint for this project
-                </button>
+                {canManage ? (
+                  <button
+                    onClick={() => openNewSprint(project.id)}
+                    className="rounded-md border border-line px-3 py-1.5 text-xs font-medium hover:bg-white"
+                  >
+                    + Sprint for this project
+                  </button>
+                ) : null}
               </div>
 
               {projectSprints.length === 0 ? (
                 <div className="border border-dashed border-line bg-white p-8 text-center text-sm text-mute">
                   No sprint yet for this project.{' '}
-                  <button
-                    onClick={() => openNewSprint(project.id)}
-                    className="font-medium text-ink underline underline-offset-4"
-                  >
-                    Create one
-                  </button>
+                  {canManage && (
+                    <button
+                      onClick={() => openNewSprint(project.id)}
+                      className="font-medium text-ink underline underline-offset-4"
+                    >
+                      Create one
+                    </button>
+                  )}
                 </div>
               ) : (
                 <div className="flex flex-col gap-4">
