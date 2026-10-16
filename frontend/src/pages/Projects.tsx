@@ -153,7 +153,7 @@ export function Projects() {
                   {healthLabel[project.health]}
                 </div>
               </div>
-              <div>
+              <div className="col-span-2 sm:col-span-1">
                 <div className="mb-1 text-xs uppercase tracking-wide text-mute">Team</div>
                 {team ? (
                   <>
