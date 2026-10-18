@@ -3,14 +3,20 @@ package com.nexus.backend.security;
 import com.nexus.backend.domain.user.User;
 import com.nexus.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
-import java.util.Collections;
-
+/**
+ * Resolves an account by email for authentication.
+ *
+ * <p>The lookup is deliberately global rather than company-scoped: a person
+ * signing in has not told us which company they belong to yet, so the login
+ * itself is the one query that must cross companies. Everything after it is
+ * scoped. This exception is recorded in docs/MULTI_TENANCY.md and is allowlisted
+ * by the architecture test.
+ */
 @Service
 @RequiredArgsConstructor
 public class CustomUserDetailsService implements UserDetailsService {
@@ -22,12 +28,6 @@ public class CustomUserDetailsService implements UserDetailsService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
 
-        return new org.springframework.security.core.userdetails.User(
-                user.getEmail(),
-                // Supabase-managed accounts have no local password hash; the empty
-                // string keeps Spring's constructor happy and is never compared.
-                user.getPassword() == null ? "" : user.getPassword(),
-                Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()))
-        );
+        return NexusUserPrincipal.from(user);
     }
 }

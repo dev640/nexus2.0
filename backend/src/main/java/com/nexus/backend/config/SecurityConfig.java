@@ -1,6 +1,7 @@
 package com.nexus.backend.config;
 
 import com.nexus.backend.security.JwtAuthenticationFilter;
+import com.nexus.backend.security.MustChangePasswordFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -62,6 +63,13 @@ public class SecurityConfig {
                 )
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                // After the JWT filter, because it decides on the principal that
+                // filter establishes, and before the authorization filter, so a
+                // gated account is refused whatever the endpoint's own rules say.
+                // Constructed here rather than injected: as a bean it would also
+                // be registered on the servlet container's chain, where it would
+                // run ahead of authentication and silently do nothing.
+                .addFilterAfter(new MustChangePasswordFilter(), JwtAuthenticationFilter.class)
                 .addFilterBefore(securityHeadersFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

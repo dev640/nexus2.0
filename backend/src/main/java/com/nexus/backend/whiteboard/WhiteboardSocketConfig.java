@@ -5,6 +5,7 @@ import com.nexus.backend.dto.WhiteboardEvent;
 import com.nexus.backend.config.SupabaseProperties;
 import com.nexus.backend.domain.user.User;
 import com.nexus.backend.security.JwtUtil;
+import com.nexus.backend.security.MustChangePasswordHandshakeGuard;
 import com.nexus.backend.security.SupabaseTokenVerifier;
 import com.nexus.backend.service.SupabaseUserService;
 import io.jsonwebtoken.Claims;
@@ -30,6 +31,9 @@ import java.util.Map;
 /**
  * Registers the whiteboard socket at /ws/whiteboard and authenticates the
  * handshake with a JWT passed as the `token` query parameter.
+ *
+ * <p>The handshake also enforces {@code must_change_password}, for the same
+ * reason as the chat socket: see MustChangePasswordHandshakeGuard.
  */
 @Configuration
 @EnableWebSocket
@@ -42,6 +46,7 @@ public class WhiteboardSocketConfig implements WebSocketConfigurer {
     private final SupabaseTokenVerifier supabaseTokenVerifier;
     private final SupabaseUserService supabaseUserService;
     private final SupabaseProperties supabaseProperties;
+    private final MustChangePasswordHandshakeGuard mustChangePasswordGuard;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public WhiteboardSocketConfig(
@@ -49,13 +54,15 @@ public class WhiteboardSocketConfig implements WebSocketConfigurer {
         JwtUtil jwtUtil,
         SupabaseTokenVerifier supabaseTokenVerifier,
         SupabaseUserService supabaseUserService,
-        SupabaseProperties supabaseProperties
+        SupabaseProperties supabaseProperties,
+        MustChangePasswordHandshakeGuard mustChangePasswordGuard
     ) {
         this.handler = handler;
         this.jwtUtil = jwtUtil;
         this.supabaseTokenVerifier = supabaseTokenVerifier;
         this.supabaseUserService = supabaseUserService;
         this.supabaseProperties = supabaseProperties;
+        this.mustChangePasswordGuard = mustChangePasswordGuard;
     }
 
     @Override
@@ -91,6 +98,12 @@ public class WhiteboardSocketConfig implements WebSocketConfigurer {
             try {
                 String email = jwtUtil.extractUsername(token);
                 if (email != null && email.contains("@") && jwtUtil.validateToken(token, email)) {
+                    // A socket relays the same notes the account's HTTP requests
+                    // are refused, so the gate applies here too.
+                    if (mustChangePasswordGuard.mustChangePassword(email)) {
+                        log.debug("Whiteboard handshake refused: account must change its password first");
+                        return false;
+                    }
                     attributes.put("email", email);
                     return true;
                 }
@@ -103,6 +116,12 @@ public class WhiteboardSocketConfig implements WebSocketConfigurer {
                 try {
                     Claims claims = supabaseTokenVerifier.verify(token);
                     User user = supabaseUserService.resolveUser(claims);
+                    // The account is already in hand, so the rule is read from it
+                    // rather than looked up again.
+                    if (user.isMustChangePassword()) {
+                        log.debug("Whiteboard handshake refused: account must change its password first");
+                        return false;
+                    }
                     attributes.put("email", user.getEmail());
                     return true;
                 } catch (JwtException | IllegalArgumentException e) {

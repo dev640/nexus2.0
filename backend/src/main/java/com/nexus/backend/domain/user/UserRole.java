@@ -10,5 +10,6 @@ public enum UserRole {
      * and hand work to other people. Appended last so no existing ordinal
      * moves.
      */
-    MANAGER
+    MANAGER,
+    SUPER_ADMIN
 }

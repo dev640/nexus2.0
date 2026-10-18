@@ -3,6 +3,7 @@ package com.nexus.backend.chat;
 import com.nexus.backend.config.SupabaseProperties;
 import com.nexus.backend.domain.user.User;
 import com.nexus.backend.security.JwtUtil;
+import com.nexus.backend.security.MustChangePasswordHandshakeGuard;
 import com.nexus.backend.security.SupabaseTokenVerifier;
 import com.nexus.backend.service.SupabaseUserService;
 import io.jsonwebtoken.Claims;
@@ -10,6 +11,7 @@ import io.jsonwebtoken.JwtException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServerHttpResponse;
 import org.springframework.web.socket.WebSocketHandler;
@@ -23,6 +25,11 @@ import java.util.Map;
 /**
  * Registers the chat socket at /ws/chat and authenticates the handshake with a
  * JWT passed as the `token` query parameter — the same rule as the whiteboard.
+ *
+ * <p>The handshake also enforces {@code must_change_password}: a socket hands
+ * out chat traffic, so an account that is refused every HTTP request would
+ * otherwise still read the channel here. The gate cannot be the servlet filter's
+ * for this request — see MustChangePasswordHandshakeGuard.
  */
 @Configuration
 public class ChatSocketConfig implements WebSocketConfigurer {
@@ -34,19 +41,22 @@ public class ChatSocketConfig implements WebSocketConfigurer {
     private final SupabaseTokenVerifier supabaseTokenVerifier;
     private final SupabaseUserService supabaseUserService;
     private final SupabaseProperties supabaseProperties;
+    private final MustChangePasswordHandshakeGuard mustChangePasswordGuard;
 
     public ChatSocketConfig(
         ChatSocketHandler handler,
         JwtUtil jwtUtil,
         SupabaseTokenVerifier supabaseTokenVerifier,
         SupabaseUserService supabaseUserService,
-        SupabaseProperties supabaseProperties
+        SupabaseProperties supabaseProperties,
+        MustChangePasswordHandshakeGuard mustChangePasswordGuard
     ) {
         this.handler = handler;
         this.jwtUtil = jwtUtil;
         this.supabaseTokenVerifier = supabaseTokenVerifier;
         this.supabaseUserService = supabaseUserService;
         this.supabaseProperties = supabaseProperties;
+        this.mustChangePasswordGuard = mustChangePasswordGuard;
     }
 
     @Override
@@ -82,6 +92,10 @@ public class ChatSocketConfig implements WebSocketConfigurer {
             try {
                 String email = jwtUtil.extractUsername(token);
                 if (email != null && email.contains("@") && jwtUtil.validateToken(token, email)) {
+                    if (mustChangePasswordGuard.mustChangePassword(email)) {
+                        log.debug("Chat handshake refused: account must change its password first");
+                        return false;
+                    }
                     attributes.put("email", email);
                     return true;
                 }
@@ -93,10 +107,21 @@ public class ChatSocketConfig implements WebSocketConfigurer {
                 try {
                     Claims claims = supabaseTokenVerifier.verify(token);
                     User user = supabaseUserService.resolveUser(claims);
+                    // The account is already in hand, so the rule is read from it
+                    // rather than looked up again.
+                    if (user.isMustChangePassword()) {
+                        log.debug("Chat handshake refused: account must change its password first");
+                        return false;
+                    }
                     attributes.put("email", user.getEmail());
                     return true;
                 } catch (JwtException | IllegalArgumentException e) {
                     log.debug("Supabase token rejected on chat handshake: {}", e.getMessage());
+                } catch (UsernameNotFoundException e) {
+                    // A valid Supabase identity with no account here. Reject the
+                    // handshake instead of letting it become a 500: the answer is
+                    // that this person may not open a socket in this workspace.
+                    log.debug("Supabase identity has no local account: {}", e.getMessage());
                 }
             }
 
