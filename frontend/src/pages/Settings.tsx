@@ -25,6 +25,7 @@ import {
   subscribeThisDevice,
   type PushEnableResult,
 } from '../lib/push'
+import { ChangePasswordForm } from '../components/auth/ChangePasswordForm'
 import { UserAvatar } from '../components/user/UserAvatar'
 
 const assignableRoles: ApiUserRole[] = ['ADMIN', 'MANAGER', 'MEMBER', 'DEVELOPER', 'VIEWER']
@@ -82,6 +83,7 @@ export function Settings() {
   const [saved, setSaved] = useState(false)
   const [profileError, setProfileError] = useState('')
   const [confirmingReset, setConfirmingReset] = useState(false)
+  const [passwordSaved, setPasswordSaved] = useState(false)
   const [avatarError, setAvatarError] = useState('')
   const [avatarBusy, setAvatarBusy] = useState(false)
   const [hasAvatar, setHasAvatar] = useState(false)
@@ -292,6 +294,24 @@ export function Settings() {
               {profileError && <span className="text-xs text-red-600">{profileError}</span>}
             </div>
           </form>
+        </section>
+
+        <section className="border border-line bg-white p-6">
+          <h2 className="mb-1 text-xs font-semibold uppercase tracking-widest text-mute">
+            Password
+          </h2>
+          <p className="mb-4 text-sm text-mute">
+            Replace your own password. It is asked for first, so that holding a
+            session is not enough to take over the account.
+          </p>
+          <div className="max-w-sm">
+            <ChangePasswordForm onDone={() => setPasswordSaved(true)} submitLabel="Update password" />
+            {passwordSaved && (
+              <p role="status" className="mt-3 text-xs font-medium text-success">
+                Password updated.
+              </p>
+            )}
+          </div>
         </section>
 
         <section className="border border-line bg-white p-6">

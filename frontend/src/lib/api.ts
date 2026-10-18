@@ -52,6 +52,51 @@ api.interceptors.request.use(async (config) => {
   return config
 })
 
+/**
+ * The marker the server puts on its refusal of a gated account. Mirrors
+ * MustChangePasswordFilter.CODE on the backend; the two are one contract, so
+ * changing either means changing both.
+ */
+export const PASSWORD_CHANGE_REQUIRED = 'PASSWORD_CHANGE_REQUIRED'
+
+/**
+ * Called when the server refuses a request for this reason.
+ *
+ * Registered by the store rather than imported: the store already imports this
+ * module, so reaching back into it from here would be a cycle. The gate is a
+ * safety net — the flag on the profile is what normally routes the screen — but
+ * it is the only thing that catches a stale client, which would otherwise just
+ * see every request fail with no way to understand why.
+ */
+let onPasswordChangeRequired: (() => void) | null = null
+
+export function registerPasswordChangeRequiredHandler(handler: (() => void) | null): void {
+  onPasswordChangeRequired = handler
+}
+
+/** True for the refusal that means "change your password first". */
+function isPasswordChangeRequired(error: unknown): boolean {
+  if (!axios.isAxiosError(error) || error.response?.status !== 403) return false
+  return (error.response.data as { code?: string } | undefined)?.code === PASSWORD_CHANGE_REQUIRED
+}
+
+// One refusal per burst: a page that fires six requests at once would otherwise
+// ask for the profile six times over. The handler is synchronous — it kicks off
+// a refetch and returns — so the flag only has to cover the current turn.
+let notifyingPasswordChangeRequired = false
+
+api.interceptors.response.use(undefined, (error: unknown) => {
+  if (isPasswordChangeRequired(error) && onPasswordChangeRequired && !notifyingPasswordChangeRequired) {
+    notifyingPasswordChangeRequired = true
+    try {
+      onPasswordChangeRequired()
+    } finally {
+      notifyingPasswordChangeRequired = false
+    }
+  }
+  return Promise.reject(error)
+})
+
 // ---------- API types (mirror backend DTOs) ----------
 
 export type ApiTaskStatus = 'BACKLOG' | 'TODO' | 'IN_PROGRESS' | 'IN_REVIEW' | 'TESTING' | 'DONE'
@@ -68,6 +113,13 @@ export interface ApiUser {
   role: ApiUserRole
   /** Human-facing code (NX-0007). Always present on rows created after V11. */
   employeeCode?: string | null
+  /**
+   * True while the account is still on a password an admin issued, which the
+   * server refuses to serve the workspace until its owner replaces. Optional so
+   * that a profile from an older server simply reads as not gated; treat only
+   * `=== true` as gated for the same reason.
+   */
+  mustChangePassword?: boolean
 }
 
 export interface ApiProject {
@@ -163,6 +215,17 @@ export async function apiListUsers(): Promise<ApiUser[]> {
 export async function apiUpdateMe(name: string): Promise<ApiUser> {
   const { data } = await api.patch<ApiUser>('/users/me', { name })
   return data
+}
+
+/**
+ * Replaces the signed-in user's own password.
+ *
+ * The current password is required by the server even though the caller is
+ * already signed in: an access token is a bearer credential, and without this a
+ * stolen one could set a new password and take the account over.
+ */
+export async function apiChangePassword(currentPassword: string, newPassword: string): Promise<void> {
+  await api.post('/users/me/password', { currentPassword, newPassword })
 }
 
 export async function apiUpdateUserRole(id: number, role: ApiUserRole): Promise<ApiUser> {

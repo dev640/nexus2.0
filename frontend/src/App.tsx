@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { Login } from './pages/Login'
 import { Landing } from './pages/Landing'
+import { ChangePassword } from './pages/ChangePassword'
 import { useAppStore } from './store/useAppStore'
 
 // The marketing site is the entry point for every visitor, so Landing and Login
@@ -59,6 +60,9 @@ function App() {
   const isAuthenticated = useAppStore((s) => s.isAuthenticated)
   const isBootstrapped = useAppStore((s) => s.isBootstrapped)
   const userRole = useAppStore((s) => s.userRole)
+  // Read as `=== true` rather than truthy: the flag is absent from a profile
+  // served by an older server, and "unknown" must not mean "gated".
+  const mustChangePassword = useAppStore((s) => s.currentUser?.mustChangePassword === true)
   const bootstrapFromStoredToken = useAppStore((s) => s.bootstrapFromStoredToken)
 
   useEffect(() => {
@@ -71,6 +75,15 @@ function App() {
   // to "/", losing the requested page. Wait for the session to be resolved first.
   if (!isBootstrapped) {
     return null
+  }
+
+  // Before every route rather than as one of them: this account cannot reach a
+  // single workspace endpoint (the server refuses them), so the shell, the pages
+  // and the chat socket would each render as a failure. It takes over the whole
+  // screen until the password changes — the flag on the profile is the condition,
+  // so it holds for a reload and for a deep link too, wherever the URL points.
+  if (isAuthenticated && mustChangePassword) {
+    return <ChangePassword />
   }
 
   if (!isAuthenticated) {

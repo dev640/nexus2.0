@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useAppStore } from '../store/useAppStore'
 import { apiRequestPasswordReset } from '../lib/api'
 import { supabaseEnabled } from '../lib/supabase'
@@ -8,6 +8,7 @@ import { MagneticButton } from '../components/ui/MagneticButton'
 
 export function Login() {
   const navigate = useNavigate()
+  const location = useLocation()
   const login = useAppStore((s) => s.login)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -16,7 +17,12 @@ export function Login() {
   // was not reading the page. See the guard in handleSubmit.
   const [company, setCompany] = useState('')
   const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  // Seeded from navigation state: the forced-change screen sends a note when
+  // changing a password ends the Supabase session, and this is the screen the
+  // person has to be brought back to with it.
+  const [notice, setNotice] = useState(
+    () => ((location.state ?? {}) as { notice?: string }).notice ?? '',
+  )
   const [busy, setBusy] = useState(false)
   const [requesting, setRequesting] = useState(false)
 

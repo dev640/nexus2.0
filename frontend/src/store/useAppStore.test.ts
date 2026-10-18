@@ -21,6 +21,7 @@ const actions: Record<ActionKeys, true> = {
   logout: true,
   bootstrapFromStoredToken: true,
   applyCurrentUser: true,
+  changePassword: true,
   loadWorkspace: true,
   // tasks
   addTask: true,

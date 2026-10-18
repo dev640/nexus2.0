@@ -15,8 +15,10 @@ const assignableRoles: ApiUserRole[] = ['ADMIN', 'MANAGER', 'MEMBER', 'DEVELOPER
 
 /**
  * Admin-only console: member roles, account creation and the password-reset
- * queue. There is no public signup, and users cannot set their own password —
- * both routes through here.
+ * queue. There is no public signup, and a password an admin chooses is replaced
+ * through here — an issued password must be rotated by its owner from Settings
+ * or the forced-change screen, and this console is the way in when someone is
+ * locked out.
  *
  * Role changes and provisioning hit ADMIN-guarded endpoints, so the API rejects
  * them for anyone who reaches this page without the role; App.tsx also

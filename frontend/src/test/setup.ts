@@ -7,3 +7,20 @@ import { afterEach } from 'vitest'
 afterEach(() => {
   cleanup()
 })
+
+// jsdom implements no media queries, and some components read
+// `prefers-reduced-motion` at module scope — so importing them would throw
+// before a single test runs. Reduced motion is reported as absent, which is the
+// branch every animation-based component is written to take.
+if (typeof window !== 'undefined' && typeof window.matchMedia !== 'function') {
+  window.matchMedia = (query: string): MediaQueryList => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: () => undefined,
+    removeListener: () => undefined,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+    dispatchEvent: () => false,
+  })
+}
