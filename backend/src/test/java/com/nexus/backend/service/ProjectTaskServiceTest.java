@@ -25,6 +25,7 @@ import com.nexus.backend.repository.SprintRepository;
 import com.nexus.backend.repository.TaskRepository;
 import com.nexus.backend.repository.UserRepository;
 import com.nexus.backend.service.activity.WorkspaceActivity;
+import com.nexus.backend.tenant.CurrentTenant;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -34,9 +35,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class ProjectTaskServiceTest {
 
     @Mock
@@ -54,6 +58,9 @@ class ProjectTaskServiceTest {
     @Mock
     private ApplicationEventPublisher knowledgePublisher;
 
+    @Mock
+    private CurrentTenant currentTenant;
+
     @InjectMocks
     private ProjectService projectService;
 
@@ -61,9 +68,11 @@ class ProjectTaskServiceTest {
     private TaskService taskService;
 
     private Project project;
+    private static final Long COMPANY_ID = 1L;
 
     @BeforeEach
     void setUp() {
+        when(currentTenant.require()).thenReturn(COMPANY_ID);
         project = new Project("Demo", "demo project", ProjectStatus.PLANNING, ProjectHealth.ON_TRACK);
         project.setId(1L);
         project.setCreatedAt(LocalDateTime.now());
@@ -74,6 +83,7 @@ class ProjectTaskServiceTest {
 
     @Test
     void createProjectDefaultsHealthProgressAndMemberCount() {
+        when(projectRepository.findByIdAndCompanyId(1L, COMPANY_ID)).thenReturn(Optional.of(project));
         when(projectRepository.save(any(Project.class))).thenAnswer(inv -> {
             Project p = inv.getArgument(0);
             p.setId(2L);
@@ -82,7 +92,7 @@ class ProjectTaskServiceTest {
             return p;
         });
 
-        var response = projectService.create(new ProjectRequest("New Project", "desc", null, null));
+        var response = projectService.create(new ProjectRequest("New Project", "desc", null));
 
         assertThat(response.status()).isEqualTo(ProjectStatus.PLANNING);
         assertThat(response.health()).isEqualTo(ProjectHealth.ON_TRACK);
@@ -100,14 +110,14 @@ class ProjectTaskServiceTest {
             return p;
         });
 
-        projectService.create(new ProjectRequest("New Project", "desc", null, null));
+        projectService.create(new ProjectRequest("New Project", "desc", null));
 
         verify(knowledgePublisher).publishEvent(isA(WorkspaceActivity.class));
     }
 
     @Test
     void findProjectByIdThrowsWhenMissing() {
-        when(projectRepository.findById(99L)).thenReturn(Optional.empty());
+        when(projectRepository.findByIdAndCompanyId(99L, COMPANY_ID)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> projectService.findById(99L))
             .isInstanceOf(ResourceNotFoundException.class)
@@ -116,7 +126,7 @@ class ProjectTaskServiceTest {
 
     @Test
     void deleteProjectThrowsWhenMissing() {
-        when(projectRepository.existsById(99L)).thenReturn(false);
+        when(projectRepository.findByIdAndCompanyId(99L, COMPANY_ID)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> projectService.delete(99L))
             .isInstanceOf(ResourceNotFoundException.class);
@@ -132,7 +142,7 @@ class ProjectTaskServiceTest {
 
     @Test
     void createTaskMapsProjectAndDefaultsStoryPoints() {
-        when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
+        when(projectRepository.findByIdAndCompanyId(1L, COMPANY_ID)).thenReturn(Optional.of(project));
         when(taskRepository.save(any(Task.class))).thenAnswer(inv -> inv.getArgument(0));
 
         var response = taskService.create(new TaskRequest(
@@ -147,7 +157,7 @@ class ProjectTaskServiceTest {
 
     @Test
     void anUnassignedTaskIsAnnouncedToTheWholeWorkspace() {
-        when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
+        when(projectRepository.findByIdAndCompanyId(1L, COMPANY_ID)).thenReturn(Optional.of(project));
         when(taskRepository.save(any(Task.class))).thenAnswer(inv -> inv.getArgument(0));
 
         taskService.create(taskRequest());
@@ -157,7 +167,7 @@ class ProjectTaskServiceTest {
 
     @Test
     void createTaskThrowsWhenProjectMissing() {
-        when(projectRepository.findById(404L)).thenReturn(Optional.empty());
+        when(projectRepository.findByIdAndCompanyId(404L, COMPANY_ID)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> taskService.create(new TaskRequest(
             "x", null, 404L, null, TaskStatus.TODO, TaskPriority.LOW, 1, null, null, null)))
@@ -166,8 +176,8 @@ class ProjectTaskServiceTest {
 
     @Test
     void createTaskThrowsWhenAssigneeMissing() {
-        when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
-        when(userRepository.findById(77L)).thenReturn(Optional.empty());
+        when(projectRepository.findByIdAndCompanyId(1L, COMPANY_ID)).thenReturn(Optional.of(project));
+        when(userRepository.findByIdAndCompanyId(77L, COMPANY_ID)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> taskService.create(new TaskRequest(
             "x", null, 1L, null, TaskStatus.TODO, TaskPriority.LOW, 1, 77L, null, null)))
@@ -183,7 +193,7 @@ class ProjectTaskServiceTest {
         task.setStatus(TaskStatus.TODO);
         task.setPriority(TaskPriority.MEDIUM);
         task.setLabels(new java.util.ArrayList<>());
-        when(taskRepository.findById(5L)).thenReturn(Optional.of(task));
+        when(taskRepository.findByIdAndCompanyId(5L, COMPANY_ID)).thenReturn(Optional.of(task));
         when(taskRepository.save(any(Task.class))).thenAnswer(inv -> inv.getArgument(0));
 
         var response = taskService.updateStatus(5L, TaskStatus.DONE);
@@ -205,18 +215,19 @@ class ProjectTaskServiceTest {
         assignee.setName("Vidhi");
         assignee.setEmail("vidhi@nexus.com");
         assignee.setRole(UserRole.MEMBER);
+        assignee.setCompanyId(COMPANY_ID);
         task.setAssignee(assignee);
         task.setLabels(new java.util.ArrayList<>());
-        when(taskRepository.findById(6L)).thenReturn(Optional.of(task));
+        when(taskRepository.findByIdAndCompanyId(6L, COMPANY_ID)).thenReturn(Optional.of(task));
 
         var response = taskService.findById(6L);
 
-        assertThat(response.assignee()).isEqualTo(new UserResponse(3L, "Vidhi", "vidhi@nexus.com", UserRole.MEMBER, null, null));
+        assertThat(response.assignee()).isEqualTo(new UserResponse(3L, "Vidhi", "vidhi@nexus.com", UserRole.MEMBER, null, null, false));
     }
 
     @Test
     void deleteTaskThrowsWhenMissing() {
-        when(taskRepository.existsById(505L)).thenReturn(false);
+        when(taskRepository.existsByIdAndCompanyId(505L, COMPANY_ID)).thenReturn(false);
 
         assertThatThrownBy(() -> taskService.delete(505L))
             .isInstanceOf(ResourceNotFoundException.class);
@@ -227,8 +238,8 @@ class ProjectTaskServiceTest {
         Project target = new Project("Second", "second", ProjectStatus.PLANNING, ProjectHealth.ON_TRACK);
         target.setId(2L);
         Task task = existingTask();
-        when(taskRepository.findById(5L)).thenReturn(Optional.of(task));
-        when(projectRepository.findById(2L)).thenReturn(Optional.of(target));
+        when(taskRepository.findByIdAndCompanyId(5L, COMPANY_ID)).thenReturn(Optional.of(task));
+        when(projectRepository.findByIdAndCompanyId(2L, COMPANY_ID)).thenReturn(Optional.of(target));
         when(taskRepository.save(any(Task.class))).thenAnswer(inv -> inv.getArgument(0));
 
         var response = taskService.update(5L, new TaskRequest(
@@ -243,8 +254,8 @@ class ProjectTaskServiceTest {
     void updateTaskKeepsStoryPointsWhenOmitted() {
         Task task = existingTask();
         task.setStoryPoints(8);
-        when(taskRepository.findById(5L)).thenReturn(Optional.of(task));
-        when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
+        when(taskRepository.findByIdAndCompanyId(5L, COMPANY_ID)).thenReturn(Optional.of(task));
+        when(projectRepository.findByIdAndCompanyId(1L, COMPANY_ID)).thenReturn(Optional.of(project));
         when(taskRepository.save(any(Task.class))).thenAnswer(inv -> inv.getArgument(0));
 
         var response = taskService.update(5L, new TaskRequest(
@@ -267,9 +278,9 @@ class ProjectTaskServiceTest {
         foreignSprint.setEndDate(java.time.LocalDate.now().plusDays(7));
 
         Task task = existingTask();
-        when(taskRepository.findById(5L)).thenReturn(Optional.of(task));
-        when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
-        when(sprintRepository.findById(9L)).thenReturn(Optional.of(foreignSprint));
+        when(taskRepository.findByIdAndCompanyId(5L, COMPANY_ID)).thenReturn(Optional.of(task));
+        when(projectRepository.findByIdAndCompanyId(1L, COMPANY_ID)).thenReturn(Optional.of(project));
+        when(sprintRepository.findByIdAndCompanyId(9L, COMPANY_ID)).thenReturn(Optional.of(foreignSprint));
 
         assertThatThrownBy(() -> taskService.update(5L, new TaskRequest(
             "Cross project", null, 1L, 9L, TaskStatus.TODO, TaskPriority.LOW, 1, null, List.of(), null)))
@@ -289,8 +300,8 @@ class ProjectTaskServiceTest {
         foreignSprint.setStartDate(java.time.LocalDate.now());
         foreignSprint.setEndDate(java.time.LocalDate.now().plusDays(7));
 
-        when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
-        when(sprintRepository.findById(9L)).thenReturn(Optional.of(foreignSprint));
+        when(projectRepository.findByIdAndCompanyId(1L, COMPANY_ID)).thenReturn(Optional.of(project));
+        when(sprintRepository.findByIdAndCompanyId(9L, COMPANY_ID)).thenReturn(Optional.of(foreignSprint));
 
         assertThatThrownBy(() -> taskService.create(new TaskRequest(
             "x", null, 1L, 9L, TaskStatus.TODO, TaskPriority.LOW, 1, null, List.of(), null)))

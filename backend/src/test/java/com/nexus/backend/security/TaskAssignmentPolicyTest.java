@@ -13,6 +13,7 @@ import com.nexus.backend.repository.ProjectRepository;
 import com.nexus.backend.repository.SprintRepository;
 import com.nexus.backend.repository.TaskRepository;
 import com.nexus.backend.repository.UserRepository;
+import com.nexus.backend.tenant.CurrentTenant;
 import com.nexus.backend.service.NotificationService;
 import com.nexus.backend.service.TaskService;
 import com.nexus.backend.service.activity.WorkspaceActivity;
@@ -23,6 +24,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -51,6 +54,7 @@ import static org.mockito.Mockito.when;
  * real security context instead of mocking it away.
  */
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class TaskAssignmentPolicyTest {
 
     @Mock private TaskRepository taskRepository;
@@ -59,6 +63,7 @@ class TaskAssignmentPolicyTest {
     @Mock private UserRepository userRepository;
     @Mock private NotificationService notificationService;
     @Mock private ApplicationEventPublisher knowledgePublisher;
+    @Mock private CurrentTenant currentTenant;
 
     private TaskService taskService;
 
@@ -68,8 +73,9 @@ class TaskAssignmentPolicyTest {
 
     @BeforeEach
     void setUp() {
+        when(currentTenant.require()).thenReturn(1L);
         taskService = new TaskService(
-            taskRepository, projectRepository, sprintRepository, userRepository, knowledgePublisher);
+            taskRepository, projectRepository, sprintRepository, userRepository, currentTenant, knowledgePublisher);
         // Field-injected and @Lazy in production, so it is not a constructor
         // argument here either.
         ReflectionTestUtils.setField(taskService, "notificationService", notificationService);
@@ -79,6 +85,7 @@ class TaskAssignmentPolicyTest {
         alice = user(2L, "alice@nexus.com");
         bob = user(3L, "bob@nexus.com");
         when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
+        when(projectRepository.findByIdAndCompanyId(1L, 1L)).thenReturn(Optional.of(project));
     }
 
     @AfterEach
@@ -91,6 +98,7 @@ class TaskAssignmentPolicyTest {
     @Test
     void memberCannotAssignWorkOnCreate() {
         authenticateAs(UserRole.MEMBER);
+        when(projectRepository.findByIdAndCompanyId(1L, 1L)).thenReturn(Optional.of(project));
 
         assertThatThrownBy(() -> taskService.create(request(bob.getId())))
             .isInstanceOf(AccessDeniedException.class);
@@ -100,7 +108,8 @@ class TaskAssignmentPolicyTest {
     void managerAndAdminMayAssignWorkOnCreate() {
         for (UserRole role : List.of(UserRole.MANAGER, UserRole.ADMIN)) {
             authenticateAs(role);
-            when(userRepository.findById(bob.getId())).thenReturn(Optional.of(bob));
+            when(projectRepository.findByIdAndCompanyId(1L, 1L)).thenReturn(Optional.of(project));
+            when(userRepository.findByIdAndCompanyId(bob.getId(), 1L)).thenReturn(Optional.of(bob));
             when(taskRepository.save(any(Task.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
             var response = taskService.create(request(bob.getId()));
@@ -113,6 +122,7 @@ class TaskAssignmentPolicyTest {
     @Test
     void creatingAnUnassignedTaskNeedsNoManageRights() {
         authenticateAs(UserRole.MEMBER);
+        when(projectRepository.findByIdAndCompanyId(1L, 1L)).thenReturn(Optional.of(project));
 
         when(taskRepository.save(any(Task.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -122,7 +132,8 @@ class TaskAssignmentPolicyTest {
     @Test
     void anAssignedTaskTellsTheWorkspaceButNotTheAssigneeTwice() {
         authenticateAs(UserRole.ADMIN);
-        when(userRepository.findById(bob.getId())).thenReturn(Optional.of(bob));
+        when(projectRepository.findByIdAndCompanyId(1L, 1L)).thenReturn(Optional.of(project));
+        when(userRepository.findByIdAndCompanyId(bob.getId(), 1L)).thenReturn(Optional.of(bob));
         when(taskRepository.save(any(Task.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         taskService.create(request(bob.getId()));
@@ -146,8 +157,8 @@ class TaskAssignmentPolicyTest {
     void memberCannotReassignSomebodyElsesTask() {
         authenticateAs(UserRole.MEMBER);
         Task existing = taskAssignedTo(alice);
-        when(taskRepository.findById(5L)).thenReturn(Optional.of(existing));
-        when(userRepository.findById(bob.getId())).thenReturn(Optional.of(bob));
+        when(taskRepository.findByIdAndCompanyId(5L, 1L)).thenReturn(Optional.of(existing));
+        when(userRepository.findByIdAndCompanyId(bob.getId(), 1L)).thenReturn(Optional.of(bob));
 
         assertThatThrownBy(() -> taskService.update(5L, request(bob.getId())))
             .isInstanceOf(AccessDeniedException.class);
@@ -158,7 +169,7 @@ class TaskAssignmentPolicyTest {
     void memberCannotTakeATaskAwayFromSomebody() {
         authenticateAs(UserRole.MEMBER);
         Task existing = taskAssignedTo(alice);
-        when(taskRepository.findById(5L)).thenReturn(Optional.of(existing));
+        when(taskRepository.findByIdAndCompanyId(5L, 1L)).thenReturn(Optional.of(existing));
 
         assertThatThrownBy(() -> taskService.update(5L, request(null)))
             .isInstanceOf(AccessDeniedException.class);
@@ -168,8 +179,8 @@ class TaskAssignmentPolicyTest {
     void memberMayEditATaskWhileLeavingTheAssigneeInPlace() {
         authenticateAs(UserRole.MEMBER);
         Task existing = taskAssignedTo(alice);
-        when(taskRepository.findById(5L)).thenReturn(Optional.of(existing));
-        when(userRepository.findById(alice.getId())).thenReturn(Optional.of(alice));
+        when(taskRepository.findByIdAndCompanyId(5L, 1L)).thenReturn(Optional.of(existing));
+        when(userRepository.findByIdAndCompanyId(alice.getId(), 1L)).thenReturn(Optional.of(alice));
         when(taskRepository.save(any(Task.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         var response = taskService.update(5L, request(alice.getId()));
@@ -181,7 +192,7 @@ class TaskAssignmentPolicyTest {
     void clearingAnAlreadyUnassignedTaskNeedsNoManageRights() {
         authenticateAs(UserRole.MEMBER);
         Task existing = taskAssignedTo(null);
-        when(taskRepository.findById(5L)).thenReturn(Optional.of(existing));
+        when(taskRepository.findByIdAndCompanyId(5L, 1L)).thenReturn(Optional.of(existing));
         when(taskRepository.save(any(Task.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         assertThat(taskService.update(5L, request(null)).assignee()).isNull();
@@ -191,8 +202,8 @@ class TaskAssignmentPolicyTest {
     void managerMayHandATaskToSomebodyElse() {
         authenticateAs(UserRole.MANAGER);
         Task existing = taskAssignedTo(alice);
-        when(taskRepository.findById(5L)).thenReturn(Optional.of(existing));
-        when(userRepository.findById(bob.getId())).thenReturn(Optional.of(bob));
+        when(taskRepository.findByIdAndCompanyId(5L, 1L)).thenReturn(Optional.of(existing));
+        when(userRepository.findByIdAndCompanyId(bob.getId(), 1L)).thenReturn(Optional.of(bob));
         when(taskRepository.save(any(Task.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         var response = taskService.update(5L, request(bob.getId()));
@@ -203,6 +214,8 @@ class TaskAssignmentPolicyTest {
     @Test
     void viewerIsRefusedAtTheServiceLayerToo() {
         authenticateAs(UserRole.VIEWER);
+        when(projectRepository.findByIdAndCompanyId(1L, 1L)).thenReturn(Optional.of(project));
+        when(userRepository.findByIdAndCompanyId(bob.getId(), 1L)).thenReturn(Optional.of(bob));
 
         assertThatThrownBy(() -> taskService.create(request(bob.getId())))
             .isInstanceOf(AccessDeniedException.class);
@@ -214,7 +227,8 @@ class TaskAssignmentPolicyTest {
         // call arrives authenticated, so this path cannot be an unauthenticated
         // API request.
         SecurityContextHolder.clearContext();
-        when(userRepository.findById(bob.getId())).thenReturn(Optional.of(bob));
+        when(projectRepository.findByIdAndCompanyId(1L, 1L)).thenReturn(Optional.of(project));
+        when(userRepository.findByIdAndCompanyId(bob.getId(), 1L)).thenReturn(Optional.of(bob));
         when(taskRepository.save(any(Task.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         assertThat(taskService.create(request(bob.getId())).assignee().email()).isEqualTo(bob.getEmail());

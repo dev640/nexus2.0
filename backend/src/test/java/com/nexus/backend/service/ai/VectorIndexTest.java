@@ -37,12 +37,24 @@ class VectorIndexTest {
         index = new VectorIndex(chunkRepository, permissionService, 100);
     }
 
+    /**
+     * The company whose vectors these tests index. The vector store is one shared
+     * map, so every entry records its company and every query filters on it.
+     */
+    private static final Long COMPANY_ID = 9L;
+
     private KnowledgeChunk chunk(long id, long sourceId, AccessScope scope, Long ownerId,
                                  Long projectId, float[] vector) {
+        return chunk(id, sourceId, scope, ownerId, projectId, vector, COMPANY_ID);
+    }
+
+    private KnowledgeChunk chunk(long id, long sourceId, AccessScope scope, Long ownerId,
+                                 Long projectId, float[] vector, Long companyId) {
         KnowledgeChunk chunk = new KnowledgeChunk();
         chunk.setId(id);
         chunk.setSourceType(KnowledgeSourceType.WIKI_PAGE);
         chunk.setSourceId(sourceId);
+        chunk.setCompanyId(companyId);
         chunk.setTitle("doc-" + sourceId);
         chunk.setContent("content");
         chunk.setAccessScope(scope);
@@ -58,9 +70,14 @@ class VectorIndexTest {
     }
 
     private static User user(long id, UserRole role) {
+        return user(id, role, COMPANY_ID);
+    }
+
+    private static User user(long id, UserRole role, Long companyId) {
         User user = new User();
         user.setId(id);
         user.setRole(role);
+        user.setCompanyId(companyId);
         return user;
     }
 
@@ -117,6 +134,34 @@ class VectorIndexTest {
         List<VectorIndex.Scored> scoped = index.topSemantic(new float[]{1f, 0f}, 10, user(1, UserRole.MEMBER), 1L);
 
         assertThat(scoped).extracting(r -> r.entry().chunkId()).containsExactlyInAnyOrder(1L, 3L);
+    }
+
+    /**
+     * The store is one map shared by every company, so a vector belonging to
+     * another company must never score — not even for a WORKSPACE-scoped chunk
+     * its permission check would otherwise allow.
+     */
+    @Test
+    void anotherCompanysChunksAreNeverReturned() {
+        chunk(1, 10, AccessScope.WORKSPACE, null, null, new float[]{1f, 0f}, COMPANY_ID);
+        chunk(2, 20, AccessScope.WORKSPACE, null, null, new float[]{1f, 0f}, 777L);
+
+        List<VectorIndex.Scored> mine = index.topSemantic(
+            new float[]{1f, 0f}, 10, user(1, UserRole.MEMBER, COMPANY_ID), null);
+        List<VectorIndex.Scored> theirs = index.topSemantic(
+            new float[]{1f, 0f}, 10, user(2, UserRole.MEMBER, 777L), null);
+
+        assertThat(mine).extracting(r -> r.entry().chunkId()).containsExactly(1L);
+        assertThat(theirs).extracting(r -> r.entry().chunkId()).containsExactly(2L);
+    }
+
+    /** An account with no company gets no semantic results at all. */
+    @Test
+    void anAccountWithNoCompanyHasNoSemanticResults() {
+        chunk(1, 10, AccessScope.WORKSPACE, null, null, new float[]{1f, 0f});
+
+        assertThat(index.topSemantic(new float[]{1f, 0f}, 10, user(1, UserRole.SUPER_ADMIN, null), null))
+            .isEmpty();
     }
 
     @Test

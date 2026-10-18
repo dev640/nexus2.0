@@ -9,12 +9,15 @@ import com.nexus.backend.exception.ResourceNotFoundException;
 import com.nexus.backend.exception.ValidationException;
 import com.nexus.backend.repository.MessageRepository;
 import com.nexus.backend.repository.UserRepository;
+import com.nexus.backend.tenant.CurrentTenant;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 
@@ -36,10 +39,12 @@ import static org.mockito.Mockito.when;
  * existing message id from a missing one.
  */
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class MessageServiceTest {
 
     @Mock private MessageRepository messageRepository;
     @Mock private UserRepository userRepository;
+    @Mock private CurrentTenant currentTenant;
 
     private MessageService messageService;
 
@@ -49,7 +54,8 @@ class MessageServiceTest {
 
     @BeforeEach
     void setUp() {
-        messageService = new MessageService(messageRepository, userRepository);
+        when(currentTenant.require()).thenReturn(COMPANY_ID);
+        messageService = new MessageService(messageRepository, userRepository, currentTenant);
         alice = user(1L, "alice@nexus.com");
         bob = user(2L, "bob@nexus.com");
         carol = user(3L, "carol@nexus.com");
@@ -64,7 +70,7 @@ class MessageServiceTest {
     void sendStoresTheMessageFromTheSignedInUser() {
         authenticate(alice.getEmail());
         signedInAs(alice);
-        when(userRepository.findById(bob.getId())).thenReturn(Optional.of(bob));
+        when(userRepository.findByIdAndCompanyId(bob.getId(), COMPANY_ID)).thenReturn(Optional.of(bob));
         when(messageRepository.save(any(Message.class))).thenAnswer(invocation -> {
             Message saved = invocation.getArgument(0);
             saved.setId(9L);
@@ -87,7 +93,7 @@ class MessageServiceTest {
     void sendToAnUnknownRecipientIsNotFound() {
         authenticate(alice.getEmail());
         signedInAs(alice);
-        when(userRepository.findById(99L)).thenReturn(Optional.empty());
+        when(userRepository.findByIdAndCompanyId(99L, COMPANY_ID)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> messageService.send(new MessageRequest(99L, "Hi", "Anyone there?")))
             .isInstanceOf(ResourceNotFoundException.class);
@@ -97,7 +103,7 @@ class MessageServiceTest {
     void sendToYourselfIsRejected() {
         authenticate(alice.getEmail());
         signedInAs(alice);
-        when(userRepository.findById(alice.getId())).thenReturn(Optional.of(alice));
+        when(userRepository.findByIdAndCompanyId(alice.getId(), COMPANY_ID)).thenReturn(Optional.of(alice));
 
         assertThatThrownBy(() -> messageService.send(new MessageRequest(alice.getId(), "Note to self", "Remember the milk")))
             .isInstanceOf(ValidationException.class)
@@ -110,12 +116,14 @@ class MessageServiceTest {
         authenticate(alice.getEmail());
         signedInAs(alice);
         // Alice writes to the workspace: Bob and Carol are the audience.
-        when(userRepository.findByIdNotOrderByIdAsc(alice.getId())).thenReturn(List.of(bob, carol));
+        when(userRepository.findByIdNotAndCompanyIdOrderByIdAsc(alice.getId(), COMPANY_ID))
+            .thenReturn(List.of(bob, carol));
         when(messageRepository.save(any(Message.class))).thenAnswer(invocation -> {
             Message saved = invocation.getArgument(0);
             saved.setId(saved.getRecipient().getId() + 100L);
             return saved;
         });
+        when(userRepository.findByEmail(alice.getEmail())).thenReturn(Optional.of(alice));
 
         var response = messageService.broadcast(
             new MessageBroadcastRequest("  Office closed Friday  ", "  See you Monday.  "));
@@ -143,7 +151,9 @@ class MessageServiceTest {
     void broadcastIsRejectedWhenThereIsNobodyElseInTheWorkspace() {
         authenticate(alice.getEmail());
         signedInAs(alice);
-        when(userRepository.findByIdNotOrderByIdAsc(alice.getId())).thenReturn(List.of());
+        when(userRepository.findByIdNotAndCompanyIdOrderByIdAsc(alice.getId(), COMPANY_ID))
+            .thenReturn(List.of());
+        when(userRepository.findByEmail(alice.getEmail())).thenReturn(Optional.of(alice));
 
         assertThatThrownBy(() -> messageService.broadcast(new MessageBroadcastRequest("Hello", "Anyone?")))
             .isInstanceOf(ValidationException.class)
@@ -157,8 +167,10 @@ class MessageServiceTest {
         signedInAs(alice);
         // The repository lookup is the whole guard: it already excludes Alice, so
         // nothing the service writes may come back to her inbox.
-        when(userRepository.findByIdNotOrderByIdAsc(alice.getId())).thenReturn(List.of(bob));
+        when(userRepository.findByIdNotAndCompanyIdOrderByIdAsc(alice.getId(), COMPANY_ID))
+            .thenReturn(List.of(bob));
         when(messageRepository.save(any(Message.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(userRepository.findByEmail(alice.getEmail())).thenReturn(Optional.of(alice));
 
         messageService.broadcast(new MessageBroadcastRequest("Hello", "Everyone"));
 
@@ -172,6 +184,7 @@ class MessageServiceTest {
     void inboxReturnsReceivedMail() {
         authenticate(bob.getEmail());
         signedInAs(bob);
+        when(userRepository.findByEmail(bob.getEmail())).thenReturn(Optional.of(bob));
         when(messageRepository.findByRecipientAndDeletedByRecipientFalseOrderByIdDesc(bob))
             .thenReturn(List.of(message(5L, alice, bob, false)));
 
@@ -186,6 +199,7 @@ class MessageServiceTest {
     void sentReturnsWrittenMail() {
         authenticate(alice.getEmail());
         signedInAs(alice);
+        when(userRepository.findByEmail(alice.getEmail())).thenReturn(Optional.of(alice));
         when(messageRepository.findBySenderAndDeletedBySenderFalseOrderByIdDesc(alice))
             .thenReturn(List.of(message(5L, alice, bob, false)));
 
@@ -199,6 +213,7 @@ class MessageServiceTest {
     void unreadCountComesFromTheRepository() {
         authenticate(bob.getEmail());
         signedInAs(bob);
+        when(userRepository.findByEmail(bob.getEmail())).thenReturn(Optional.of(bob));
         when(messageRepository.countByRecipientAndReadFalseAndDeletedByRecipientFalse(bob)).thenReturn(3L);
 
         assertThat(messageService.countUnread()).isEqualTo(3L);
@@ -208,6 +223,7 @@ class MessageServiceTest {
     void recipientMayMarkAMessageRead() {
         authenticate(bob.getEmail());
         Message message = message(5L, alice, bob, false);
+        when(userRepository.findByEmail(bob.getEmail())).thenReturn(Optional.of(bob));
         when(messageRepository.findById(5L)).thenReturn(Optional.of(message));
         when(messageRepository.save(any(Message.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -220,6 +236,7 @@ class MessageServiceTest {
     @Test
     void senderMayNotMarkTheirOwnMessageRead() {
         authenticate(alice.getEmail());
+        when(userRepository.findByEmail(alice.getEmail())).thenReturn(Optional.of(alice));
         when(messageRepository.findById(5L)).thenReturn(Optional.of(message(5L, alice, bob, false)));
 
         assertThatThrownBy(() -> messageService.markRead(5L))
@@ -229,6 +246,7 @@ class MessageServiceTest {
     @Test
     void thirdPartyCannotTouchAMessageAtAll() {
         authenticate(carol.getEmail());
+        when(userRepository.findByEmail(carol.getEmail())).thenReturn(Optional.of(carol));
         when(messageRepository.findById(5L)).thenReturn(Optional.of(message(5L, alice, bob, false)));
 
         assertThatThrownBy(() -> messageService.markRead(5L))
@@ -242,6 +260,7 @@ class MessageServiceTest {
     void eachSideDeletesOnlyItsOwnCopy() {
         Message forBob = message(5L, alice, bob, false);
         authenticate(bob.getEmail());
+        when(userRepository.findByEmail(bob.getEmail())).thenReturn(Optional.of(bob));
         when(messageRepository.findById(5L)).thenReturn(Optional.of(forBob));
         when(messageRepository.save(any(Message.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -257,6 +276,7 @@ class MessageServiceTest {
         // single delete must clear the inbox and the sent copy together.
         Message toSelf = message(7L, alice, alice, false);
         authenticate(alice.getEmail());
+        when(userRepository.findByEmail(alice.getEmail())).thenReturn(Optional.of(alice));
         when(messageRepository.findById(7L)).thenReturn(Optional.of(toSelf));
         when(messageRepository.save(any(Message.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -270,6 +290,7 @@ class MessageServiceTest {
     void senderDeletingKeepsTheRecipientsCopy() {
         Message forBob = message(5L, alice, bob, false);
         authenticate(alice.getEmail());
+        when(userRepository.findByEmail(alice.getEmail())).thenReturn(Optional.of(alice));
         when(messageRepository.findById(5L)).thenReturn(Optional.of(forBob));
         when(messageRepository.save(any(Message.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -298,11 +319,20 @@ class MessageServiceTest {
         return message;
     }
 
+    /**
+     * Everyone in this test shares a company, so the broadcast audience is the
+     * whole cast and the company filter is a no-op at this level. That the filter
+     * is *asked for* is the point: the audience lookup is a company-scoped query
+     * now, and a service that stopped passing the company would fail here.
+     */
+    private static final Long COMPANY_ID = 7L;
+
     private static User user(Long id, String email) {
         String name = email.substring(0, email.indexOf('@'));
         name = Character.toUpperCase(name.charAt(0)) + name.substring(1);
         User user = new User(name, email, "$bcrypt", UserRole.MEMBER);
         user.setId(id);
+        user.setCompanyId(COMPANY_ID);
         return user;
     }
 }

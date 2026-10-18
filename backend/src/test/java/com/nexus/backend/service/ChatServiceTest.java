@@ -15,6 +15,7 @@ import com.nexus.backend.repository.ChatChannelRepository;
 import com.nexus.backend.repository.ChatMessageRepository;
 import com.nexus.backend.repository.NotificationRepository;
 import com.nexus.backend.repository.UserRepository;
+import com.nexus.backend.tenant.CurrentTenant;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -22,6 +23,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -41,6 +44,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class ChatServiceTest {
 
     private static final String MY_EMAIL = "devendra@nexus.com";
@@ -50,7 +54,11 @@ class ChatServiceTest {
     @Mock private ChatMessageRepository messageRepository;
     @Mock private NotificationRepository notificationRepository;
     @Mock private UserRepository userRepository;
+
+    /** The single company all the accounts in this test belong to. */
+    private static final Long COMPANY_ID = 12L;
     @Mock private ChatBroadcaster broadcaster;
+    @Mock private CurrentTenant currentTenant;
 
     private ChatService chatService;
 
@@ -58,12 +66,14 @@ class ChatServiceTest {
 
     @BeforeEach
     void setUp() {
+        when(currentTenant.require()).thenReturn(COMPANY_ID);
         chatService = new ChatService(
             channelRepository, memberRepository, messageRepository,
-            notificationRepository, userRepository, broadcaster);
+            notificationRepository, userRepository, currentTenant, broadcaster);
 
         me = new User("Devendra", MY_EMAIL, "$bcrypt", UserRole());
         me.setId(1L);
+        me.setCompanyId(COMPANY_ID);
 
         SecurityContextHolder.getContext().setAuthentication(
             new UsernamePasswordAuthenticationToken(MY_EMAIL, null, List.of()));
@@ -112,7 +122,7 @@ class ChatServiceTest {
     void postingAMessageSavesItAndMarksTheChannelReadForTheAuthor() {
         ChatChannel general = channel(10L, "general", ChatChannel.Type.PUBLIC);
         ChatChannelMember mine = membership(general, me, null);
-        when(channelRepository.findById(10L)).thenReturn(Optional.of(general));
+        when(channelRepository.findByIdAndCompanyId(10L, COMPANY_ID)).thenReturn(Optional.of(general));
         when(memberRepository.findByChannelAndUser(general, me)).thenReturn(Optional.of(mine));
         when(messageRepository.save(any(ChatMessage.class))).thenAnswer(inv -> {
             ChatMessage m = inv.getArgument(0);
@@ -130,7 +140,7 @@ class ChatServiceTest {
     @Test
     void postingToAChannelTheUserIsNotAMemberOfIsRejected() {
         ChatChannel secret = channel(11L, "secret", ChatChannel.Type.PRIVATE);
-        when(channelRepository.findById(11L)).thenReturn(Optional.of(secret));
+        when(channelRepository.findByIdAndCompanyId(11L, COMPANY_ID)).thenReturn(Optional.of(secret));
         when(memberRepository.findByChannelAndUser(secret, me)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> chatService.postMessage(11L, "hi"))
@@ -149,7 +159,7 @@ class ChatServiceTest {
     @Test
     void messageHistoryIsReturnedOldestFirstAndSupportsPagingBeforeAnId() {
         ChatChannel general = channel(10L, "general", ChatChannel.Type.PUBLIC);
-        when(channelRepository.findById(10L)).thenReturn(Optional.of(general));
+        when(channelRepository.findByIdAndCompanyId(10L, COMPANY_ID)).thenReturn(Optional.of(general));
         when(memberRepository.findByChannelAndUser(general, me)).thenReturn(Optional.of(membership(general, me, null)));
         when(messageRepository.findByChannelAndIdLessThanOrderByIdDesc(eq(general), eq(9L), any(Pageable.class)))
             .thenReturn(List.of(
@@ -219,7 +229,7 @@ class ChatServiceTest {
     void markReadAdvancesToTheLatestMessage() {
         ChatChannel general = channel(10L, "general", ChatChannel.Type.PUBLIC);
         ChatChannelMember mine = membership(general, me, 4L);
-        when(channelRepository.findById(10L)).thenReturn(Optional.of(general));
+        when(channelRepository.findByIdAndCompanyId(10L, COMPANY_ID)).thenReturn(Optional.of(general));
         when(memberRepository.findByChannelAndUser(general, me)).thenReturn(Optional.of(mine));
         when(messageRepository.findLatestIdByChannel(general)).thenReturn(Optional.of(42L));
 
@@ -233,7 +243,7 @@ class ChatServiceTest {
 
     @Test
     void creatingAChannelNormalizesTheNameAndRejectsBadOnes() {
-        when(channelRepository.findByNameAndType("general", ChatChannel.Type.PUBLIC)).thenReturn(Optional.empty());
+        when(channelRepository.findByNameAndTypeAndCompanyId("general", ChatChannel.Type.PUBLIC, COMPANY_ID)).thenReturn(Optional.empty());
         when(channelRepository.save(any(ChatChannel.class))).thenAnswer(inv -> {
             ChatChannel c = inv.getArgument(0);
             c.setId(77L);
@@ -251,7 +261,7 @@ class ChatServiceTest {
     @Test
     void creatingADuplicateChannelIsRejected() {
         ChatChannel existing = channel(10L, "general", ChatChannel.Type.PUBLIC);
-        when(channelRepository.findByNameAndType("general", ChatChannel.Type.PUBLIC))
+        when(channelRepository.findByNameAndTypeAndCompanyId("general", ChatChannel.Type.PUBLIC, COMPANY_ID))
             .thenReturn(Optional.of(existing));
 
         assertThatThrownBy(() ->
@@ -264,8 +274,9 @@ class ChatServiceTest {
     void openingADMReusesTheExistingConversationWithThatPerson() {
         User partner = new User("Achal", "achal@nexus.com", "$bcrypt", UserRole());
         partner.setId(2L);
+        partner.setCompanyId(COMPANY_ID);
         ChatChannel dm = channel(90L, null, ChatChannel.Type.DM);
-        when(userRepository.findById(2L)).thenReturn(Optional.of(partner));
+        when(userRepository.findByIdAndCompanyId(2L, COMPANY_ID)).thenReturn(Optional.of(partner));
         when(memberRepository.findWithChannelByUser(me))
             .thenReturn(List.of(membership(dm, me, null)));
         when(memberRepository.findByChannelAndUserNot(dm, me))
@@ -284,15 +295,18 @@ class ChatServiceTest {
     void postingAMessageWithAMentionCreatesANotificationForTheMentionedUser() {
         User partner = new User("Achal", "achal@nexus.com", "$bcrypt", UserRole());
         partner.setId(2L);
+        partner.setCompanyId(COMPANY_ID);
         ChatChannel general = channel(10L, "general", ChatChannel.Type.PUBLIC);
-        when(channelRepository.findById(10L)).thenReturn(Optional.of(general));
+        when(channelRepository.findByIdAndCompanyId(10L, COMPANY_ID)).thenReturn(Optional.of(general));
         when(memberRepository.findByChannelAndUser(general, me)).thenReturn(Optional.of(membership(general, me, null)));
         when(messageRepository.save(any(ChatMessage.class))).thenAnswer(inv -> {
             ChatMessage m = inv.getArgument(0);
             m.setId(60L);
             return m;
         });
-        when(userRepository.findAll()).thenReturn(List.of(me, partner));
+        // Mentions are resolved within the author's company, so the lookup is the
+        // company-scoped one; a mention can never name another company's person.
+        when(userRepository.findByCompanyIdOrderByIdAsc(COMPANY_ID)).thenReturn(List.of(me, partner));
         when(memberRepository.findByChannel(general)).thenReturn(List.of(membership(general, partner, null)));
 
         chatService.postMessage(10L, "ping @achal please review");
@@ -320,7 +334,7 @@ class ChatServiceTest {
     @Test
     void deletingAChannelRemovesItsMessagesAndMembersFirst() {
         ChatChannel general = channel(7L, "general", ChatChannel.Type.PUBLIC);
-        when(channelRepository.findById(7L)).thenReturn(Optional.of(general));
+        when(channelRepository.findByIdAndCompanyId(7L, COMPANY_ID)).thenReturn(Optional.of(general));
 
         chatService.deleteChannel(7L);
 
@@ -335,7 +349,7 @@ class ChatServiceTest {
         me.setRole(com.nexus.backend.domain.user.UserRole.MEMBER);
         ChatChannel other = channel(8L, "general", ChatChannel.Type.PUBLIC);
         other.setCreatedBy("someone-else@nexus.com");
-        when(channelRepository.findById(8L)).thenReturn(Optional.of(other));
+        when(channelRepository.findByIdAndCompanyId(8L, COMPANY_ID)).thenReturn(Optional.of(other));
 
         assertThatThrownBy(() -> chatService.deleteChannel(8L))
             .isInstanceOf(ValidationException.class)
@@ -348,7 +362,7 @@ class ChatServiceTest {
     void directMessagesCannotBeDeleted() {
         ChatChannel dm = channel(9L, null, ChatChannel.Type.DM);
         dm.setCreatedBy(MY_EMAIL);
-        when(channelRepository.findById(9L)).thenReturn(Optional.of(dm));
+        when(channelRepository.findByIdAndCompanyId(9L, COMPANY_ID)).thenReturn(Optional.of(dm));
 
         assertThatThrownBy(() -> chatService.deleteChannel(9L))
             .isInstanceOf(ValidationException.class)

@@ -10,6 +10,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.springframework.mock.web.MockMultipartFile;
 
 import javax.imageio.ImageIO;
@@ -34,6 +36,7 @@ import static org.mockito.Mockito.when;
  * survives the crop") instead of comparing against an opaque blob.
  */
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class AvatarServiceTest {
 
     @Mock private UserAvatarRepository avatarRepository;
@@ -41,11 +44,15 @@ class AvatarServiceTest {
     private AvatarService service;
     private User user;
 
+    @Mock private com.nexus.backend.tenant.CurrentTenant currentTenant;
+
     @BeforeEach
     void setUp() {
-        service = new AvatarService(avatarRepository);
+        org.mockito.Mockito.when(currentTenant.require()).thenReturn(1L);
+        service = new AvatarService(avatarRepository, currentTenant);
         user = new User("Ada", "ada@nexus.com", null, null);
         user.setId(7L);
+        user.setCompanyId(1L);
     }
 
     /**
@@ -175,7 +182,7 @@ class AvatarServiceTest {
 
     @Test
     void readIsEmptyWhenTheUserHasNoAvatar() {
-        when(avatarRepository.findByUserId(7L)).thenReturn(Optional.empty());
+        when(avatarRepository.findByUserIdAndCompanyId(7L, 1L)).thenReturn(Optional.empty());
 
         assertThat(service.read(7L)).isEmpty();
     }
@@ -183,16 +190,18 @@ class AvatarServiceTest {
     @Test
     void readReturnsTheStoredAvatar() {
         UserAvatar existing = new UserAvatar(7L, new byte[] { 1, 2, 3 }, "image/jpeg");
-        when(avatarRepository.findByUserId(7L)).thenReturn(Optional.of(existing));
+        when(avatarRepository.findByUserIdAndCompanyId(7L, 1L)).thenReturn(Optional.of(existing));
 
         assertThat(service.read(7L)).contains(existing);
     }
 
     @Test
     void removeDeletesTheUsersAvatarRow() {
+        UserAvatar existing = new UserAvatar(7L, new byte[] { 1 }, "image/jpeg");
+        when(avatarRepository.findByUserIdAndCompanyId(7L, 1L)).thenReturn(Optional.of(existing));
         service.remove(user);
 
-        verify(avatarRepository).deleteById(7L);
+        verify(avatarRepository).delete(existing);
     }
 
     // ---------- helpers ----------

@@ -19,6 +19,7 @@ import com.nexus.backend.exception.ValidationException;
 import com.nexus.backend.repository.PasswordResetRequestRepository;
 import com.nexus.backend.repository.UserRepository;
 import com.nexus.backend.security.SupabaseAdminClient;
+import com.nexus.backend.tenant.CurrentTenant;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -48,8 +49,20 @@ class AdminAccountServiceTest {
     @Mock
     private SupabaseProperties supabaseProperties;
 
+    @Mock
+    private EmployeeCodeService employeeCodeService;
+
+    @Mock
+    private AuditService auditService;
+
+    @Mock
+    private CurrentTenant currentTenant;
+
     @InjectMocks
     private AdminAccountService service;
+
+    /** The company the acting admin belongs to; every account created joins it. */
+    private static final Long COMPANY_ID = 31L;
 
     /** Assigns an id on save; stubbed per test because only creation persists a user. */
     private void stubSave() {
@@ -58,6 +71,24 @@ class AdminAccountServiceTest {
             u.setId(42L);
             return u;
         });
+    }
+
+    /**
+     * The acting admin has a company and the company can hand out a code. Both are
+     * needed before an account can be created at all, because the schema requires
+     * a new account to belong to a company and (unless it is a SUPER_ADMIN) to
+     * carry an employee code numbered within that company.
+     */
+    private void stubAdminCompany() {
+        // lenient: not every test reaches account creation, and an admin's company
+        // is fixture state rather than the thing each test is asserting.
+        org.mockito.Mockito.lenient().when(currentTenant.require()).thenReturn(COMPANY_ID);
+        org.mockito.Mockito.lenient().when(employeeCodeService.nextCode(COMPANY_ID)).thenReturn("NX-0042");
+    }
+
+    @org.junit.jupiter.api.BeforeEach
+    void adminHasACompany() {
+        stubAdminCompany();
     }
 
     // ---------- create user ----------
@@ -170,13 +201,22 @@ class AdminAccountServiceTest {
     void resetRequestCreatesOnePendingRowForKnownUser() {
         User user = new User("Ada", "ada@nexus.com", null, UserRole.MEMBER);
         user.setId(7L);
+        user.setCompanyId(COMPANY_ID);
         when(userRepository.findByEmail("ada@nexus.com")).thenReturn(Optional.of(user));
         when(resetRequestRepository.findFirstByUserIdAndStatus(7L, ResetRequestStatus.PENDING))
             .thenReturn(Optional.empty());
 
+        when(resetRequestRepository.save(any(PasswordResetRequest.class)))
+            .thenAnswer(inv -> inv.getArgument(0));
+
         service.requestPasswordReset("ada@nexus.com", "locked out");
 
-        verify(resetRequestRepository).save(any(PasswordResetRequest.class));
+        var saved = org.mockito.ArgumentCaptor.forClass(PasswordResetRequest.class);
+        verify(resetRequestRepository).save(saved.capture());
+        // Filed under the requester's company: this endpoint is public, so there is
+        // no tenant in scope to stamp it with.
+        assertThat(saved.getValue().getCompanyId()).isEqualTo(user.getCompanyId());
+        assertThat(saved.getValue().getUser()).isSameAs(user);
     }
 
     @Test
@@ -200,7 +240,7 @@ class AdminAccountServiceTest {
         PasswordResetRequest request = new PasswordResetRequest(user, "locked out");
         request.setId(5L);
 
-        when(resetRequestRepository.findById(5L)).thenReturn(Optional.of(request));
+        when(resetRequestRepository.findByIdAndCompanyId(5L, COMPANY_ID)).thenReturn(Optional.of(request));
         when(supabaseAdminClient.isAvailable()).thenReturn(true);
         when(resetRequestRepository.save(any(PasswordResetRequest.class)))
             .thenAnswer(inv -> inv.getArgument(0));
@@ -216,12 +256,36 @@ class AdminAccountServiceTest {
         verify(supabaseAdminClient).revokeSessions(SUPABASE_ID);
     }
 
+    /**
+     * The same rule createUser applies to a generated password applies here: an
+     * admin chose this password, read it out, and handed it over, so it is known
+     * to somebody other than its owner.
+     */
+    @Test
+    void resolveRequestIssuesAPasswordItsOwnerMustChange() {
+        User user = new User("Ada", "ada@nexus.com", "$2a$10$oldhash", UserRole.MEMBER);
+        user.setId(7L);
+        user.setMustChangePassword(false);
+        PasswordResetRequest request = new PasswordResetRequest(user, null);
+        request.setId(5L);
+
+        when(resetRequestRepository.findByIdAndCompanyId(5L, COMPANY_ID)).thenReturn(Optional.of(request));
+        when(resetRequestRepository.save(any(PasswordResetRequest.class)))
+            .thenAnswer(inv -> inv.getArgument(0));
+        when(passwordEncoder.encode(anyString())).thenReturn("$2a$10$newhash");
+
+        service.resolveRequest(5L, new User("Dev", "devendra@nexus.com", null, UserRole.ADMIN));
+
+        assertThat(user.isMustChangePassword()).isTrue();
+        verify(userRepository).save(user);
+    }
+
     @Test
     void resolveRequestRefusesAnAlreadyResolvedRequest() {
         User user = new User("Ada", "ada@nexus.com", null, UserRole.MEMBER);
         PasswordResetRequest request = new PasswordResetRequest(user, null);
         request.setStatus(ResetRequestStatus.RESOLVED);
-        when(resetRequestRepository.findById(5L)).thenReturn(Optional.of(request));
+        when(resetRequestRepository.findByIdAndCompanyId(5L, COMPANY_ID)).thenReturn(Optional.of(request));
 
         assertThatThrownBy(() -> service.resolveRequest(5L, new User()))
             .isInstanceOf(ValidationException.class)
@@ -233,12 +297,74 @@ class AdminAccountServiceTest {
         User user = new User("Ada", "ada@nexus.com", null, UserRole.MEMBER);
         user.setSupabaseId(SUPABASE_ID);
         PasswordResetRequest request = new PasswordResetRequest(user, null);
-        when(resetRequestRepository.findById(5L)).thenReturn(Optional.of(request));
+        when(resetRequestRepository.findByIdAndCompanyId(5L, COMPANY_ID)).thenReturn(Optional.of(request));
         when(supabaseAdminClient.isAvailable()).thenReturn(false);
 
         assertThatThrownBy(() -> service.resolveRequest(5L, new User()))
             .isInstanceOf(ValidationException.class)
             .hasMessageContaining("NEXUS_SUPABASE_SERVICE_ROLE_KEY");
+    }
+
+    // ---------- company and employee code ----------
+
+    /**
+     * An account created by an admin joins that admin's company and is numbered
+     * within it. Both are schema requirements now, so a create that skipped either
+     * would fail at the database rather than here.
+     */
+    @Test
+    void createUserJoinsTheAdminCompanyWithThatCompanysEmployeeCode() {
+        stubSave();
+        when(userRepository.findByEmail("new@nexus.com")).thenReturn(Optional.empty());
+        when(userRepository.findFirstByEmailIgnoreCase("new@nexus.com")).thenReturn(Optional.empty());
+        when(supabaseAdminClient.isAvailable()).thenReturn(true);
+        when(supabaseAdminClient.createUser(anyString(), anyString(), anyString())).thenReturn(SUPABASE_ID);
+
+        service.createUser(new CreateUserRequest("New Person", "new@nexus.com", null, null));
+
+        var saved = org.mockito.ArgumentCaptor.forClass(User.class);
+        verify(userRepository).save(saved.capture());
+        assertThat(saved.getValue().getCompanyId()).isEqualTo(COMPANY_ID);
+        assertThat(saved.getValue().getEmployeeCode()).isEqualTo("NX-0042");
+        verify(employeeCodeService).nextCode(COMPANY_ID);
+    }
+
+    /**
+     * A generated password is one the person did not choose, so the account is
+     * flagged to replace it; a password the admin supplied is one they already
+     * know, so the flag stays off.
+     */
+    @Test
+    void aGeneratedPasswordMustBeChangedButAnAdminSuppliedOneNeedNot() {
+        stubSave();
+        when(userRepository.findByEmail(anyString())).thenReturn(Optional.empty());
+        when(userRepository.findFirstByEmailIgnoreCase(anyString())).thenReturn(Optional.empty());
+        when(supabaseAdminClient.isAvailable()).thenReturn(true);
+        when(supabaseAdminClient.createUser(anyString(), anyString(), anyString())).thenReturn(SUPABASE_ID);
+
+        service.createUser(new CreateUserRequest("Generated", "generated@nexus.com", null, null));
+        service.createUser(new CreateUserRequest("Chosen", "chosen@nexus.com", "Chosen-By-Admin-1", null));
+
+        var saved = org.mockito.ArgumentCaptor.forClass(User.class);
+        verify(userRepository, org.mockito.Mockito.times(2)).save(saved.capture());
+        assertThat(saved.getAllValues())
+            .extracting(User::isMustChangePassword)
+            .containsExactly(true, false);
+    }
+
+    /**
+     * SUPER_ADMIN is the one role with no company, and this endpoint always acts
+     * inside one — so it is refused rather than created in a state the schema
+     * forbids and no company's admin could then manage.
+     */
+    @Test
+    void createUserRefusesToMintASuperAdmin() {
+        assertThatThrownBy(() -> service.createUser(
+            new CreateUserRequest("Root", "root@nexus.com", null, UserRole.SUPER_ADMIN)))
+            .isInstanceOf(ValidationException.class)
+            .hasMessageContaining("SUPER_ADMIN");
+
+        verify(userRepository, never()).save(any());
     }
 
     // ---------- generated passwords ----------

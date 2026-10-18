@@ -15,6 +15,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,6 +46,7 @@ import static org.mockito.Mockito.when;
  * halves of that rule.
  */
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class PushSubscriptionServiceTest {
 
     @Mock private PushSubscriptionRepository subscriptionRepository;
@@ -70,7 +73,7 @@ class PushSubscriptionServiceTest {
     @Test
     void recordsThisBrowserAgainstTheSignedInAccount() {
         when(userRepository.findByEmail("vidhi@nexus.com")).thenReturn(Optional.of(user(3L)));
-        when(subscriptionRepository.findByEndpoint(ENDPOINT)).thenReturn(Optional.empty());
+        when(subscriptionRepository.findByEndpointAndCompanyId(ENDPOINT, 1L)).thenReturn(Optional.empty());
 
         service.subscribe(new PushSubscriptionRequest(ENDPOINT, new PushSubscriptionRequest.Keys(P256DH, AUTH)));
 
@@ -89,7 +92,7 @@ class PushSubscriptionServiceTest {
         existing.setId(9L);
         existing.setUser(user(3L));
         existing.setEndpoint(ENDPOINT);
-        when(subscriptionRepository.findByEndpoint(ENDPOINT)).thenReturn(Optional.of(existing));
+        when(subscriptionRepository.findByEndpointAndCompanyId(ENDPOINT, 1L)).thenReturn(Optional.of(existing));
 
         service.subscribe(new PushSubscriptionRequest(ENDPOINT, new PushSubscriptionRequest.Keys(P256DH, AUTH)));
 
@@ -114,7 +117,7 @@ class PushSubscriptionServiceTest {
         someoneElses.setId(9L);
         someoneElses.setUser(user(8L));
         someoneElses.setEndpoint(ENDPOINT);
-        when(subscriptionRepository.findByEndpoint(ENDPOINT)).thenReturn(Optional.of(someoneElses));
+        when(subscriptionRepository.findByEndpointAndCompanyId(ENDPOINT, 1L)).thenReturn(Optional.of(someoneElses));
 
         service.subscribe(new PushSubscriptionRequest(ENDPOINT, new PushSubscriptionRequest.Keys(P256DH, AUTH)));
 
@@ -171,7 +174,7 @@ class PushSubscriptionServiceTest {
         mine.setId(9L);
         mine.setUser(user(3L));
         mine.setEndpoint(ENDPOINT);
-        when(subscriptionRepository.findByEndpoint(ENDPOINT)).thenReturn(Optional.of(mine));
+        when(subscriptionRepository.findByEndpointAndCompanyId(ENDPOINT, 1L)).thenReturn(Optional.of(mine));
 
         service.unsubscribe(ENDPOINT);
 
@@ -185,7 +188,7 @@ class PushSubscriptionServiceTest {
         theirs.setId(9L);
         theirs.setUser(user(8L));
         theirs.setEndpoint(ENDPOINT);
-        when(subscriptionRepository.findByEndpoint(ENDPOINT)).thenReturn(Optional.of(theirs));
+        when(subscriptionRepository.findByEndpointAndCompanyId(ENDPOINT, 1L)).thenReturn(Optional.of(theirs));
 
         service.unsubscribe(ENDPOINT);
 
@@ -195,7 +198,7 @@ class PushSubscriptionServiceTest {
     @Test
     void removingSomethingThatIsNotThereIsNotAnError() {
         when(userRepository.findByEmail("vidhi@nexus.com")).thenReturn(Optional.of(user(3L)));
-        when(subscriptionRepository.findByEndpoint(ENDPOINT)).thenReturn(Optional.empty());
+        when(subscriptionRepository.findByEndpointAndCompanyId(ENDPOINT, 1L)).thenReturn(Optional.empty());
 
         // The caller asked for the outcome and already has it; failing here would
         // only make "turn off notifications" report a problem it did not have.
@@ -209,12 +212,12 @@ class PushSubscriptionServiceTest {
     @Test
     void sendsATestToTheCallersOwnDevices() {
         when(userRepository.findByEmail("vidhi@nexus.com")).thenReturn(Optional.of(user(3L)));
-        when(sender.sendToUser(eq(3L), any())).thenReturn(2);
+        when(sender.sendToUser(eq(3L), eq(1L), any())).thenReturn(2);
 
         assertThat(service.sendTest()).isEqualTo(2);
 
         ArgumentCaptor<Map<String, Object>> payload = ArgumentCaptor.forClass(Map.class);
-        verify(sender).sendToUser(eq(3L), payload.capture());
+        verify(sender).sendToUser(eq(3L), eq(1L), payload.capture());
         assertThat(payload.getValue())
             .containsEntry("title", "Nexus")
             // Opens the workspace rather than a dead path when tapped.
@@ -230,11 +233,12 @@ class PushSubscriptionServiceTest {
 
     @Test
     void countsOnlyTheCallersDevices() {
-        when(userRepository.findByEmail("vidhi@nexus.com")).thenReturn(Optional.of(user(3L)));
-        when(subscriptionRepository.countByUserId(anyLong())).thenReturn(2L);
+        User u = user(3L); u.setCompanyId(1L);
+        when(userRepository.findByEmail("vidhi@nexus.com")).thenReturn(Optional.of(u));
+        when(subscriptionRepository.countByUserIdAndCompanyId(3L, 1L)).thenReturn(2L);
 
         assertThat(service.deviceCount()).isEqualTo(2L);
-        verify(subscriptionRepository).countByUserId(3L);
+        verify(subscriptionRepository).countByUserIdAndCompanyId(3L, 1L);
     }
 
     /**
@@ -276,9 +280,11 @@ class PushSubscriptionServiceTest {
         when(sender.publicKeyMatchesPrivateKey()).thenReturn(Boolean.TRUE);
         when(sender.subject()).thenReturn("mailto:ops@nexus.test");
         when(sender.ttlHours()).thenReturn(24L);
+        User u = user(3L); u.setCompanyId(1L);
+        when(userRepository.findByEmail("vidhi@nexus.com")).thenReturn(Optional.of(u));
         when(sender.lastAttempt(3L)).thenReturn(new PushAttempt(
             Instant.parse("2026-10-14T09:30:00Z"), 2, 1, PushAttempt.Outcome.REFUSED, 503));
-        when(subscriptionRepository.countByUserId(3L)).thenReturn(2L);
+        when(subscriptionRepository.countByUserIdAndCompanyId(3L, 1L)).thenReturn(2L);
 
         PushSelfCheckResponse report = service.selfCheck();
 
@@ -296,7 +302,7 @@ class PushSubscriptionServiceTest {
         assertThat(report.lastAttempt().status()).isEqualTo(503);
 
         // Whose devices these are is never in doubt.
-        verify(subscriptionRepository).countByUserId(3L);
+        verify(subscriptionRepository).countByUserIdAndCompanyId(3L, 1L);
         verify(sender).lastAttempt(3L);
     }
 
@@ -306,11 +312,12 @@ class PushSubscriptionServiceTest {
      */
     @Test
     void reportsWhatItCannotKnowAsAbsent() {
-        when(userRepository.findByEmail("vidhi@nexus.com")).thenReturn(Optional.of(user(3L)));
+        User u = user(3L); u.setCompanyId(1L);
+        when(userRepository.findByEmail("vidhi@nexus.com")).thenReturn(Optional.of(u));
         when(sender.isEnabled()).thenReturn(false);
         when(sender.publicKeyFingerprint()).thenReturn(null);
         when(sender.publicKeyMatchesPrivateKey()).thenReturn(null);
-        when(subscriptionRepository.countByUserId(3L)).thenReturn(0L);
+        when(subscriptionRepository.countByUserIdAndCompanyId(3L, 1L)).thenReturn(0L);
 
         PushSelfCheckResponse report = service.selfCheck();
 
@@ -344,6 +351,7 @@ class PushSubscriptionServiceTest {
     private static User user(Long id) {
         User user = new User("Name " + id, "user" + id + "@nexus.com", "$2a$hash", UserRole.MEMBER);
         user.setId(id);
+        user.setCompanyId(1L);
         return user;
     }
 }

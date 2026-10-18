@@ -41,14 +41,34 @@ class RetrievalServiceTest {
 
     private RetrievalService retrievalService;
 
+    /** The company the querying user belongs to; every search is scoped to it. */
+    private static final Long COMPANY_ID = 55L;
+
     private final User user = new User();
 
     @BeforeEach
     void setUp() {
         user.setId(1L);
         user.setRole(UserRole.MEMBER);
+        user.setCompanyId(COMPANY_ID);
         retrievalService = new RetrievalService(
             chunkRepository, vectorIndex, engine, new PermissionService(userRepository), 80, 60, 6, 0.08);
+    }
+
+    /**
+     * An account with no company has no company's knowledge to search, so nothing
+     * is retrieved and no query is issued. Answering from the whole store would be
+     * the cross-company leak the filter exists to prevent.
+     */
+    @Test
+    void anAccountWithNoCompanyRetrievesNothing() {
+        User unattached = new User();
+        unattached.setId(2L);
+        unattached.setRole(UserRole.SUPER_ADMIN);
+
+        assertThat(retrievalService.retrieve("project alpha", null, unattached)).isEmpty();
+
+        org.mockito.Mockito.verifyNoInteractions(chunkRepository, vectorIndex);
     }
 
     private KnowledgeChunk chunk(long id, KnowledgeSourceType type, long sourceId, String title) {
@@ -75,9 +95,9 @@ class RetrievalServiceTest {
         KnowledgeChunk taskDoc = chunk(2L, KnowledgeSourceType.TASK, 20L, "Alpha task");
         KnowledgeChunk otherDoc = chunk(3L, KnowledgeSourceType.PROJECT, 30L, "Other doc");
 
-        when(chunkRepository.searchFullText(anyString(), anyLong(), anyBoolean(), any(), anyInt()))
+        when(chunkRepository.searchFullText(anyString(), anyLong(), anyLong(), anyBoolean(), any(), anyInt()))
             .thenReturn(List.of(alphaDoc, taskDoc));
-        when(chunkRepository.searchKeyword(anyString(), anyLong(), anyBoolean(), any(), anyInt()))
+        when(chunkRepository.searchKeyword(anyString(), anyLong(), anyLong(), anyBoolean(), any(), anyInt()))
             .thenReturn(List.of(otherDoc));
 
         List<RetrievedContext> results = retrievalService.retrieve("project alpha", null, user);
@@ -93,7 +113,7 @@ class RetrievalServiceTest {
         List<KnowledgeChunk> many = java.util.stream.IntStream.rangeClosed(1, 8)
             .mapToObj(i -> chunk(i, KnowledgeSourceType.WIKI_PAGE, 10L, "doc " + i))
             .toList();
-        when(chunkRepository.searchFullText(anyString(), anyLong(), anyBoolean(), any(), anyInt()))
+        when(chunkRepository.searchFullText(anyString(), anyLong(), anyLong(), anyBoolean(), any(), anyInt()))
             .thenReturn(many);
 
         List<RetrievedContext> results = retrievalService.retrieve("alpha", null, user);
@@ -104,9 +124,9 @@ class RetrievalServiceTest {
 
     @Test
     void noMatchesYieldAnEmptyContext() {
-        lenient().when(chunkRepository.searchFullText(anyString(), anyLong(), anyBoolean(), any(), anyInt()))
+        lenient().when(chunkRepository.searchFullText(anyString(), anyLong(), anyLong(), anyBoolean(), any(), anyInt()))
             .thenReturn(List.of());
-        lenient().when(chunkRepository.searchKeyword(anyString(), anyLong(), anyBoolean(), any(), anyInt()))
+        lenient().when(chunkRepository.searchKeyword(anyString(), anyLong(), anyLong(), anyBoolean(), any(), anyInt()))
             .thenReturn(List.of());
 
         assertThat(retrievalService.retrieve("zzz nothing matches this", null, user)).isEmpty();
@@ -116,7 +136,7 @@ class RetrievalServiceTest {
     void contextIsTruncatedToTheChunkBudget() {
         KnowledgeChunk huge = chunk(1L, KnowledgeSourceType.WIKI_PAGE, 10L, "huge");
         huge.setContent("word ".repeat(2000));
-        when(chunkRepository.searchFullText(anyString(), anyLong(), anyBoolean(), any(), anyInt()))
+        when(chunkRepository.searchFullText(anyString(), anyLong(), anyLong(), anyBoolean(), any(), anyInt()))
             .thenReturn(List.of(huge));
 
         List<RetrievedContext> results = retrievalService.retrieve("alpha", null, user);

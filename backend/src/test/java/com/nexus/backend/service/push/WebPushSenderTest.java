@@ -2,6 +2,8 @@ package com.nexus.backend.service.push;
 
 import com.nexus.backend.config.PushProperties;
 import com.nexus.backend.domain.push.PushSubscription;
+import com.nexus.backend.domain.user.User;
+import com.nexus.backend.domain.user.UserRole;
 import com.nexus.backend.repository.PushSubscriptionRepository;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
@@ -130,18 +132,9 @@ class WebPushSenderTest {
         exchange.close();
     }
 
-    private PushSubscription device() {
-        PushSubscription device = new PushSubscription();
-        device.setId(31L);
-        device.setEndpoint("http://127.0.0.1:" + pushService.getAddress().getPort() + "/push");
-        device.setP256dh(browserP256dh);
-        device.setAuth(browserAuth);
-        return device;
-    }
-
     @Test
     void deliversANotificationTheBrowserCanDecrypt() throws Exception {
-        when(repository.findByUserId(7L)).thenReturn(List.of(device()));
+        when(repository.findByUserIdAndCompanyId(7L, 1L)).thenReturn(List.of(device()));
 
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("title", "Nexus");
@@ -149,7 +142,7 @@ class WebPushSenderTest {
         payload.put("url", "/board?task=42");
         payload.put("tag", "nexus-notification-12");
 
-        assertThat(sender.sendToUser(7L, payload)).isEqualTo(1);
+        assertThat(sender.sendToUser(7L, 1L, payload)).isEqualTo(1);
 
         CapturedRequest request = onlyRequest();
         // Signed for the push service with the configured key, and addressed to
@@ -183,20 +176,20 @@ class WebPushSenderTest {
 
     @Test
     void prunesADeviceThePushServiceSaysIsGone() {
-        when(repository.findByUserId(7L)).thenReturn(List.of(device()));
+        when(repository.findByUserIdAndCompanyId(7L, 1L)).thenReturn(List.of(device()));
         respondWith.set(410);
 
-        assertThat(sender.sendToUser(7L, Map.of("body", "gone"))).isZero();
+        assertThat(sender.sendToUser(7L, 1L, Map.of("body", "gone"))).isZero();
 
-        verify(repository).deleteById(31L);
+        verify(repository).deleteByIdAndCompanyId(31L, 1L);
     }
 
     @Test
     void keepsADeviceWhenThePushServiceIsMerelyBusy() {
-        when(repository.findByUserId(7L)).thenReturn(List.of(device()));
+        when(repository.findByUserIdAndCompanyId(7L, 1L)).thenReturn(List.of(device()));
         respondWith.set(503);
 
-        assertThat(sender.sendToUser(7L, Map.of("body", "not now"))).isZero();
+        assertThat(sender.sendToUser(7L, 1L, Map.of("body", "not now"))).isZero();
 
         // A 5xx is "try again", not "this browser is gone": dropping the row would
         // silence a working phone until its next re-subscribe.
@@ -210,7 +203,7 @@ class WebPushSenderTest {
 
         assertThat(off.isEnabled()).isFalse();
         assertThat(off.publicKey()).isEmpty();
-        assertThat(off.sendToUser(7L, Map.of("body", "x"))).isZero();
+        assertThat(off.sendToUser(7L, 1L, Map.of("body", "x"))).isZero();
         assertThat(received).isEmpty();
         off.shutdown();
     }
@@ -291,10 +284,10 @@ class WebPushSenderTest {
 
     @Test
     void remembersHowTheLastAttemptEnded() {
-        when(repository.findByUserId(7L)).thenReturn(List.of(device()));
+        when(repository.findByUserIdAndCompanyId(7L, 1L)).thenReturn(List.of(device()));
 
         assertThat(sender.lastAttempt(7L)).as("nothing sent yet").isNull();
-        sender.sendToUser(7L, Map.of("body", "hello"));
+        sender.sendToUser(7L, 1L, Map.of("body", "hello"));
 
         PushAttempt attempt = sender.lastAttempt(7L);
         assertThat(attempt).isNotNull();
@@ -309,10 +302,10 @@ class WebPushSenderTest {
 
     @Test
     void remembersADeviceThePushServiceHasDisowned() {
-        when(repository.findByUserId(7L)).thenReturn(List.of(device()));
+        when(repository.findByUserIdAndCompanyId(7L, 1L)).thenReturn(List.of(device()));
         respondWith.set(410);
 
-        sender.sendToUser(7L, Map.of("body", "gone"));
+        sender.sendToUser(7L, 1L, Map.of("body", "gone"));
 
         PushAttempt attempt = sender.lastAttempt(7L);
         assertThat(attempt.outcome()).isEqualTo(PushAttempt.Outcome.GONE);
@@ -327,10 +320,10 @@ class WebPushSenderTest {
      */
     @Test
     void remembersSilenceFromThePushServiceAsUnreachable() throws Exception {
-        when(repository.findByUserId(7L))
+        when(repository.findByUserIdAndCompanyId(7L, 1L))
             .thenReturn(List.of(deviceAt(44L, "http://127.0.0.1:" + closedPort() + "/push")));
 
-        assertThat(sender.sendToUser(7L, Map.of("body", "anyone there"))).isZero();
+        assertThat(sender.sendToUser(7L, 1L, Map.of("body", "anyone there"))).isZero();
 
         PushAttempt attempt = sender.lastAttempt(7L);
         assertThat(attempt.outcome()).isEqualTo(PushAttempt.Outcome.UNREACHABLE);
@@ -361,11 +354,11 @@ class WebPushSenderTest {
 
         WebPushSender impatient = new WebPushSender(properties, repository, Duration.ofMillis(250));
         try {
-            when(repository.findByUserId(7L)).thenReturn(List.of(
+            when(repository.findByUserIdAndCompanyId(7L, 1L)).thenReturn(List.of(
                 deviceAt(46L, "http://127.0.0.1:" + pushService.getAddress().getPort() + "/silent")));
 
             long startedAt = System.nanoTime();
-            assertThat(impatient.sendToUser(7L, Map.of("body", "still there?"))).isZero();
+            assertThat(impatient.sendToUser(7L, 1L, Map.of("body", "still there?"))).isZero();
             long elapsedMillis = (System.nanoTime() - startedAt) / 1_000_000;
 
             PushAttempt attempt = impatient.lastAttempt(7L);
@@ -387,9 +380,9 @@ class WebPushSenderTest {
     @Test
     void reportsTheRefusalWhenOnlySomeDevicesTookIt() throws Exception {
         PushSubscription broken = deviceAt(45L, "http://127.0.0.1:" + closedPort() + "/push");
-        when(repository.findByUserId(7L)).thenReturn(List.of(device(), broken));
+        when(repository.findByUserIdAndCompanyId(7L, 1L)).thenReturn(List.of(device(), broken));
 
-        assertThat(sender.sendToUser(7L, Map.of("body", "two phones"))).isEqualTo(1);
+        assertThat(sender.sendToUser(7L, 1L, Map.of("body", "two phones"))).isEqualTo(1);
 
         PushAttempt attempt = sender.lastAttempt(7L);
         assertThat(attempt.attempted()).isEqualTo(2);
@@ -399,22 +392,42 @@ class WebPushSenderTest {
 
     @Test
     void hasNothingToRememberWhenNoDeviceIsRegistered() {
-        when(repository.findByUserId(7L)).thenReturn(List.of());
+        when(repository.findByUserIdAndCompanyId(7L, 1L)).thenReturn(List.of());
 
-        assertThat(sender.sendToUser(7L, Map.of("body", "nobody home"))).isZero();
+        assertThat(sender.sendToUser(7L, 1L, Map.of("body", "nobody home"))).isZero();
 
         // There was no attempt to remember, and inventing one would erase the record
         // of the last send that did happen.
         assertThat(sender.lastAttempt(7L)).isNull();
     }
 
-    /** A device registered at an address, the way the repository would hand one over. */
+    /** A stub user the push tests need before any user row exists. */
+    private static User user(Long id) {
+        User user = new User("Name " + id, "user" + id + "@nexus.com", "$2a$hash", UserRole.MEMBER);
+        user.setId(id);
+        user.setCompanyId(1L);
+        return user;
+    }
+
+    private PushSubscription device() {
+        PushSubscription device = new PushSubscription();
+        device.setId(31L);
+        device.setEndpoint("http://127.0.0.1:" + pushService.getAddress().getPort() + "/push");
+        device.setP256dh(browserP256dh);
+        device.setAuth(browserAuth);
+        device.setCompanyId(1L);
+        device.setUser(user(7L));
+        return device;
+    }
+
     private PushSubscription deviceAt(long id, String endpoint) {
         PushSubscription device = new PushSubscription();
         device.setId(id);
         device.setEndpoint(endpoint);
         device.setP256dh(browserP256dh);
         device.setAuth(browserAuth);
+        device.setCompanyId(1L);
+        device.setUser(user(7L));
         return device;
     }
 

@@ -23,6 +23,7 @@ import com.nexus.backend.repository.SprintRepository;
 import com.nexus.backend.repository.TaskRepository;
 import com.nexus.backend.repository.UserRepository;
 import com.nexus.backend.security.JwtUtil;
+import com.nexus.backend.tenant.CurrentTenant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -32,9 +33,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class UserSprintServiceTest {
 
     @Mock
@@ -45,6 +49,15 @@ class UserSprintServiceTest {
 
     @Mock
     private JwtUtil jwtUtil;
+
+    @Mock
+    private EmployeeCodeService employeeCodeService;
+
+    @Mock
+    private AuditService auditService;
+
+    @Mock
+    private CurrentTenant currentTenant;
 
     @Mock
     private SprintRepository sprintRepository;
@@ -61,10 +74,18 @@ class UserSprintServiceTest {
     @InjectMocks
     private SprintService sprintService;
 
+    /** Every account in this test belongs to one company: the scope it operates in. */
+    private static final Long COMPANY_ID = 42L;
+
     private Project project;
 
     @BeforeEach
     void setUp() {
+        // Every call path in both services resolves its scope from the tenant,
+        // so leaving it unstubbed would make lookups run against a null company
+        // and fail as "not found" for reasons unrelated to what is under test.
+        when(currentTenant.require()).thenReturn(COMPANY_ID);
+
         project = new Project("Demo", "demo", ProjectStatus.PLANNING, ProjectHealth.ON_TRACK);
         project.setId(1L);
     }
@@ -77,6 +98,8 @@ class UserSprintServiceTest {
 
     @Test
     void registerEncodesPasswordAndReturnsTokens() {
+        when(currentTenant.require()).thenReturn(COMPANY_ID);
+        when(employeeCodeService.nextCode(COMPANY_ID)).thenReturn("NX-0009");
         when(userRepository.findByEmail("test@nexus.dev")).thenReturn(Optional.empty());
         when(passwordEncoder.encode("password123")).thenReturn("$2a$10$hashed");
         when(userRepository.save(any(User.class))).thenAnswer(inv -> {
@@ -95,8 +118,38 @@ class UserSprintServiceTest {
         verify(passwordEncoder).encode("password123");
     }
 
+    /**
+     * A new account joins the admin's company and is numbered within it. Both are
+     * required by the schema, so a registration that skipped either would fail at
+     * the database rather than in this test.
+     */
+    @Test
+    void registerJoinsTheCallersCompanyWithThatCompanysEmployeeCode() {
+        when(currentTenant.require()).thenReturn(COMPANY_ID);
+        when(employeeCodeService.nextCode(COMPANY_ID)).thenReturn("NX-0009");
+        when(userRepository.findByEmail("test@nexus.dev")).thenReturn(Optional.empty());
+        when(passwordEncoder.encode("password123")).thenReturn("$2a$10$hashed");
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> {
+            User u = inv.getArgument(0);
+            u.setId(10L);
+            return u;
+        });
+        when(jwtUtil.generateToken("test@nexus.dev")).thenReturn("access-token");
+        when(jwtUtil.generateRefreshToken("test@nexus.dev")).thenReturn("refresh-token");
+
+        userService.register(registerRequest());
+
+        var saved = org.mockito.ArgumentCaptor.forClass(User.class);
+        verify(userRepository).save(saved.capture());
+        assertThat(saved.getValue().getCompanyId()).isEqualTo(COMPANY_ID);
+        assertThat(saved.getValue().getEmployeeCode()).isEqualTo("NX-0009");
+        // A code is issued for the company the account joins, never for another.
+        verify(employeeCodeService).nextCode(COMPANY_ID);
+    }
+
     @Test
     void registerRejectsDuplicateEmail() {
+        when(currentTenant.require()).thenReturn(COMPANY_ID);
         when(userRepository.findByEmail("test@nexus.dev")).thenReturn(Optional.of(new User()));
 
         assertThatThrownBy(() -> userService.register(registerRequest()))
@@ -145,7 +198,7 @@ class UserSprintServiceTest {
 
     @Test
     void createSprintNumbersSequentiallyAndUpdatesProject() {
-        when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
+        when(projectRepository.findByIdAndCompanyId(1L, COMPANY_ID)).thenReturn(Optional.of(project));
         when(sprintRepository.countByProject(project)).thenReturn(7L);
         when(sprintRepository.save(any(Sprint.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -159,7 +212,7 @@ class UserSprintServiceTest {
 
     @Test
     void createSprintRejectsEndDateBeforeStartDate() {
-        when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
+        when(projectRepository.findByIdAndCompanyId(1L, COMPANY_ID)).thenReturn(Optional.of(project));
 
         assertThatThrownBy(() -> sprintService.create(new SprintRequest(1L, "Backwards",
             LocalDate.of(2026, 9, 14), LocalDate.of(2026, 9, 1), 40, null)))
@@ -177,7 +230,7 @@ class UserSprintServiceTest {
         sprint.setStartDate(LocalDate.now());
         sprint.setEndDate(LocalDate.now().plusDays(7));
         sprint.setStatus(SprintStatus.PLANNED);
-        when(sprintRepository.findById(3L)).thenReturn(Optional.of(sprint));
+        when(sprintRepository.findByIdAndCompanyId(3L, COMPANY_ID)).thenReturn(Optional.of(sprint));
         when(sprintRepository.save(any(Sprint.class))).thenAnswer(inv -> inv.getArgument(0));
 
         var response = sprintService.updateStatus(3L, SprintStatus.ACTIVE);
@@ -188,7 +241,7 @@ class UserSprintServiceTest {
 
     @Test
     void findSprintByIdThrowsWhenMissing() {
-        when(sprintRepository.findById(404L)).thenReturn(Optional.empty());
+        when(sprintRepository.findByIdAndCompanyId(404L, COMPANY_ID)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> sprintService.findById(404L))
             .isInstanceOf(ResourceNotFoundException.class);
@@ -216,7 +269,7 @@ class UserSprintServiceTest {
         mine.setEndDate(LocalDate.now().plusDays(7));
         mine.setStatus(SprintStatus.ACTIVE);
 
-        when(sprintRepository.findAll()).thenReturn(java.util.List.of(mine, other));
+        when(sprintRepository.findByCompanyId(COMPANY_ID)).thenReturn(java.util.List.of(mine, other));
 
         // The frontend loads the whole workspace with no projectId filter; an
         // empty list here is what left the Sprints page blank.
@@ -247,7 +300,7 @@ class UserSprintServiceTest {
     @Test
     void updateEditsTheSprintInPlace() {
         Sprint sprint = existingSprint(2);
-        when(sprintRepository.findById(3L)).thenReturn(Optional.of(sprint));
+        when(sprintRepository.findByIdAndCompanyId(3L, COMPANY_ID)).thenReturn(Optional.of(sprint));
         when(sprintRepository.save(any(Sprint.class))).thenAnswer(inv -> inv.getArgument(0));
 
         var response = sprintService.update(3L,
@@ -266,7 +319,7 @@ class UserSprintServiceTest {
      */
     @Test
     void updateRefusesToMoveASprintToAnotherProject() {
-        when(sprintRepository.findById(3L)).thenReturn(Optional.of(existingSprint(2)));
+        when(sprintRepository.findByIdAndCompanyId(3L, COMPANY_ID)).thenReturn(Optional.of(existingSprint(2)));
 
         assertThatThrownBy(() -> sprintService.update(3L,
             editRequest(2L, "g", LocalDate.now(), LocalDate.now().plusDays(7))))
@@ -276,7 +329,7 @@ class UserSprintServiceTest {
 
     @Test
     void updateRefusesAnEndDateBeforeTheStartDate() {
-        when(sprintRepository.findById(3L)).thenReturn(Optional.of(existingSprint(2)));
+        when(sprintRepository.findByIdAndCompanyId(3L, COMPANY_ID)).thenReturn(Optional.of(existingSprint(2)));
 
         assertThatThrownBy(() -> sprintService.update(3L,
             editRequest(1L, "g", LocalDate.now(), LocalDate.now().minusDays(1))))
@@ -287,7 +340,7 @@ class UserSprintServiceTest {
     @Test
     void updateLeavesOmittedOptionalFieldsAlone() {
         Sprint sprint = existingSprint(2);
-        when(sprintRepository.findById(3L)).thenReturn(Optional.of(sprint));
+        when(sprintRepository.findByIdAndCompanyId(3L, COMPANY_ID)).thenReturn(Optional.of(sprint));
         when(sprintRepository.save(any(Sprint.class))).thenAnswer(inv -> inv.getArgument(0));
 
         var response = sprintService.update(3L,
@@ -299,7 +352,7 @@ class UserSprintServiceTest {
 
     @Test
     void deleteRemovesAnEmptySprint() {
-        when(sprintRepository.findById(3L)).thenReturn(Optional.of(existingSprint(2)));
+        when(sprintRepository.findByIdAndCompanyId(3L, COMPANY_ID)).thenReturn(Optional.of(existingSprint(2)));
         when(taskRepository.countBySprint(any(Sprint.class))).thenReturn(0L);
 
         sprintService.delete(3L);
@@ -313,7 +366,7 @@ class UserSprintServiceTest {
      */
     @Test
     void deleteRefusesWhileTheSprintStillHoldsTasks() {
-        when(sprintRepository.findById(3L)).thenReturn(Optional.of(existingSprint(2)));
+        when(sprintRepository.findByIdAndCompanyId(3L, COMPANY_ID)).thenReturn(Optional.of(existingSprint(2)));
         when(taskRepository.countBySprint(any(Sprint.class))).thenReturn(4L);
 
         assertThatThrownBy(() -> sprintService.delete(3L))
@@ -325,7 +378,7 @@ class UserSprintServiceTest {
 
     @Test
     void deleteRefusesAnUnknownSprint() {
-        when(sprintRepository.findById(404L)).thenReturn(Optional.empty());
+        when(sprintRepository.findByIdAndCompanyId(404L, COMPANY_ID)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> sprintService.delete(404L))
             .isInstanceOf(ResourceNotFoundException.class);
@@ -335,7 +388,7 @@ class UserSprintServiceTest {
     @Test
     void deleteRollsBackTheProjectHighWaterSprintNumber() {
         project.setSprintNumber(4);
-        when(sprintRepository.findById(3L)).thenReturn(Optional.of(existingSprint(2)));
+        when(sprintRepository.findByIdAndCompanyId(3L, COMPANY_ID)).thenReturn(Optional.of(existingSprint(2)));
         when(taskRepository.countBySprint(any(Sprint.class))).thenReturn(0L);
 
         sprintService.delete(3L);
@@ -347,7 +400,7 @@ class UserSprintServiceTest {
     @Test
     void deleteLeavesTheProjectNumberAloneWhenItIsNotAhead() {
         project.setSprintNumber(2);
-        when(sprintRepository.findById(3L)).thenReturn(Optional.of(existingSprint(2)));
+        when(sprintRepository.findByIdAndCompanyId(3L, COMPANY_ID)).thenReturn(Optional.of(existingSprint(2)));
         when(taskRepository.countBySprint(any(Sprint.class))).thenReturn(0L);
 
         sprintService.delete(3L);
@@ -361,6 +414,7 @@ class UserSprintServiceTest {
     private User user(Long id, String email, UserRole role) {
         User u = new User("Someone", email, "hash", role);
         u.setId(id);
+        u.setCompanyId(COMPANY_ID);
         return u;
     }
 
@@ -371,7 +425,8 @@ class UserSprintServiceTest {
     @Test
     void anAdminCannotDeleteTheirOwnAccount() {
         User admin = user(1L, "dev@nexus.com", UserRole.ADMIN);
-        when(userRepository.findById(1L)).thenReturn(Optional.of(admin));
+        when(currentTenant.require()).thenReturn(COMPANY_ID);
+        when(userRepository.findByIdAndCompanyId(1L, COMPANY_ID)).thenReturn(Optional.of(admin));
 
         assertThatThrownBy(() -> userService.delete(1L, "DEV@nexus.com"))
             .isInstanceOf(ValidationException.class)
@@ -384,8 +439,9 @@ class UserSprintServiceTest {
     @Test
     void theLastAdminCannotBeDeleted() {
         User admin = user(2L, "other@nexus.com", UserRole.ADMIN);
-        when(userRepository.findById(2L)).thenReturn(Optional.of(admin));
-        when(userRepository.countByRole(UserRole.ADMIN)).thenReturn(1L);
+        when(currentTenant.require()).thenReturn(COMPANY_ID);
+        when(userRepository.findByIdAndCompanyId(2L, COMPANY_ID)).thenReturn(Optional.of(admin));
+        when(userRepository.countByRoleAndCompanyId(UserRole.ADMIN, COMPANY_ID)).thenReturn(1L);
 
         assertThatThrownBy(() -> userService.delete(2L, "dev@nexus.com"))
             .isInstanceOf(ValidationException.class)
@@ -397,8 +453,9 @@ class UserSprintServiceTest {
     @Test
     void anAdminCanBeDeletedWhileAnotherRemains() {
         User admin = user(2L, "other@nexus.com", UserRole.ADMIN);
-        when(userRepository.findById(2L)).thenReturn(Optional.of(admin));
-        when(userRepository.countByRole(UserRole.ADMIN)).thenReturn(2L);
+        when(currentTenant.require()).thenReturn(COMPANY_ID);
+        when(userRepository.findByIdAndCompanyId(2L, COMPANY_ID)).thenReturn(Optional.of(admin));
+        when(userRepository.countByRoleAndCompanyId(UserRole.ADMIN, COMPANY_ID)).thenReturn(2L);
 
         userService.delete(2L, "dev@nexus.com");
 
@@ -408,7 +465,8 @@ class UserSprintServiceTest {
     @Test
     void aMemberCanAlwaysBeRemoved() {
         User member = user(3L, "member@nexus.com", UserRole.MEMBER);
-        when(userRepository.findById(3L)).thenReturn(Optional.of(member));
+        when(currentTenant.require()).thenReturn(COMPANY_ID);
+        when(userRepository.findByIdAndCompanyId(3L, COMPANY_ID)).thenReturn(Optional.of(member));
 
         userService.delete(3L, "dev@nexus.com");
 
@@ -417,9 +475,26 @@ class UserSprintServiceTest {
 
     @Test
     void deletingAnUnknownUserIs404() {
-        when(userRepository.findById(404L)).thenReturn(Optional.empty());
+        when(currentTenant.require()).thenReturn(COMPANY_ID);
+        when(userRepository.findByIdAndCompanyId(404L, COMPANY_ID)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> userService.delete(404L, "dev@nexus.com"))
             .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    /**
+     * An account in another company is not merely not found — the lookup never
+     * considers it. Deleting by id must not be able to reach across companies,
+     * because the id is all an attacker controls.
+     */
+    @Test
+    void anAccountInAnotherCompanyCannotBeDeleted() {
+        when(currentTenant.require()).thenReturn(COMPANY_ID);
+        when(userRepository.findByIdAndCompanyId(9L, COMPANY_ID)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> userService.delete(9L, "dev@nexus.com"))
+            .isInstanceOf(ResourceNotFoundException.class);
+
+        verify(userRepository, org.mockito.Mockito.never()).delete(any(User.class));
     }
 }

@@ -13,6 +13,7 @@ import com.nexus.backend.service.ChatSocketFacade;
 import com.nexus.backend.service.CopilotService;
 import com.nexus.backend.service.MessageService;
 import com.nexus.backend.service.NotificationService;
+import com.nexus.backend.service.PasswordChangeService;
 import com.nexus.backend.service.ProjectService;
 import com.nexus.backend.service.SprintService;
 import com.nexus.backend.service.SupabaseUserService;
@@ -21,6 +22,8 @@ import com.nexus.backend.service.WhiteboardService;
 import com.nexus.backend.service.WikiPageService;
 import com.nexus.backend.service.UserService;
 import com.nexus.backend.service.AvatarService;
+import com.nexus.backend.service.AuditService;
+import com.nexus.backend.tenant.CurrentTenant;
 import com.nexus.backend.web.ChatController;
 import com.nexus.backend.web.CopilotController;
 import com.nexus.backend.web.MessageController;
@@ -104,6 +107,9 @@ class ViewerReadOnlySecurityTest {
     @MockitoBean private AvatarService avatarService;
     @MockitoBean private WhiteboardService whiteboardService;
     @MockitoBean private WikiPageService wikiPageService;
+    @MockitoBean private AuditService auditService;
+    @MockitoBean private PasswordChangeService passwordChangeService;
+    @MockitoBean private CurrentTenant currentTenant;
 
     /** Every @WorkspaceWrite endpoint in the app. */
     private static Stream<NamedRequest> workspaceWrites() {

@@ -12,6 +12,7 @@ import com.nexus.backend.domain.user.User;
 import com.nexus.backend.domain.user.UserRole;
 import com.nexus.backend.repository.UserRepository;
 import com.nexus.backend.service.NotificationService;
+import com.nexus.backend.tenant.CurrentTenant;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,8 +32,12 @@ class WorkspaceActivityListenerTest {
 
     @Mock private NotificationService notificationService;
     @Mock private UserRepository userRepository;
+    @Mock private CurrentTenant currentTenant;
 
     @InjectMocks private WorkspaceActivityListener listener;
+
+    /** Every account in this test belongs to one company: the audience it addresses. */
+    private static final Long COMPANY_ID = 21L;
 
     private User devendra;
     private User achal;
@@ -45,7 +50,11 @@ class WorkspaceActivityListenerTest {
         achal = user(2L, "Achal K", "achal@nexus.com", UserRole.MEMBER);
         vidhi = user(3L, "Vidhi", "vidhi@nexus.com", UserRole.MEMBER);
         palak = user(4L, "Palak", "palak@nexus.com", UserRole.MEMBER);
-        when(userRepository.findAll()).thenReturn(List.of(devendra, achal, vidhi, palak));
+        // Lenient: the tests that pin the no-company paths deliberately override
+        // the tenant and never reach the audience lookup.
+        org.mockito.Mockito.lenient().when(currentTenant.orNull()).thenReturn(COMPANY_ID);
+        org.mockito.Mockito.lenient().when(userRepository.findByCompanyIdOrderByIdAsc(COMPANY_ID))
+            .thenReturn(List.of(devendra, achal, vidhi, palak));
     }
 
     @Test
@@ -101,7 +110,7 @@ class WorkspaceActivityListenerTest {
 
     @Test
     void staysQuietWhenOnlyTheActorWouldBeTold() {
-        when(userRepository.findAll()).thenReturn(List.of(devendra));
+        when(userRepository.findByCompanyIdOrderByIdAsc(COMPANY_ID)).thenReturn(List.of(devendra));
 
         listener.onActivity(activity(null, List.of(), "updated the wiki page \"Ops\"", devendra.getEmail()));
 
@@ -152,6 +161,35 @@ class WorkspaceActivityListenerTest {
     private static User user(Long id, String name, String email, UserRole role) {
         User user = new User(name, email, "$2a$hash", role);
         user.setId(id);
+        user.setCompanyId(COMPANY_ID);
         return user;
+    }
+
+    /**
+     * With no request behind the event, the company comes from the actor. The
+     * audience is still that one company — never every account in the table.
+     */
+    @Test
+    void fallsBackToTheActorsCompanyWhenThereIsNoTenantInScope() {
+        when(currentTenant.orNull()).thenReturn(null);
+        when(userRepository.findByEmail("devendra@nexus.com")).thenReturn(java.util.Optional.of(devendra));
+        when(userRepository.findByCompanyIdOrderByIdAsc(COMPANY_ID))
+            .thenReturn(List.of(devendra, achal));
+
+        listener.onActivity(activity(null, null, "guessed the roadmap", "devendra@nexus.com"));
+
+        var audience = audienceCaptor();
+        verify(notificationService).notifyUsers(audience.capture(), any(), any(), any());
+        assertThat(audience.getValue()).extracting(User::getEmail).containsExactly("achal@nexus.com");
+    }
+
+    /** With neither a tenant nor a known actor there is nobody to address, so nothing is sent. */
+    @Test
+    void staysQuietWhenTheCompanyCannotBeDetermined() {
+        when(currentTenant.orNull()).thenReturn(null);
+
+        listener.onActivity(activity(null, null, "guessed the roadmap", "nobody@nowhere.test"));
+
+        verify(notificationService, never()).notifyUsers(any(), any(), any(), any());
     }
 }

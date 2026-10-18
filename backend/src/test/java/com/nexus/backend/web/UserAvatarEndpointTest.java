@@ -10,10 +10,15 @@ import com.nexus.backend.repository.UserRepository;
 import com.nexus.backend.security.JwtAuthenticationFilter;
 import com.nexus.backend.security.JwtUtil;
 import com.nexus.backend.security.SupabaseTokenVerifier;
+import com.nexus.backend.domain.audit.AuditAction;
+import com.nexus.backend.dto.UserResponse;
 import com.nexus.backend.service.AdminAccountService;
+import com.nexus.backend.service.AuditService;
 import com.nexus.backend.service.AvatarService;
+import com.nexus.backend.service.PasswordChangeService;
 import com.nexus.backend.service.SupabaseUserService;
 import com.nexus.backend.service.UserService;
+import com.nexus.backend.tenant.CurrentTenant;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +30,8 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -41,6 +48,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doNothing;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -60,6 +68,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @WebMvcTest(controllers = UserController.class)
 @Import({SecurityConfig.class, JwtAuthenticationFilter.class, AvatarService.class})
+@MockitoSettings(strictness = Strictness.LENIENT)
 class UserAvatarEndpointTest {
 
     private static final String EMAIL = "ada@nexus.com";
@@ -77,6 +86,10 @@ class UserAvatarEndpointTest {
     @MockitoBean private UserRepository userRepository;
     @MockitoBean private UserAvatarRepository avatarRepository;
     @MockitoBean private UserService userService;
+    /** The controller audits role changes and scopes lookups; both are stubbed here. */
+    @MockitoBean private AuditService auditService;
+    @MockitoBean private PasswordChangeService passwordChangeService;
+    @MockitoBean private CurrentTenant currentTenant;
 
     private final AtomicReference<UserAvatar> stored = new AtomicReference<>();
 
@@ -86,15 +99,19 @@ class UserAvatarEndpointTest {
         ada.setId(ID);
         ada.setEmployeeCode("NX-0007");
 
-        // Lenient: each test touches a different subset of these three stubs.
+        // Lenient: each test touches a different subset of these stubs.
         lenient().when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(ada));
-        lenient().when(userRepository.findAll()).thenReturn(List.of(ada));
+        // The listing is company-scoped at the service, so the stub is the
+        // service's company-scoped result rather than the repository's findAll.
+        lenient().when(userService.findAll()).thenReturn(List.of(new UserResponse(
+            ID, ada.getName(), ada.getEmail(), ada.getRole(), null, "NX-0007", false)));
         lenient().when(avatarRepository.save(any(UserAvatar.class))).thenAnswer(call -> {
             UserAvatar saved = call.getArgument(0);
             stored.set(saved);
             return saved;
         });
-        lenient().when(avatarRepository.findByUserId(ID))
+        lenient().when(currentTenant.require()).thenReturn(1L);
+        lenient().when(avatarRepository.findByUserIdAndCompanyId(ID, 1L))
             .thenAnswer(call -> Optional.ofNullable(stored.get()));
     }
 
@@ -169,10 +186,16 @@ class UserAvatarEndpointTest {
 
     @Test
     void deleteRemovesTheAvatar() throws Exception {
+        UserAvatar existing = new UserAvatar(ID, new byte[] { 1 }, "image/jpeg");
+        when(avatarRepository.findByUserIdAndCompanyId(ID, 1L)).thenReturn(Optional.of(existing));
+        // AvatarService.remove passes the row it found to avatarRepository::delete,
+        // so delete is invoked with the same instance, not the bare id.
+        doNothing().when(avatarRepository).delete(existing);
+
         mockMvc.perform(delete("/api/users/me/avatar").with(user(EMAIL).roles("MEMBER")))
             .andExpect(status().isNoContent());
 
-        verify(avatarRepository).deleteById(ID);
+        verify(avatarRepository).delete(existing);
     }
 
     @Test

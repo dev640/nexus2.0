@@ -26,7 +26,11 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
 @ExtendWith(MockitoExtension.class)
 class SupabaseIdentityTest {
@@ -134,26 +138,29 @@ class SupabaseIdentityTest {
         return builder.build();
     }
 
+    /**
+     * A valid Supabase identity with no account here is refused, not admitted.
+     *
+     * <p>This used to provision an account on the spot. It cannot any more: an
+     * account belongs to exactly one company and carries an employee code numbered
+     * within it, so a self-provisioned row has no company to join and the database
+     * rejects it. Choosing one would be worse than refusing — it would hand a
+     * stranger entry to whichever company was guessed. Accounts are created by an
+     * admin, and a later sign-in with that address links to the account (see the
+     * linking tests below).
+     */
     @Test
-    void provisionsANewAccountForAnUnknownSupabaseIdentity() {
+    void refusesAnUnknownSupabaseIdentityRatherThanProvisioningOne() {
         properties.setUrl("https://abcdefgh.supabase.co");
         UUID subject = UUID.randomUUID();
         when(userRepository.findBySupabaseId(subject)).thenReturn(Optional.empty());
         when(userRepository.findByEmail("ada@nexus.com")).thenReturn(Optional.empty());
-        when(userRepository.save(any(User.class))).thenAnswer(inv -> {
-            User u = inv.getArgument(0);
-            u.setId(42L);
-            return u;
-        });
 
-        User user = provisioning.resolveUser(claimsFor(subject, "ada@nexus.com", "Ada Lovelace"));
+        assertThatThrownBy(() -> provisioning.resolveUser(claimsFor(subject, "ada@nexus.com", "Ada Lovelace")))
+            .isInstanceOf(UsernameNotFoundException.class)
+            .hasMessageContaining("administrator");
 
-        assertThat(user.getId()).isEqualTo(42L);
-        assertThat(user.getSupabaseId()).isEqualTo(subject);
-        assertThat(user.getEmail()).isEqualTo("ada@nexus.com");
-        assertThat(user.getName()).isEqualTo("Ada Lovelace");
-        assertThat(user.getPassword()).isNull();
-        assertThat(user.getRole()).isEqualTo(UserRole.MEMBER);
+        verify(userRepository, never()).save(any(User.class));
     }
 
     @Test
@@ -195,22 +202,21 @@ class SupabaseIdentityTest {
     void derivesANameFromTheEmailWhenMetadataIsMissing() {
         properties.setUrl("https://abcdefgh.supabase.co");
         UUID subject = UUID.randomUUID();
+        User existing = new User("grace", "grace@nexus.com", null, UserRole.MEMBER);
+        existing.setId(9L);
         when(userRepository.findBySupabaseId(subject)).thenReturn(Optional.empty());
-        when(userRepository.findByEmail("grace@nexus.com")).thenReturn(Optional.empty());
-        when(userRepository.save(any(User.class))).thenAnswer(inv -> {
-            User u = inv.getArgument(0);
-            u.setId(9L);
-            return u;
-        });
+        when(userRepository.findByEmail("grace@nexus.com")).thenReturn(Optional.of(existing));
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 
         Claims noMeta = Jwts.parser().verifyWith(KEY).build()
             .parseSignedClaims(mintToken(subject, "grace@nexus.com",
                 "https://abcdefgh.supabase.co/auth/v1", Date.from(Instant.now().plusSeconds(600))))
             .getPayload();
 
+        // The fallback name for an identity whose metadata carries none: the local
+        // part of the address, so an admin-created account is still greeted by name.
         assertThat(provisioning.nameOf(noMeta)).isEqualTo("grace");
-        User user = provisioning.resolveUser(noMeta);
-        assertThat(user.getName()).isEqualTo("grace");
+        assertThat(provisioning.resolveUser(noMeta).getName()).isEqualTo("grace");
     }
 
     @Test
@@ -232,16 +238,24 @@ class SupabaseIdentityTest {
         assertThat(user.getPassword()).isNull();
     }
 
+    /**
+     * A local account registered with mixed case is still matched by a Supabase
+     * sign-in that lowercases the address — the account is linked, never duplicated.
+     */
     @Test
-    void normalizesTheEmailWhenProvisioning() {
+    void normalizesTheEmailWhenMatchingAnExistingAccount() {
         properties.setUrl("https://abcdefgh.supabase.co");
         UUID subject = UUID.randomUUID();
+        User existing = new User("Ada", "ada@nexus.com", "$bcrypt-hash", UserRole.MEMBER);
+        existing.setId(12L);
         when(userRepository.findBySupabaseId(subject)).thenReturn(Optional.empty());
         when(userRepository.findByEmail("ada@nexus.com")).thenReturn(Optional.empty());
+        when(userRepository.findFirstByEmailIgnoreCase("ada@nexus.com")).thenReturn(Optional.of(existing));
         when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 
         User user = provisioning.resolveUser(claimsFor(subject, "  Ada@Nexus.com  ", "Ada"));
 
+        assertThat(user.getId()).isEqualTo(12L);
         assertThat(user.getEmail()).isEqualTo("ada@nexus.com");
     }
 }

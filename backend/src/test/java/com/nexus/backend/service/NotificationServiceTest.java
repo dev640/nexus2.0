@@ -174,7 +174,7 @@ class NotificationServiceTest {
             Notification.Category.PROJECTS, "Devendra created the project \"Nimbus\"", "/projects");
 
         ArgumentCaptor<Map<String, Object>> payload = captorOfMap();
-        verify(webPushSender).sendToUserInBackground(eq(4L), payload.capture());
+        verify(webPushSender).sendToUserInBackground(eq(4L), any(), payload.capture());
         assertThat(payload.getValue())
             .containsEntry("body", "Devendra created the project \"Nimbus\"")
             .containsEntry("url", "/projects")
@@ -195,7 +195,7 @@ class NotificationServiceTest {
             Notification.Category.PROJECTS, "Devendra created the project \"Nimbus\"", "/projects");
 
         verify(socketFacade).pushNotification(eq(4L), any(NotificationResponse.class));
-        verify(webPushSender, never()).sendToUserInBackground(any(), any());
+        verify(webPushSender, never()).sendToUserInBackground(any(), any(), any());
     }
 
     @SuppressWarnings("unchecked")
@@ -218,6 +218,7 @@ class NotificationServiceTest {
     private static User user(Long id, String name, String email) {
         User user = new User(name, email, "$2a$hash", UserRole.MEMBER);
         user.setId(id);
+        user.setCompanyId(1L);
         return user;
     }
 }
