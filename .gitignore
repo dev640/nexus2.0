@@ -14,3 +14,16 @@ frontend/.vercel
 .claude/
 .vscode/
 
+# Database dumps, backups and key material must never reach the repository.
+# A rehearsal on a restored copy produces a dump beside the checkout, and a
+# *.env.missing pattern is not enough to stop `git add .` from taking it.
+*.dump
+*.dump.gz
+*.sql.gz
+*.bak
+backups/
+*.pem
+*.key
+*.p12
+secrets/
+

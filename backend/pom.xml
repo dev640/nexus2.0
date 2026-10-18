@@ -145,6 +145,19 @@
 			<artifactId>spring-boot-starter-websocket-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<!--
+			Multi-tenancy migration tests (V18-V21) run the plain Flyway API and
+			raw JDBC against a throwaway Postgres container. Deliberately not H2
+			and not @SpringBootTest: the migrations use Postgres-only features
+			(tsvector, DO blocks, partial indexes) and the JPA entities do not
+			yet know about company_id.
+		-->
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>postgresql</artifactId>
+			<version>1.21.3</version>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<build>
