@@ -86,13 +86,157 @@ public class SupabaseAdminClient {
     /**
      * Sets a new password for an existing Supabase auth user.
      *
+     * <p>Supabase terminates that account's existing sessions when its password
+     * changes, so a device holding the old credentials stops being able to renew
+     * its token. Nothing is returned to the caller on that account — the person
+     * being changed is entitled to know their own session ended, and the client
+     * is where that is decided.
+     *
      * @throws ValidationException if Supabase rejects the request or the admin
      *         API is not configured
      */
     public void updatePassword(UUID supabaseUserId, String password) {
         requireAvailable();
         send("PUT", "/admin/users/" + supabaseUserId, Map.of("password", password));
-        log.info("Reset the password for Supabase auth user {}", supabaseUserId);
+        log.info("Set a new password for Supabase auth user {}", supabaseUserId);
+    }
+
+    /**
+     * The outcome of checking a password Supabase owns.
+     *
+     * <p>{@link #UNAVAILABLE} exists because "we could not ask" and "the password
+     * is wrong" are different answers, and only one of them is the caller's
+     * fault. Collapsing them would tell a person their password is wrong when the
+     * server is misconfigured, and they would keep retyping it.
+     */
+    public enum PasswordVerification { MATCH, NO_MATCH, UNAVAILABLE }
+
+    /**
+     * Checks a password against the Supabase account that owns it.
+     *
+     * <p>Supabase's Auth Admin API has no password-verification endpoint — the
+     * only documented way to test a password is to sign in with it — so this is
+     * the password grant the login screen itself uses, made from the server. It
+     * therefore has a side effect worth naming explicitly: a successful check
+     * mints a session, and its tokens are discarded here rather than stored, so
+     * nothing can be used with them and the session cannot be renewed. The
+     * password is never logged, and the response body is never echoed to a
+     * client — it contains an access and refresh token.
+     *
+     * @return {@link PasswordVerification#MATCH} when Supabase accepted the pair,
+     *         {@link PasswordVerification#NO_MATCH} when it rejected the password,
+     *         and {@link PasswordVerification#UNAVAILABLE} when the question could
+     *         not be asked at all (not configured, unreachable, or the project key
+     *         was itself refused)
+     */
+    public PasswordVerification verifyPassword(String email, String password) {
+        if (!isAvailable()) {
+            return PasswordVerification.UNAVAILABLE;
+        }
+        HttpResponse<String> response;
+        try {
+            // Only `apikey`, unlike authHeaders: this is a sign-in rather than an
+            // admin call, and an Authorization header here would be a caller's
+            // session token in the endpoint's terms. A key the project refuses
+            // then answers 401 and is reported as UNAVAILABLE below — never as a
+            // wrong password.
+            response = exchange("POST", authUrl("/token?grant_type=password"),
+                Map.of("email", email, "password", password),
+                Map.of("apikey", properties.getServiceRoleKey()));
+        } catch (ValidationException e) {
+            log.warn("Could not reach Supabase to check a password: {}", e.getMessage());
+            return PasswordVerification.UNAVAILABLE;
+        }
+
+        if (response.statusCode() / 100 == 2) {
+            revokeMintedSession(response.body());
+            return PasswordVerification.MATCH;
+        }
+        if (isCredentialRejection(response.body())) {
+            return PasswordVerification.NO_MATCH;
+        }
+        // A 401/403 here means the service-role key itself was refused (a
+        // malformed key, or one whose header shape this project does not accept),
+        // and anything 5xx means Supabase's own trouble. Neither says anything
+        // about the password, so neither may be reported as one.
+        log.warn("Supabase refused a password check with HTTP {}: {}",
+            response.statusCode(), safeBody(response));
+        return PasswordVerification.UNAVAILABLE;
+    }
+
+    /**
+     * True for a rejection of the credentials themselves.
+     *
+     * <p>Matched on the error marker rather than the status code, because 400 is
+     * also what a malformed request gets: the documented marker is the
+     * {@code invalid_credentials} code and the "Invalid login credentials"
+     * message, and older deployments answer the same thing as
+     * {@code invalid_grant}. A body with none of those is not about the password.
+     */
+    private static boolean isCredentialRejection(String body) {
+        if (body == null) {
+            return false;
+        }
+        String lower = body.toLowerCase(java.util.Locale.ROOT);
+        return lower.contains("invalid_credentials")
+            || lower.contains("invalid login credentials")
+            || lower.contains("invalid_grant");
+    }
+
+    /**
+     * Ends the session a successful password check created, so the tokens do not
+     * outlive the check.
+     *
+     * <p>Best effort: the password was already proven, and discarding the tokens
+     * (below) already means the session can never be renewed. A failure here is
+     * logged and does not turn a correct password into a refusal.
+     */
+    private void revokeMintedSession(String body) {
+        String accessToken = readAccessToken(body);
+        if (accessToken == null) {
+            return;
+        }
+        try {
+            exchange("POST", authUrl("/logout?scope=local"), null,
+                Map.of("apikey", properties.getServiceRoleKey(),
+                    "Authorization", "Bearer " + accessToken));
+        } catch (ValidationException e) {
+            log.warn("Could not end the session created by a password check: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * The access token from a password-grant response, or null when it cannot be
+     * read. Only the access token is taken: the refresh token in the same body is
+     * deliberately ignored, which is what stops the session being renewable.
+     */
+    private String readAccessToken(String body) {
+        if (body == null || body.isBlank()) {
+            return null;
+        }
+        try {
+            String token = objectMapper.readTree(body).path("access_token").asText(null);
+            return token == null || token.isBlank() ? null : token;
+        } catch (IOException e) {
+            return null;
+        }
+    }
+
+    /**
+     * The body of a failed call, for a log line. Never returned to a client: an
+     * error body can carry the address that was tried or internal identifiers,
+     * and is truncated so one long body cannot flood the log.
+     */
+    private static String safeBody(HttpResponse<String> response) {
+        String body = response.body();
+        if (body == null || body.isBlank()) {
+            return "(empty)";
+        }
+        return body.length() <= 500 ? body : body.substring(0, 500) + "…";
+    }
+
+    private String authUrl(String path) {
+        return properties.getUrl() + "/auth/v1" + path;
     }
 
     /** True when a Supabase auth user exists for this email (used before resetting). */
@@ -200,12 +344,43 @@ public class SupabaseAdminClient {
         return key.indexOf('.', secondDot + 1) < 0;
     }
 
+    /**
+     * An admin call, parsed. A non-2xx answer is a failure and throws.
+     *
+     * @throws ValidationException if the call failed, or could not be made
+     */
     private JsonNode send(String method, String path, Map<String, Object> body) {
-        String url = properties.getUrl() + "/auth/v1" + path;
+        HttpResponse<String> response = exchange(method, authUrl(path), body,
+            authHeaders(properties.getServiceRoleKey()));
+
+        if (response.statusCode() / 100 != 2) {
+            throw new ValidationException(describeFailure(response));
+        }
+        try {
+            String payload = response.body();
+            return payload == null || payload.isBlank()
+                ? objectMapper.createObjectNode()
+                : objectMapper.readTree(payload);
+        } catch (IOException e) {
+            throw new ValidationException("Supabase returned an unreadable response");
+        }
+    }
+
+    /**
+     * One HTTP exchange, with the status left for the caller to judge.
+     *
+     * <p>Kept separate from {@link #send} because a password check has to read a
+     * refusal rather than be thrown by it: which HTTP answer came back is what
+     * distinguishes a wrong password from a project key Supabase would not accept.
+     *
+     * @throws ValidationException when no answer arrived at all
+     */
+    private HttpResponse<String> exchange(String method, String url, Map<String, Object> body,
+                                         Map<String, String> headers) {
         try {
             HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(url))
                 .timeout(Duration.ofSeconds(15));
-            authHeaders(properties.getServiceRoleKey()).forEach(builder::header);
+            headers.forEach(builder::header);
 
             if (body == null) {
                 builder.method(method, HttpRequest.BodyPublishers.noBody());
@@ -215,16 +390,7 @@ public class SupabaseAdminClient {
                         objectMapper.writeValueAsString(body), StandardCharsets.UTF_8));
             }
 
-            HttpResponse<String> response = httpClient.send(
-                builder.build(), HttpResponse.BodyHandlers.ofString());
-
-            if (response.statusCode() / 100 != 2) {
-                throw new ValidationException(describeFailure(response));
-            }
-            String payload = response.body();
-            return payload == null || payload.isBlank()
-                ? objectMapper.createObjectNode()
-                : objectMapper.readTree(payload);
+            return httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new ValidationException("Interrupted while calling the Supabase admin API");
