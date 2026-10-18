@@ -10,6 +10,7 @@ import com.nexus.backend.exception.ResourceNotFoundException;
 import com.nexus.backend.repository.WhiteboardNoteRepository;
 import com.nexus.backend.service.activity.ActivityEvents;
 import com.nexus.backend.service.knowledge.KnowledgeEvents;
+import com.nexus.backend.tenant.CurrentTenant;
 import com.nexus.backend.whiteboard.WhiteboardBroadcaster;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -25,21 +26,27 @@ public class WhiteboardService {
 
     private final WhiteboardNoteRepository noteRepository;
     private final WhiteboardBroadcaster broadcaster;
+    private final CurrentTenant currentTenant;
     private final ApplicationEventPublisher knowledgePublisher;
 
     public WhiteboardService(
             WhiteboardNoteRepository noteRepository,
             WhiteboardBroadcaster broadcaster,
+            CurrentTenant currentTenant,
             ApplicationEventPublisher knowledgePublisher) {
         this.noteRepository = noteRepository;
         this.broadcaster = broadcaster;
+        this.currentTenant = currentTenant;
         this.knowledgePublisher = knowledgePublisher;
     }
 
     @Transactional(readOnly = true)
     public List<WhiteboardNoteResponse> list(String board) {
         String key = board == null || board.isBlank() ? DEFAULT_BOARD : board;
-        return noteRepository.findByBoardOrderByCreatedAtAsc(key).stream()
+        // A board name is client-supplied, so it is only a name — the company is
+        // what makes it this workspace's board. Two companies can both have a
+        // "default" board and neither sees the other's notes.
+        return noteRepository.findByBoardAndCompanyIdOrderByCreatedAtAsc(key, currentTenant.require()).stream()
             .map(WhiteboardService::mapToResponse)
             .toList();
     }
@@ -62,7 +69,7 @@ public class WhiteboardService {
 
     @Transactional
     public WhiteboardNoteResponse update(Long id, WhiteboardNoteUpdateRequest request) {
-        WhiteboardNote note = noteRepository.findById(id)
+        WhiteboardNote note = noteRepository.findByIdAndCompanyId(id, currentTenant.require())
             .orElseThrow(() -> new ResourceNotFoundException("Whiteboard note", "id", id));
         String previousText = note.getText();
         if (request.text() != null) note.setText(request.text());
@@ -90,7 +97,7 @@ public class WhiteboardService {
 
     @Transactional
     public void delete(Long id) {
-        WhiteboardNote note = noteRepository.findById(id)
+        WhiteboardNote note = noteRepository.findByIdAndCompanyId(id, currentTenant.require())
             .orElseThrow(() -> new ResourceNotFoundException("Whiteboard note", "id", id));
         WhiteboardNoteResponse response = mapToResponse(note);
         noteRepository.delete(note);

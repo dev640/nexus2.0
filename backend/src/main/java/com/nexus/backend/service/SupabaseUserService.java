@@ -5,6 +5,7 @@ import com.nexus.backend.domain.user.User;
 import com.nexus.backend.domain.user.UserRole;
 import com.nexus.backend.repository.UserRepository;
 import io.jsonwebtoken.Claims;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -20,8 +21,16 @@ import java.util.UUID;
  * 1. exact match on users.supabase_id (the normal case)
  * 2. an existing local account with the same email gets linked to the
  *    Supabase identity (one person, one account, never a duplicate)
- * 3. otherwise a brand-new account is provisioned with MEMBER role and no
- *    local password — it authenticates only through Supabase.
+ * 3. otherwise there is no account, and the caller must treat the request as
+ *    unauthenticated.
+ *
+ * <p>Step 3 used to create an account on the spot. That is no longer possible,
+ * and would not be right if it were: an account now belongs to exactly one
+ * company and carries an employee code, so a self-provisioned row has no company
+ * to belong to — the database rejects it — and granting one by guessing would
+ * hand a stranger entry to whichever company was guessed. The policy is already
+ * that the only way into a workspace is through an admin, who creates the account
+ * first; a later Supabase sign-in with that address then links to it (step 2).
  */
 @Service
 public class SupabaseUserService {
@@ -70,8 +79,11 @@ public class SupabaseUserService {
     }
 
     /**
-     * Returns the local account for a verified Supabase identity, provisioning
-     * or linking one when needed. Never returns null.
+     * Returns the local account for a verified Supabase identity, linking one
+     * when the address already exists.
+     *
+     * @return the account, or {@code null} when this identity has no account here
+     *         and must therefore not be signed in
      */
     @Transactional
     public User resolveUser(Claims claims) {
@@ -98,15 +110,14 @@ public class SupabaseUserService {
             }
         }
 
-        user = new User();
-        user.setSupabaseId(supabaseId);
-        user.setEmail(email != null && !email.isBlank() ? normalize(email) : "user-" + supabaseId + "@supabase.local");
-        user.setName(nameOf(claims));
-        user.setPassword(null);
-        user.setRole(UserRole.MEMBER);
-        User saved = userRepository.save(user);
-        log.info("Provisioned new account {} from Supabase identity {}", saved.getEmail(), supabaseId);
-        return saved;
+        // No local account for this identity. Refuse rather than provision: see
+        // the class comment. The thrown exception is deliberately not one the
+        // filter swallows, so a misconfiguration here is visible instead of
+        // looking like a wrong password.
+        log.info("Supabase identity {} ({}) has no account in this workspace; refusing sign-in",
+            supabaseId, email == null ? "no email claim" : email);
+        throw new UsernameNotFoundException(
+            "No account exists for this address. Ask an administrator to create one.");
     }
 
     /**

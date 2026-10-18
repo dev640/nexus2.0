@@ -1,6 +1,7 @@
 package com.nexus.backend.service;
 
 import com.nexus.backend.config.SupabaseProperties;
+import com.nexus.backend.domain.audit.AuditAction;
 import com.nexus.backend.domain.user.PasswordResetRequest;
 import com.nexus.backend.domain.user.ResetRequestStatus;
 import com.nexus.backend.domain.user.User;
@@ -13,6 +14,7 @@ import com.nexus.backend.exception.ValidationException;
 import com.nexus.backend.repository.PasswordResetRequestRepository;
 import com.nexus.backend.repository.UserRepository;
 import com.nexus.backend.security.SupabaseAdminClient;
+import com.nexus.backend.tenant.CurrentTenant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -22,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.security.SecureRandom;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -50,6 +53,9 @@ public class AdminAccountService {
     private final PasswordEncoder passwordEncoder;
     private final SupabaseAdminClient supabaseAdminClient;
     private final SupabaseProperties supabaseProperties;
+    private final EmployeeCodeService employeeCodeService;
+    private final AuditService auditService;
+    private final CurrentTenant currentTenant;
     private final SecureRandom random = new SecureRandom();
 
     public AdminAccountService(
@@ -57,13 +63,19 @@ public class AdminAccountService {
         PasswordResetRequestRepository resetRequestRepository,
         PasswordEncoder passwordEncoder,
         SupabaseAdminClient supabaseAdminClient,
-        SupabaseProperties supabaseProperties
+        SupabaseProperties supabaseProperties,
+        EmployeeCodeService employeeCodeService,
+        AuditService auditService,
+        CurrentTenant currentTenant
     ) {
         this.userRepository = userRepository;
         this.resetRequestRepository = resetRequestRepository;
         this.passwordEncoder = passwordEncoder;
         this.supabaseAdminClient = supabaseAdminClient;
         this.supabaseProperties = supabaseProperties;
+        this.employeeCodeService = employeeCodeService;
+        this.auditService = auditService;
+        this.currentTenant = currentTenant;
     }
 
     // ---------------------------------------------------------------- users
@@ -74,6 +86,10 @@ public class AdminAccountService {
      */
     @Transactional
     public CreatedUserResponse createUser(CreateUserRequest request) {
+        // The account joins the admin's own company. A company id is never taken
+        // from the request: one company's admin placing accounts inside another
+        // company is precisely what tenancy is here to prevent.
+        Long companyId = currentTenant.require();
         // If the workspace authenticates through Supabase but the Admin API is
         // unreachable, a local-only account would be created that the login screen
         // can never authenticate — the admin would believe it worked. Refuse
@@ -94,6 +110,14 @@ public class AdminAccountService {
         String name = request.name().trim();
         // An absent role must not accidentally create an admin: default to MEMBER.
         UserRole role = request.role() == null ? UserRole.MEMBER : request.role();
+        if (role == UserRole.SUPER_ADMIN) {
+            // SUPER_ADMIN belongs to no company, which a company admin cannot
+            // express: the account would be created outside every company and
+            // then be unable to administer any of them. It is granted through
+            // deliberate operator tooling, not from this endpoint.
+            throw new ValidationException(
+                "SUPER_ADMIN cannot be created from a company account. Ask an operator to set it up.");
+        }
 
         boolean adminSuppliedPassword = request.password() != null && !request.password().isBlank();
         String password = adminSuppliedPassword ? request.password() : generatePassword();
@@ -102,7 +126,11 @@ public class AdminAccountService {
         user.setName(name);
         user.setEmail(email);
         user.setRole(role);
-        user.setEmployeeCode(nextEmployeeCode());
+        user.setCompanyId(companyId);
+        user.setEmployeeCode(employeeCodeService.nextCode(companyId));
+        // A password the admin chose is one the person already knows; a generated
+        // one must be replaced by its owner on first use.
+        user.setMustChangePassword(!adminSuppliedPassword);
 
         if (supabaseAdminClient.isAvailable()) {
             UUID supabaseId = supabaseAdminClient.createUser(email, password, name);
@@ -116,6 +144,10 @@ public class AdminAccountService {
 
         User saved = userRepository.save(user);
         log.info("Admin created account {} with role {}", saved.getEmail(), role);
+
+        auditService.record(AuditAction.USER_CREATED, "User", saved.getId(),
+            Map.of("email", saved.getEmail(), "role", role.name(),
+                "via", "admin", "generatedPassword", !adminSuppliedPassword));
 
         return new CreatedUserResponse(
             saved.getId(), saved.getName(), saved.getEmail(), saved.getRole(),
@@ -148,15 +180,28 @@ public class AdminAccountService {
             .isPresent()) {
             return;
         }
-        resetRequestRepository.save(new PasswordResetRequest(user, blankToNull(note)));
+        PasswordResetRequest request = new PasswordResetRequest(user, blankToNull(note));
+        // This endpoint is public, so there is no tenant in scope: the request
+        // belongs to the company of the account it is for. Without this the
+        // tenant-aware stamp would refuse the insert, and the request could
+        // never be filed by the very person who needs it.
+        request.setCompanyId(user.getCompanyId());
+        PasswordResetRequest saved = resetRequestRepository.save(request);
+
+        // Recorded as the requester, not as the anonymous caller, so the trail
+        // answers "who asked" rather than "somebody asked".
+        auditService.recordAs(user, AuditAction.PASSWORD_RESET_REQUESTED,
+            "PasswordResetRequest", saved.getId(), null);
         log.info("Password reset requested for {}", user.getEmail());
     }
 
+    /** The caller's company's reset requests. */
     @Transactional(readOnly = true)
     public List<PasswordResetResponse> listRequests(boolean pendingOnly) {
+        Long companyId = currentTenant.require();
         List<PasswordResetRequest> rows = pendingOnly
-            ? resetRequestRepository.findByStatusWithUser(ResetRequestStatus.PENDING)
-            : resetRequestRepository.findAllWithUser();
+            ? resetRequestRepository.findByStatusAndCompanyIdWithUser(ResetRequestStatus.PENDING, companyId)
+            : resetRequestRepository.findAllByCompanyIdWithUser(companyId);
         return rows.stream().map(AdminAccountService::toResponse).toList();
     }
 
@@ -168,7 +213,8 @@ public class AdminAccountService {
      */
     @Transactional
     public CreatedUserResponse resolveRequest(Long requestId, User admin) {
-        PasswordResetRequest request = resetRequestRepository.findById(requestId)
+        PasswordResetRequest request = resetRequestRepository
+            .findByIdAndCompanyId(requestId, currentTenant.require())
             .orElseThrow(() -> new ResourceNotFoundException("Password reset request", "id", requestId));
         if (request.getStatus() != ResetRequestStatus.PENDING) {
             throw new ValidationException("That request has already been " + request.getStatus().name().toLowerCase(Locale.ROOT));
@@ -194,13 +240,21 @@ public class AdminAccountService {
             throw new ValidationException("That account has no password store configured");
         }
 
-        if (user.getPassword() != null) {
-            userRepository.save(user);
-        }
+        // The password just issued was generated by an admin and handed over
+        // out loud, so it is known to somebody other than its owner: the same
+        // rule createUser applies to a generated password applies here. Without
+        // this, the one flow that most needs a forced change — a password an
+        // admin chose and read out — would be the one flow that skips it.
+        user.setMustChangePassword(true);
+        userRepository.save(user);
         request.setStatus(ResetRequestStatus.RESOLVED);
         request.setResolvedAt(java.time.LocalDateTime.now());
         request.setResolvedBy(admin);
         resetRequestRepository.save(request);
+
+        // The new password is never recorded, only the fact that one was issued.
+        auditService.record(AuditAction.PASSWORD_RESET_RESOLVED, "PasswordResetRequest", request.getId(),
+            Map.of("targetUser", user.getEmail(), "targetUserId", user.getId()));
 
         return new CreatedUserResponse(
             user.getId(), user.getName(), user.getEmail(), user.getRole(), password
@@ -210,7 +264,8 @@ public class AdminAccountService {
     /** Closes a request without issuing a password. */
     @Transactional
     public void dismissRequest(Long requestId, User admin) {
-        PasswordResetRequest request = resetRequestRepository.findById(requestId)
+        PasswordResetRequest request = resetRequestRepository
+            .findByIdAndCompanyId(requestId, currentTenant.require())
             .orElseThrow(() -> new ResourceNotFoundException("Password reset request", "id", requestId));
         if (request.getStatus() != ResetRequestStatus.PENDING) {
             throw new ValidationException("That request has already been " + request.getStatus().name().toLowerCase(Locale.ROOT));
@@ -219,6 +274,9 @@ public class AdminAccountService {
         request.setResolvedAt(java.time.LocalDateTime.now());
         request.setResolvedBy(admin);
         resetRequestRepository.save(request);
+
+        auditService.record(AuditAction.PASSWORD_RESET_DISMISSED, "PasswordResetRequest", request.getId(),
+            Map.of("targetUserId", request.getUser().getId()));
     }
 
     /** True when the server can create users and issue passwords via Supabase. */
@@ -227,18 +285,6 @@ public class AdminAccountService {
     }
 
     // ------------------------------------------------------------- helpers
-
-    /**
-     * Assigns the next employee code from the DB sequence the schema created for
-     * this column, so newly created accounts always get a real NX-#### code.
-     * Hibernate sends null for this column and the DB default does not apply when
-     * a column is explicitly null, which is what made admin-created accounts fail.
-     */
-    private String nextEmployeeCode() {
-        // The schema migration (V11) created user_employee_code_seq starting at 1000.
-        Long next = userRepository.nextEmployeeCodeSeq();
-        return "NX-" + String.format("%04d", next);
-    }
 
     /**
      * A 16-character password drawn from four character classes, with at least

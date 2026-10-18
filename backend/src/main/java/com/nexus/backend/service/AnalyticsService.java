@@ -6,9 +6,11 @@ import com.nexus.backend.domain.sprint.SprintStatus;
 import com.nexus.backend.domain.task.Task;
 import com.nexus.backend.domain.task.TaskStatus;
 import com.nexus.backend.dto.AnalyticsResponse;
+import com.nexus.backend.exception.ResourceNotFoundException;
 import com.nexus.backend.repository.ProjectRepository;
 import com.nexus.backend.repository.SprintRepository;
 import com.nexus.backend.repository.TaskRepository;
+import com.nexus.backend.tenant.CurrentTenant;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,27 +19,41 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+/**
+ * Analytics over the caller's company only.
+ *
+ * <p>The numbers are aggregates, which makes them an easy place to leak: a
+ * count says nothing about a specific row, but a chart of another company's
+ * velocity still tells you their velocity. Both the chosen project and the
+ * fallback "the whole workspace" path are therefore company-scoped.
+ */
 @Service
 public class AnalyticsService {
 
     private final ProjectRepository projectRepository;
     private final SprintRepository sprintRepository;
     private final TaskRepository taskRepository;
+    private final CurrentTenant currentTenant;
 
-    public AnalyticsService(ProjectRepository projectRepository, SprintRepository sprintRepository, TaskRepository taskRepository) {
+    public AnalyticsService(ProjectRepository projectRepository, SprintRepository sprintRepository,
+                            TaskRepository taskRepository, CurrentTenant currentTenant) {
         this.projectRepository = projectRepository;
         this.sprintRepository = sprintRepository;
         this.taskRepository = taskRepository;
+        this.currentTenant = currentTenant;
     }
 
     @Transactional(readOnly = true)
     public AnalyticsResponse getOverview(Long projectId) {
+        Long companyId = currentTenant.require();
         Project project = projectId != null
-            ? projectRepository.findById(projectId)
-                .orElseThrow(() -> new com.nexus.backend.exception.ResourceNotFoundException("Project", "id", projectId))
-            : projectRepository.findAll().stream().findFirst().orElse(null);
+            ? projectRepository.findByIdAndCompanyId(projectId, companyId)
+                .orElseThrow(() -> new ResourceNotFoundException("Project", "id", projectId))
+            : projectRepository.findByCompanyId(companyId).stream().findFirst().orElse(null);
 
-        List<Task> tasks = project != null ? taskRepository.findByProject(project) : taskRepository.findAll();
+        List<Task> tasks = project != null
+            ? taskRepository.findByProject(project)
+            : taskRepository.findByCompanyId(companyId);
         List<Sprint> sprints = project != null
             ? sprintRepository.findByProject(project)
             : sprintsOf(tasks);

@@ -14,6 +14,7 @@ import com.nexus.backend.repository.SprintRepository;
 import com.nexus.backend.repository.TaskRepository;
 import com.nexus.backend.service.activity.ActivityEvents;
 import com.nexus.backend.service.knowledge.KnowledgeEvents;
+import com.nexus.backend.tenant.CurrentTenant;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -27,12 +28,17 @@ public class SprintService {
 
     private final SprintRepository sprintRepository;
     private final ProjectRepository projectRepository;
-private final TaskRepository taskRepository;
+    private final TaskRepository taskRepository;
+    private final CurrentTenant currentTenant;
     private final ApplicationEventPublisher knowledgePublisher;
 
     @Transactional
     public SprintResponse create(SprintRequest request) {
-        Project project = projectRepository.findById(request.projectId())
+        // The project is resolved inside the caller's company: attaching a sprint
+        // to another company's project would put this company's work on their
+        // board, which is the mistake tenancy exists to prevent.
+        Project project = projectRepository
+            .findByIdAndCompanyId(request.projectId(), currentTenant.require())
             .orElseThrow(() -> new ResourceNotFoundException("Project", "id", request.projectId()));
 
         if (request.endDate().isBefore(request.startDate())) {
@@ -67,21 +73,21 @@ private final TaskRepository taskRepository;
 
     @Transactional(readOnly = true)
     public SprintResponse findById(Long id) {
-        Sprint sprint = sprintRepository.findById(id)
+        Sprint sprint = sprintRepository.findByIdAndCompanyId(id, currentTenant.require())
             .orElseThrow(() -> new ResourceNotFoundException("Sprint", "id", id));
         return mapToResponse(sprint);
     }
 
     @Transactional(readOnly = true)
     public List<SprintResponse> findAll() {
-        return sprintRepository.findAll().stream()
+        return sprintRepository.findByCompanyId(currentTenant.require()).stream()
             .map(this::mapToResponse)
             .toList();
     }
 
     @Transactional(readOnly = true)
     public List<SprintResponse> findByProjectId(Long projectId) {
-        Project project = projectRepository.findById(projectId)
+        Project project = projectRepository.findByIdAndCompanyId(projectId, currentTenant.require())
             .orElseThrow(() -> new ResourceNotFoundException("Project", "id", projectId));
         return sprintRepository.findByProject(project).stream()
             .map(this::mapToResponse)
@@ -90,7 +96,7 @@ private final TaskRepository taskRepository;
 
     @Transactional
     public SprintResponse updateStatus(Long id, SprintStatus status) {
-        Sprint sprint = sprintRepository.findById(id)
+        Sprint sprint = sprintRepository.findByIdAndCompanyId(id, currentTenant.require())
             .orElseThrow(() -> new ResourceNotFoundException("Sprint", "id", id));
         // Saving the same status again is not an event anyone needs to hear
         // about — only an actual move is.
@@ -118,7 +124,7 @@ private final TaskRepository taskRepository;
      */
     @Transactional
     public SprintResponse update(Long id, SprintRequest request) {
-        Sprint sprint = sprintRepository.findById(id)
+        Sprint sprint = sprintRepository.findByIdAndCompanyId(id, currentTenant.require())
             .orElseThrow(() -> new ResourceNotFoundException("Sprint", "id", id));
 
         if (request.projectId() != null && !request.projectId().equals(sprint.getProject().getId())) {
@@ -151,7 +157,7 @@ private final TaskRepository taskRepository;
      */
     @Transactional
     public void delete(Long id) {
-        Sprint sprint = sprintRepository.findById(id)
+        Sprint sprint = sprintRepository.findByIdAndCompanyId(id, currentTenant.require())
             .orElseThrow(() -> new ResourceNotFoundException("Sprint", "id", id));
 
         long taskCount = taskRepository.countBySprint(sprint);

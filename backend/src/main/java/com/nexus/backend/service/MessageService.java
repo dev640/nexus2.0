@@ -9,6 +9,7 @@ import com.nexus.backend.exception.ResourceNotFoundException;
 import com.nexus.backend.exception.ValidationException;
 import com.nexus.backend.repository.MessageRepository;
 import com.nexus.backend.repository.UserRepository;
+import com.nexus.backend.tenant.CurrentTenant;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,17 +30,23 @@ public class MessageService {
 
     private final MessageRepository messageRepository;
     private final UserRepository userRepository;
+    private final CurrentTenant currentTenant;
 
-    public MessageService(MessageRepository messageRepository, UserRepository userRepository) {
+    public MessageService(MessageRepository messageRepository, UserRepository userRepository,
+                          CurrentTenant currentTenant) {
         this.messageRepository = messageRepository;
         this.userRepository = userRepository;
+        this.currentTenant = currentTenant;
     }
 
-    /** Writes a message from the signed-in user to the given recipient. */
+    /** Writes a message from the signed-in user to a colleague in the same company. */
     @Transactional
     public MessageResponse send(MessageRequest request) {
         User sender = currentUser();
-        User recipient = userRepository.findById(request.recipientId())
+        // Scoped to the caller's company: mail is correspondence between
+        // colleagues, and an address book that spans companies would let anyone
+        // write to, and probe the ids of, people in other workspaces.
+        User recipient = userRepository.findByIdAndCompanyId(request.recipientId(), currentTenant.require())
             .orElseThrow(() -> new ResourceNotFoundException("User", "id", request.recipientId()));
 
         // A message to your own inbox is a mis-click, not correspondence: there is
@@ -56,7 +63,7 @@ public class MessageService {
     }
 
     /**
-     * Writes one letter to everyone in the workspace except the sender.
+     * Writes one letter to everyone in the sender's company except the sender.
      *
      * Each recipient gets their own row, because the copy each of them reads and
      * deletes is theirs alone. The sender, however, wrote one letter, so only the
@@ -64,12 +71,21 @@ public class MessageService {
      * with the same per-side flag a manual delete uses, rather than inventing a
      * second kind of row. The returned message is the copy the sender keeps.
      *
-     * @throws ValidationException when the workspace has nobody else in it
+     * <p>The audience is the sender's own company, not the whole table. V19
+     * pairs every message with the company of both its sender and its recipient,
+     * so addressing one company's letter to another company's people would be
+     * rejected by the database — and would be wrong even if it were not.
+     *
+     * @throws ValidationException when the company has nobody else in it
      */
     @Transactional
     public MessageResponse broadcast(MessageBroadcastRequest request) {
         User sender = currentUser();
-        List<User> recipients = userRepository.findByIdNotOrderByIdAsc(sender.getId());
+        Long companyId = sender.getCompanyId();
+        if (companyId == null) {
+            throw new ValidationException("There is nobody else in the workspace to write to");
+        }
+        List<User> recipients = userRepository.findByIdNotAndCompanyIdOrderByIdAsc(sender.getId(), companyId);
         if (recipients.isEmpty()) {
             throw new ValidationException("There is nobody else in the workspace to write to");
         }

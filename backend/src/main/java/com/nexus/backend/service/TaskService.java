@@ -19,6 +19,7 @@ import com.nexus.backend.repository.UserRepository;
 import com.nexus.backend.security.RolePolicy;
 import com.nexus.backend.service.activity.ActivityEvents;
 import com.nexus.backend.service.knowledge.KnowledgeEvents;
+import com.nexus.backend.tenant.CurrentTenant;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
@@ -36,6 +37,7 @@ public class TaskService {
     private final ProjectRepository projectRepository;
     private final SprintRepository sprintRepository;
     private final UserRepository userRepository;
+    private final CurrentTenant currentTenant;
     private final ApplicationEventPublisher knowledgePublisher;
 
     @Autowired
@@ -44,7 +46,11 @@ public class TaskService {
 
     @Transactional
     public TaskResponse create(TaskRequest request) {
-        Project project = projectRepository.findById(request.projectId())
+        Long companyId = currentTenant.require();
+        // Every parent below is resolved inside the caller's company. A task
+        // belongs to a project, so a project id from another company would both
+        // leak their work into this board and write ours onto theirs.
+        Project project = projectRepository.findByIdAndCompanyId(request.projectId(), companyId)
             .orElseThrow(() -> new ResourceNotFoundException("Project", "id", request.projectId()));
 
         Task task = new Task();
@@ -53,7 +59,7 @@ public class TaskService {
         task.setProject(project);
 
         if (request.sprintId() != null) {
-            Sprint sprint = sprintRepository.findById(request.sprintId())
+            Sprint sprint = sprintRepository.findByIdAndCompanyId(request.sprintId(), companyId)
                 .orElseThrow(() -> new ResourceNotFoundException("Sprint", "id", request.sprintId()));
             requireSameProject(project, sprint);
             task.setSprint(sprint);
@@ -67,7 +73,7 @@ public class TaskService {
             // Newly giving this task an owner is an assignment, so it needs
             // management rights.
             RolePolicy.requireWorkspaceManageRights();
-            User assignee = userRepository.findById(request.assigneeId())
+            User assignee = userRepository.findByIdAndCompanyId(request.assigneeId(), companyId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", request.assigneeId()));
             task.setAssignee(assignee);
         }
@@ -95,21 +101,21 @@ public class TaskService {
 
     @Transactional(readOnly = true)
     public TaskResponse findById(Long id) {
-        Task task = taskRepository.findById(id)
+        Task task = taskRepository.findByIdAndCompanyId(id, currentTenant.require())
             .orElseThrow(() -> new ResourceNotFoundException("Task", "id", id));
         return mapToResponse(task);
     }
 
     @Transactional(readOnly = true)
     public List<TaskResponse> findAll() {
-        return taskRepository.findAll().stream()
+        return taskRepository.findByCompanyId(currentTenant.require()).stream()
             .map(this::mapToResponse)
             .toList();
     }
 
     @Transactional(readOnly = true)
     public List<TaskResponse> findByProjectId(Long projectId) {
-        Project project = projectRepository.findById(projectId)
+        Project project = projectRepository.findByIdAndCompanyId(projectId, currentTenant.require())
             .orElseThrow(() -> new ResourceNotFoundException("Project", "id", projectId));
         return taskRepository.findByProject(project).stream()
             .map(this::mapToResponse)
@@ -118,7 +124,7 @@ public class TaskService {
 
     @Transactional(readOnly = true)
     public List<TaskResponse> findBySprintId(Long sprintId) {
-        Sprint sprint = sprintRepository.findById(sprintId)
+        Sprint sprint = sprintRepository.findByIdAndCompanyId(sprintId, currentTenant.require())
             .orElseThrow(() -> new ResourceNotFoundException("Sprint", "id", sprintId));
         return taskRepository.findBySprint(sprint).stream()
             .map(this::mapToResponse)
@@ -127,7 +133,7 @@ public class TaskService {
 
     @Transactional
     public TaskResponse updateStatus(Long id, TaskStatus status) {
-        Task task = taskRepository.findById(id)
+        Task task = taskRepository.findByIdAndCompanyId(id, currentTenant.require())
             .orElseThrow(() -> new ResourceNotFoundException("Task", "id", id));
         boolean moved = task.getStatus() != status;
         task.setStatus(status);
@@ -146,13 +152,14 @@ public class TaskService {
 
     @Transactional
     public TaskResponse update(Long id, TaskRequest request) {
-        Task task = taskRepository.findById(id)
+        Long companyId = currentTenant.require();
+        Task task = taskRepository.findByIdAndCompanyId(id, companyId)
             .orElseThrow(() -> new ResourceNotFoundException("Task", "id", id));
         TaskStatus previousStatus = task.getStatus();
 
         // A task can be moved between projects, so honour projectId rather than
         // silently keeping the old one and ignoring part of the request body.
-        Project project = projectRepository.findById(request.projectId())
+        Project project = projectRepository.findByIdAndCompanyId(request.projectId(), companyId)
             .orElseThrow(() -> new ResourceNotFoundException("Project", "id", request.projectId()));
         task.setProject(project);
 
@@ -174,7 +181,7 @@ public class TaskService {
         // Notify on a newly added assignee (not on reassignment to the same person)
         User previousAssignee = task.getAssignee();
         if (request.assigneeId() != null) {
-            User assignee = userRepository.findById(request.assigneeId())
+            User assignee = userRepository.findByIdAndCompanyId(request.assigneeId(), companyId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", request.assigneeId()));
             if (!assignee.equals(previousAssignee)) {
                 // The check sits inside the "changed" branch on purpose: a
@@ -194,7 +201,7 @@ public class TaskService {
         }
 
         if (request.sprintId() != null) {
-            Sprint sprint = sprintRepository.findById(request.sprintId())
+            Sprint sprint = sprintRepository.findByIdAndCompanyId(request.sprintId(), companyId)
                 .orElseThrow(() -> new ResourceNotFoundException("Sprint", "id", request.sprintId()));
             // A task and its sprint must live in the same project, otherwise the
             // task silently disappears from that project's backlog and velocity.
@@ -224,7 +231,7 @@ public class TaskService {
 
     @Transactional
     public void delete(Long id) {
-        if (!taskRepository.existsById(id)) {
+        if (!taskRepository.existsByIdAndCompanyId(id, currentTenant.require())) {
             throw new ResourceNotFoundException("Task", "id", id);
         }
         taskRepository.deleteById(id);
@@ -249,7 +256,11 @@ public class TaskService {
                 assignee.getEmail(),
                 assignee.getRole(),
                 assignee.getSupabaseId() != null ? assignee.getSupabaseId().toString() : null,
-                assignee.getEmployeeCode()
+                assignee.getEmployeeCode(),
+                // Reported as it is rather than defaulted to false: an untrue value
+                // here would be the field silently disagreeing with the account it
+                // describes, which is worse than a colleague seeing it.
+                assignee.isMustChangePassword()
             );
         }
 

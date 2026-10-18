@@ -5,8 +5,10 @@ import com.nexus.backend.domain.task.Task;
 import com.nexus.backend.domain.user.User;
 import com.nexus.backend.dto.NotificationResponse;
 import com.nexus.backend.exception.ResourceNotFoundException;
+import com.nexus.backend.exception.ValidationException;
 import com.nexus.backend.repository.NotificationRepository;
 import com.nexus.backend.repository.UserRepository;
+import com.nexus.backend.service.push.PushSubscriptionService;
 import com.nexus.backend.service.push.WebPushSender;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -31,17 +33,20 @@ public class NotificationService {
     private final UserRepository userRepository;
     private final ChatSocketFacade socketFacade;
     private final WebPushSender webPushSender;
+    private final PushSubscriptionService pushSubscriptionService;
 
     public NotificationService(
         NotificationRepository notificationRepository,
         UserRepository userRepository,
         ChatSocketFacade socketFacade,
-        WebPushSender webPushSender
+        WebPushSender webPushSender,
+        PushSubscriptionService pushSubscriptionService
     ) {
         this.notificationRepository = notificationRepository;
         this.userRepository = userRepository;
         this.socketFacade = socketFacade;
         this.webPushSender = webPushSender;
+        this.pushSubscriptionService = pushSubscriptionService;
     }
 
     /**
@@ -71,8 +76,10 @@ public class NotificationService {
             Notification saved = notificationRepository.save(n);
             socketFacade.pushNotification(recipient.getId(), mapToResponse(saved));
             if (!connected.contains(recipient.getId())) {
-                webPushSender.sendToUserInBackground(recipient.getId(), pushPayload(saved));
+                webPushSender.sendToUserInBackground(
+                    recipient.getId(), recipient.getCompanyId(), pushPayload(saved));
             }
+            saved.setCompanyId(recipient.getCompanyId());
         }
     }
 
@@ -100,8 +107,6 @@ public class NotificationService {
         String actor = currentUserEmail();
         if (actor != null && actor.equals(assignee.getEmail())) return; // no self-notifications
 
-        // A task that was never persisted has no page to open, so the alert is
-        // text-only rather than pointing at "/board?task=null".
         String link = task.getId() != null ? "/board?task=" + task.getId() : null;
         notifyUsers(List.of(assignee), Notification.Category.TASKS,
             "You were assigned to \"" + task.getTitle() + "\"", link);
@@ -149,6 +154,42 @@ public class NotificationService {
             .toList();
         unread.forEach(n -> n.setRead(true));
         notificationRepository.saveAll(unread);
+    }
+
+    /**
+     * Re-stamps the company on every notification row that already belongs to this
+     * account, so a change of the account's company does not leave the inbox
+     * answering for the previous tenant.
+     */
+    @Transactional
+    public void reStampCompanyOnNotifications() {
+        User me = currentUser();
+        Long companyId = me.getCompanyId();
+        if (companyId == null) {
+            throw new ValidationException(
+                "There is nobody else in the workspace to write to");
+        }
+        List<Notification> mine = notificationRepository.findByRecipientOrderByCreatedAtDesc(me);
+        for (Notification n : mine) {
+            n.setCompanyId(companyId);
+        }
+        notificationRepository.saveAll(mine);
+    }
+
+    /**
+     * Re-stamps the company on every push subscription that already belongs to this
+     * account, so a change of the account's company does not leave the device list
+     * answering for the previous tenant.
+     */
+    @Transactional
+    public void reStampCompanyOnPushDevices() {
+        User me = currentUser();
+        Long companyId = me.getCompanyId();
+        if (companyId == null) {
+            throw new ValidationException(
+                "There is nobody else in the workspace to write to");
+        }
+        pushSubscriptionService.restampCompanyOnDevices(me);
     }
 
     private User currentUser() {

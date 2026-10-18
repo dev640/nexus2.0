@@ -11,6 +11,7 @@ import com.nexus.backend.repository.ProjectRepository;
 import com.nexus.backend.repository.WikiPageRepository;
 import com.nexus.backend.service.activity.ActivityEvents;
 import com.nexus.backend.service.knowledge.KnowledgeEvents;
+import com.nexus.backend.tenant.CurrentTenant;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -23,28 +24,32 @@ public class WikiPageService {
 
     private final WikiPageRepository wikiPageRepository;
     private final ProjectRepository projectRepository;
+    private final CurrentTenant currentTenant;
     private final ApplicationEventPublisher knowledgePublisher;
 
     public WikiPageService(
             WikiPageRepository wikiPageRepository,
             ProjectRepository projectRepository,
+            CurrentTenant currentTenant,
             ApplicationEventPublisher knowledgePublisher) {
         this.wikiPageRepository = wikiPageRepository;
         this.projectRepository = projectRepository;
+        this.currentTenant = currentTenant;
         this.knowledgePublisher = knowledgePublisher;
     }
 
     @Transactional(readOnly = true)
     public List<WikiPageResponse> findAll(String query) {
+        Long companyId = currentTenant.require();
         List<WikiPage> pages = (query == null || query.isBlank())
-            ? wikiPageRepository.findAll()
-            : wikiPageRepository.findByTitleContainingIgnoreCaseOrContentContainingIgnoreCase(query, query);
+            ? wikiPageRepository.findByCompanyId(companyId)
+            : wikiPageRepository.searchInCompany(companyId, query);
         return pages.stream().map(this::mapToResponse).toList();
     }
 
     @Transactional(readOnly = true)
     public WikiPageResponse findById(Long id) {
-        WikiPage page = wikiPageRepository.findById(id)
+        WikiPage page = wikiPageRepository.findByIdAndCompanyId(id, currentTenant.require())
             .orElseThrow(() -> new ResourceNotFoundException("Wiki page", "id", id));
         return mapToResponse(page);
     }
@@ -56,7 +61,8 @@ public class WikiPageService {
         page.setContent(request.content());
         page.setAuthor(currentUserEmail());
         if (request.projectId() != null) {
-            Project project = projectRepository.findById(request.projectId())
+            Project project = projectRepository
+                .findByIdAndCompanyId(request.projectId(), currentTenant.require())
                 .orElseThrow(() -> new ResourceNotFoundException("Project", "id", request.projectId()));
             page.setProject(project);
         }
@@ -70,12 +76,13 @@ public class WikiPageService {
 
     @Transactional
     public WikiPageResponse update(Long id, WikiPageRequest request) {
-        WikiPage page = wikiPageRepository.findById(id)
+        Long companyId = currentTenant.require();
+        WikiPage page = wikiPageRepository.findByIdAndCompanyId(id, companyId)
             .orElseThrow(() -> new ResourceNotFoundException("Wiki page", "id", id));
         page.setTitle(request.title());
         page.setContent(request.content());
         if (request.projectId() != null) {
-            Project project = projectRepository.findById(request.projectId())
+            Project project = projectRepository.findByIdAndCompanyId(request.projectId(), companyId)
                 .orElseThrow(() -> new ResourceNotFoundException("Project", "id", request.projectId()));
             page.setProject(project);
         } else {
@@ -91,10 +98,9 @@ public class WikiPageService {
 
     @Transactional
     public void delete(Long id) {
-        if (!wikiPageRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Wiki page", "id", id);
-        }
-        wikiPageRepository.deleteById(id);
+        WikiPage page = wikiPageRepository.findByIdAndCompanyId(id, currentTenant.require())
+            .orElseThrow(() -> new ResourceNotFoundException("Wiki page", "id", id));
+        wikiPageRepository.delete(page);
         KnowledgeEvents.removed(knowledgePublisher, KnowledgeSourceType.WIKI_PAGE, id);
     }
 

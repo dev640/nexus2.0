@@ -20,6 +20,7 @@ import com.nexus.backend.repository.ChatChannelRepository;
 import com.nexus.backend.repository.ChatMessageRepository;
 import com.nexus.backend.repository.NotificationRepository;
 import com.nexus.backend.repository.UserRepository;
+import com.nexus.backend.tenant.CurrentTenant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
@@ -40,6 +41,11 @@ import java.util.Set;
  * Slack-style chat: public and private channels, direct messages, paging,
  * reactions, unread counts, mentions and search. All access is membership
  * checked — a user never sees a channel they do not belong to.
+ *
+ * <p>Channels are additionally company-scoped: membership says what this person
+ * may read, the company says which workspace's chat this is. Without the second
+ * rule a channel id from another company would be joinable, since the only
+ * check on joining was that the channel is public.
  */
 @Service
 public class ChatService {
@@ -58,6 +64,7 @@ public class ChatService {
     private final ChatMessageRepository messageRepository;
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
+    private final CurrentTenant currentTenant;
     private final ChatBroadcaster broadcaster;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -67,6 +74,7 @@ public class ChatService {
         ChatMessageRepository messageRepository,
         NotificationRepository notificationRepository,
         UserRepository userRepository,
+        CurrentTenant currentTenant,
         ChatBroadcaster broadcaster
     ) {
         this.channelRepository = channelRepository;
@@ -74,6 +82,7 @@ public class ChatService {
         this.messageRepository = messageRepository;
         this.notificationRepository = notificationRepository;
         this.userRepository = userRepository;
+        this.currentTenant = currentTenant;
         this.broadcaster = broadcaster;
     }
 
@@ -98,7 +107,8 @@ public class ChatService {
         for (ChatChannelMember m : memberRepository.findWithChannelByUser(me)) {
             mine.add(m.getChannel().getId());
         }
-        return channelRepository.findByTypeOrderByIdAsc(ChatChannel.Type.PUBLIC).stream()
+        return channelRepository.findByTypeAndCompanyIdOrderByIdAsc(
+                ChatChannel.Type.PUBLIC, currentTenant.require()).stream()
             .filter(c -> !mine.contains(c.getId()))
             .map(c -> ChatChannelResponse.of(c, false, null, null))
             .toList();
@@ -119,7 +129,8 @@ public class ChatService {
         ChatChannel.Type type = "PRIVATE".equalsIgnoreCase(request.type())
             ? ChatChannel.Type.PRIVATE : ChatChannel.Type.PUBLIC;
 
-        if (channelRepository.findByNameAndType(normalized, type).isPresent()) {
+        if (channelRepository.findByNameAndTypeAndCompanyId(
+                normalized, type, currentTenant.require()).isPresent()) {
             throw new ValidationException("A " + type.name().toLowerCase() + " channel #" + normalized + " already exists");
         }
 
@@ -144,7 +155,7 @@ public class ChatService {
         if (partnerId == null || partnerId.equals(me.getId())) {
             throw new ValidationException("Choose another person to message");
         }
-        User partner = userRepository.findById(partnerId)
+        User partner = userRepository.findByIdAndCompanyId(partnerId, currentTenant.require())
             .orElseThrow(() -> new ResourceNotFoundException("User", "id", partnerId));
 
         ChatChannel existing = findDmWith(me, partnerId);
@@ -166,8 +177,7 @@ public class ChatService {
     @Transactional
     public ChatChannelResponse joinChannel(Long channelId) {
         User me = currentUser();
-        ChatChannel channel = channelRepository.findById(channelId)
-            .orElseThrow(() -> new ResourceNotFoundException("Channel", "id", channelId));
+        ChatChannel channel = requireChannel(channelId);
         if (channel.getType() != ChatChannel.Type.PUBLIC) {
             throw new ValidationException("Only public channels can be joined");
         }
@@ -419,7 +429,8 @@ public void deleteChannel(Long channelId) {
     private void ensureSeedChannels(User joiner) {
         for (String name : SEED_CHANNELS) {
             boolean[] createdNow = { false };
-            ChatChannel channel = channelRepository.findByNameAndType(name, ChatChannel.Type.PUBLIC)
+            ChatChannel channel = channelRepository
+                .findByNameAndTypeAndCompanyId(name, ChatChannel.Type.PUBLIC, currentTenant.require())
                 .orElseGet(() -> {
                     createdNow[0] = true;
                     ChatChannel c = new ChatChannel();
@@ -459,7 +470,7 @@ public void deleteChannel(Long channelId) {
     }
 
     private void notifyMentions(ChatChannel channel, User author, ChatMessage message) {
-        Set<Long> mentioned = mentionedUserIds(message.getBody());
+        Set<Long> mentioned = mentionedUserIds(message.getBody(), author.getCompanyId());
         if (mentioned.isEmpty()) return;
         List<ChatChannelMember> members = memberRepository.findByChannel(channel);
         for (ChatChannelMember member : members) {
@@ -476,16 +487,23 @@ public void deleteChannel(Long channelId) {
         }
     }
 
-    /** Users whose @username appears as a whole word in the body. */
-    private Set<Long> mentionedUserIds(String body) {
+    /**
+     * Users whose @username appears as a whole word in the body.
+     *
+     * <p>Resolved within the author's company: an @name can only ever reach
+     * people in the same company as the person who typed it, and scanning the
+     * whole account table to find them would let a string in one company's chat
+     * match a name in another's.
+     */
+    private Set<Long> mentionedUserIds(String body, Long companyId) {
         Set<Long> result = new LinkedHashSet<>();
         String[] tokens = body.toLowerCase().split("[^a-z0-9._@-]+");
         Set<String> names = new LinkedHashSet<>();
         for (String token : tokens) {
             if (token.startsWith("@") && token.length() > 1) names.add(token.substring(1));
         }
-        if (names.isEmpty()) return result;
-        for (User user : userRepository.findAll()) {
+        if (names.isEmpty() || companyId == null) return result;
+        for (User user : userRepository.findByCompanyIdOrderByIdAsc(companyId)) {
             String username = user.getEmail().contains("@")
                 ? user.getEmail().substring(0, user.getEmail().indexOf('@')).toLowerCase()
                 : null;
@@ -545,7 +563,12 @@ public void deleteChannel(Long channelId) {
     }
 
     private ChatChannel requireChannel(Long channelId) {
-        return channelRepository.findById(channelId)
+        // Scoped to the caller's company: a channel id is a number, and a number
+        // from another workspace must be indistinguishable from one that does not
+        // exist. Every caller below also requires membership, which is the
+        // stronger check — this one simply stops the id working across companies
+        // at all, including the join path that would otherwise create it.
+        return channelRepository.findByIdAndCompanyId(channelId, currentTenant.require())
             .orElseThrow(() -> new ResourceNotFoundException("Channel", "id", channelId));
     }
 

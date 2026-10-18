@@ -51,4 +51,21 @@ public class NotificationController {
         notificationService.markAllRead();
         return ResponseEntity.noContent().build();
     }
+
+    /**
+     * Re-stamps the company on every notification row and push subscription that
+     * already belongs to this account. Used after an account's company changes so
+     * both the inbox and the device list continue to answer for the current company
+     * rather than the one they were filed under.
+     *
+     * <p>Read-only on the controller, write inside the service: the controller does
+     * not need the company id, and the service's tenant context is not relevant here
+     * — this is a per-account cleanup, not a per-tenant query.
+     */
+    @PostMapping("/own-company")
+    public ResponseEntity<Void> reStampCompany() {
+        notificationService.reStampCompanyOnNotifications();
+        notificationService.reStampCompanyOnPushDevices();
+        return ResponseEntity.noContent().build();
+    }
 }

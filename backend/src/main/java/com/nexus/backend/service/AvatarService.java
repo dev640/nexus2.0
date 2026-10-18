@@ -4,6 +4,7 @@ import com.nexus.backend.domain.user.User;
 import com.nexus.backend.domain.user.UserAvatar;
 import com.nexus.backend.exception.ValidationException;
 import com.nexus.backend.repository.UserAvatarRepository;
+import com.nexus.backend.tenant.CurrentTenant;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,6 +39,7 @@ public class AvatarService {
     private static final String JPEG = "image/jpeg";
 
     private final UserAvatarRepository avatarRepository;
+    private final CurrentTenant currentTenant;
 
     /**
      * Stores {@code file} as {@code user}'s avatar, downscaling and centre-cropping
@@ -84,16 +86,21 @@ public class AvatarService {
     /** Drops the avatar, if any. */
     @Transactional
     public void remove(User user) {
-        avatarRepository.deleteById(user.getId());
+        avatarRepository.findByUserIdAndCompanyId(user.getId(), currentTenant.require())
+            .ifPresent(avatarRepository::delete);
     }
 
     /**
      * The user's stored avatar, or empty when they have none. Empty is not an
      * error: the caller decides whether a missing avatar is a 404.
+     *
+     * <p>Scoped to the caller's company: an avatar is keyed by user id, so an id
+     * from another company would otherwise be as readable as any other. A miss
+     * and a foreign id are the same answer, which keeps ids unprobeable.
      */
     @Transactional(readOnly = true)
     public Optional<UserAvatar> read(Long userId) {
-        return avatarRepository.findByUserId(userId);
+        return avatarRepository.findByUserIdAndCompanyId(userId, currentTenant.require());
     }
 
     /**

@@ -11,6 +11,7 @@ import com.nexus.backend.exception.ResourceNotFoundException;
 import com.nexus.backend.repository.ProjectRepository;
 import com.nexus.backend.service.activity.ActivityEvents;
 import com.nexus.backend.service.knowledge.KnowledgeEvents;
+import com.nexus.backend.tenant.CurrentTenant;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -18,11 +19,21 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
+/**
+ * Projects of the caller's company.
+ *
+ * <p>Every read and write passes through a repository method that carries the
+ * company, so a project id from another company is answered the same way as one
+ * that does not exist. That is deliberate: a 404 rather than a 403 keeps ids
+ * unprobeable, and there is nothing the caller could do with the knowledge that
+ * the row exists elsewhere.
+ */
 @Service
 @RequiredArgsConstructor
 public class ProjectService {
 
     private final ProjectRepository projectRepository;
+    private final CurrentTenant currentTenant;
     private final ApplicationEventPublisher knowledgePublisher;
 
     @Transactional
@@ -35,6 +46,9 @@ public class ProjectService {
         project.setProgress(0);
         project.setSprintNumber(0);
         project.setMemberCount(1);
+        // The company is stamped onto new rows by TenantStampListener from the
+        // tenant the request filter established; a row with neither is refused
+        // rather than inserted as somebody's by accident.
 
         Project savedProject = projectRepository.save(project);
         KnowledgeEvents.changed(knowledgePublisher, KnowledgeSourceType.PROJECT, savedProject.getId());
@@ -45,20 +59,20 @@ public class ProjectService {
     }
 
     public ProjectResponse findById(Long id) {
-        Project project = projectRepository.findById(id)
+        Project project = projectRepository.findByIdAndCompanyId(id, currentTenant.require())
             .orElseThrow(() -> new ResourceNotFoundException("Project", "id", id));
         return mapToResponse(project);
     }
 
     public List<ProjectResponse> findAll() {
-        return projectRepository.findAll().stream()
+        return projectRepository.findByCompanyId(currentTenant.require()).stream()
             .map(this::mapToResponse)
             .toList();
     }
 
     @Transactional
     public ProjectResponse update(Long id, ProjectRequest request) {
-        Project project = projectRepository.findById(id)
+        Project project = projectRepository.findByIdAndCompanyId(id, currentTenant.require())
             .orElseThrow(() -> new ResourceNotFoundException("Project", "id", id));
 
         project.setName(request.name());
@@ -77,10 +91,9 @@ public class ProjectService {
 
     @Transactional
     public void delete(Long id) {
-        if (!projectRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Project", "id", id);
-        }
-        projectRepository.deleteById(id);
+        Project project = projectRepository.findByIdAndCompanyId(id, currentTenant.require())
+            .orElseThrow(() -> new ResourceNotFoundException("Project", "id", id));
+        projectRepository.delete(project);
         KnowledgeEvents.removed(knowledgePublisher, KnowledgeSourceType.PROJECT, id);
     }
 
