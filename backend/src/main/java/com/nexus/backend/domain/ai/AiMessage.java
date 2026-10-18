@@ -1,7 +1,10 @@
 package com.nexus.backend.domain.ai;
 
+import com.nexus.backend.tenant.TenantAware;
+import com.nexus.backend.tenant.TenantStampListener;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
@@ -24,7 +27,8 @@ import java.util.UUID;
  */
 @Entity
 @Table(name = "ai_messages")
-public class AiMessage {
+@EntityListeners(TenantStampListener.class)
+public class AiMessage implements TenantAware {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -52,6 +56,14 @@ public class AiMessage {
     /** Model that produced the answer, when applicable. */
     @Column(length = 50)
     private String model;
+
+    /**
+     * Owning company, stamped on insert (V18/V19). V19 pairs it with the
+     * conversation, so a message can never be appended to another company's
+     * transcript.
+     */
+    @Column(name = "company_id", nullable = false, updatable = false)
+    private Long companyId;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
@@ -84,6 +96,12 @@ public class AiMessage {
 
     public String getModel() { return model; }
     public void setModel(String model) { this.model = model; }
+
+    @Override
+    public Long getCompanyId() { return companyId; }
+
+    @Override
+    public void setCompanyId(Long companyId) { this.companyId = companyId; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

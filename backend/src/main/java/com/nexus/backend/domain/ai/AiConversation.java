@@ -1,8 +1,11 @@
 package com.nexus.backend.domain.ai;
 
 import com.nexus.backend.domain.user.User;
+import com.nexus.backend.tenant.TenantAware;
+import com.nexus.backend.tenant.TenantStampListener;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -23,7 +26,8 @@ import java.util.UUID;
  */
 @Entity
 @Table(name = "ai_conversations")
-public class AiConversation {
+@EntityListeners(TenantStampListener.class)
+public class AiConversation implements TenantAware {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -35,6 +39,10 @@ public class AiConversation {
 
     @Column(nullable = false, length = 200)
     private String title = "New conversation";
+
+    /** Owning company, stamped on insert (V18/V19). Never reassigned. */
+    @Column(name = "company_id", nullable = false, updatable = false)
+    private Long companyId;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
@@ -55,6 +63,12 @@ public class AiConversation {
 
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
+
+    @Override
+    public Long getCompanyId() { return companyId; }
+
+    @Override
+    public void setCompanyId(Long companyId) { this.companyId = companyId; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

@@ -1,8 +1,11 @@
 package com.nexus.backend.domain.chat;
 
 import com.nexus.backend.domain.user.User;
+import com.nexus.backend.tenant.TenantAware;
+import com.nexus.backend.tenant.TenantStampListener;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -19,7 +22,8 @@ import java.time.LocalDateTime;
  */
 @Entity
 @Table(name = "chat_channel_members")
-public class ChatChannelMember {
+@EntityListeners(TenantStampListener.class)
+public class ChatChannelMember implements TenantAware {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -40,6 +44,13 @@ public class ChatChannelMember {
     @Column(name = "last_read_message_id")
     private Long lastReadMessageId;
 
+    /**
+     * Owning company, stamped on insert (V18/V19). V19 pairs it with both the
+     * channel and the user, so a membership can never straddle two companies.
+     */
+    @Column(name = "company_id", nullable = false, updatable = false)
+    private Long companyId;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
@@ -57,6 +68,12 @@ public class ChatChannelMember {
 
     public Long getLastReadMessageId() { return lastReadMessageId; }
     public void setLastReadMessageId(Long lastReadMessageId) { this.lastReadMessageId = lastReadMessageId; }
+
+    @Override
+    public Long getCompanyId() { return companyId; }
+
+    @Override
+    public void setCompanyId(Long companyId) { this.companyId = companyId; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

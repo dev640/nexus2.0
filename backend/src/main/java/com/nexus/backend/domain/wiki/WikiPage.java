@@ -1,8 +1,11 @@
 package com.nexus.backend.domain.wiki;
 
 import com.nexus.backend.domain.project.Project;
+import com.nexus.backend.tenant.TenantAware;
+import com.nexus.backend.tenant.TenantStampListener;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -18,7 +21,8 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "wiki_pages")
-public class WikiPage {
+@EntityListeners(TenantStampListener.class)
+public class WikiPage implements TenantAware {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -38,6 +42,10 @@ public class WikiPage {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "project_id")
     private Project project;
+
+    /** Owning company, stamped on insert (V18/V19). Never reassigned. */
+    @Column(name = "company_id", nullable = false, updatable = false)
+    private Long companyId;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
@@ -64,6 +72,12 @@ public class WikiPage {
 
     public Project getProject() { return project; }
     public void setProject(Project project) { this.project = project; }
+
+    @Override
+    public Long getCompanyId() { return companyId; }
+
+    @Override
+    public void setCompanyId(Long companyId) { this.companyId = companyId; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

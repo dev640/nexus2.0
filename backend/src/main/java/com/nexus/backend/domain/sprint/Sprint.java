@@ -3,12 +3,15 @@ package com.nexus.backend.domain.sprint;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import com.nexus.backend.domain.project.Project;
+import com.nexus.backend.tenant.TenantAware;
+import com.nexus.backend.tenant.TenantStampListener;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "sprints")
-public class Sprint {
+@EntityListeners(TenantStampListener.class)
+public class Sprint implements TenantAware {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -38,6 +41,10 @@ public class Sprint {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
     private SprintStatus status = SprintStatus.PLANNED;
+
+    /** Owning company, stamped on insert (V18/V19). Never reassigned. */
+    @Column(name = "company_id", nullable = false, updatable = false)
+    private Long companyId;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
@@ -85,6 +92,12 @@ public class Sprint {
 
     public SprintStatus getStatus() { return status; }
     public void setStatus(SprintStatus status) { this.status = status; }
+
+    @Override
+    public Long getCompanyId() { return companyId; }
+
+    @Override
+    public void setCompanyId(Long companyId) { this.companyId = companyId; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

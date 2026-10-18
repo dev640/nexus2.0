@@ -1,7 +1,10 @@
 package com.nexus.backend.domain.whiteboard;
 
+import com.nexus.backend.tenant.TenantAware;
+import com.nexus.backend.tenant.TenantStampListener;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -12,7 +15,8 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "whiteboard_notes")
-public class WhiteboardNote {
+@EntityListeners(TenantStampListener.class)
+public class WhiteboardNote implements TenantAware {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -35,6 +39,14 @@ public class WhiteboardNote {
 
     @Column(length = 100)
     private String author;
+
+    /**
+     * Owning company, stamped on insert (V18/V19). The board name is only
+     * unique within a company, so two companies may each have a "default"
+     * board without seeing each other's notes.
+     */
+    @Column(name = "company_id", nullable = false, updatable = false)
+    private Long companyId;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
@@ -67,6 +79,12 @@ public class WhiteboardNote {
 
     public String getAuthor() { return author; }
     public void setAuthor(String author) { this.author = author; }
+
+    @Override
+    public Long getCompanyId() { return companyId; }
+
+    @Override
+    public void setCompanyId(Long companyId) { this.companyId = companyId; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

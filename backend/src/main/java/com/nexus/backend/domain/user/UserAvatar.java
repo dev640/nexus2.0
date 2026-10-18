@@ -1,7 +1,10 @@
 package com.nexus.backend.domain.user;
 
+import com.nexus.backend.tenant.TenantAware;
+import com.nexus.backend.tenant.TenantStampListener;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.Id;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
@@ -22,7 +25,8 @@ import java.time.LocalDateTime;
  */
 @Entity
 @Table(name = "user_avatars")
-public class UserAvatar {
+@EntityListeners(TenantStampListener.class)
+public class UserAvatar implements TenantAware {
 
     @Id
     @Column(name = "user_id")
@@ -39,6 +43,10 @@ public class UserAvatar {
 
     @Column(name = "content_type", nullable = false, length = 50)
     private String contentType;
+
+    /** Owning company, stamped on insert (V18/V19). Never reassigned. */
+    @Column(name = "company_id", nullable = false, updatable = false)
+    private Long companyId;
 
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt = LocalDateTime.now();
@@ -65,6 +73,12 @@ public class UserAvatar {
 
     public String getContentType() { return contentType; }
     public void setContentType(String contentType) { this.contentType = contentType; }
+
+    @Override
+    public Long getCompanyId() { return companyId; }
+
+    @Override
+    public void setCompanyId(Long companyId) { this.companyId = companyId; }
 
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }

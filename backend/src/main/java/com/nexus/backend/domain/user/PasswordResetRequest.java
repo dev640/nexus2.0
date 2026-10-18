@@ -1,7 +1,10 @@
 package com.nexus.backend.domain.user;
 
+import com.nexus.backend.tenant.TenantAware;
+import com.nexus.backend.tenant.TenantStampListener;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
@@ -23,7 +26,8 @@ import java.time.LocalDateTime;
  */
 @Entity
 @Table(name = "password_reset_requests")
-public class PasswordResetRequest {
+@EntityListeners(TenantStampListener.class)
+public class PasswordResetRequest implements TenantAware {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -52,6 +56,15 @@ public class PasswordResetRequest {
     /** Optional context the requester supplied ("locked out", etc). */
     @Column(columnDefinition = "TEXT")
     private String note;
+
+    /**
+     * Owning company, stamped on insert (V18/V19). V19 pairs it with the
+     * requesting user, so one company's admin queue never shows another's
+     * requests. {@code resolved_by} deliberately keeps its single-column
+     * foreign key only, because the resolver may be a global SUPER_ADMIN.
+     */
+    @Column(name = "company_id", nullable = false, updatable = false)
+    private Long companyId;
 
     @PreUpdate
     protected void onUpdate() {
@@ -85,4 +98,10 @@ public class PasswordResetRequest {
 
     public String getNote() { return note; }
     public void setNote(String note) { this.note = note; }
+
+    @Override
+    public Long getCompanyId() { return companyId; }
+
+    @Override
+    public void setCompanyId(Long companyId) { this.companyId = companyId; }
 }

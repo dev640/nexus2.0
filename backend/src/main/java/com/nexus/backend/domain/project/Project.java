@@ -2,13 +2,15 @@ package com.nexus.backend.domain.project;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
-import com.nexus.backend.domain.organization.Organization;
 import com.nexus.backend.domain.workspace.Workspace;
+import com.nexus.backend.tenant.TenantAware;
+import com.nexus.backend.tenant.TenantStampListener;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "projects")
-public class Project {
+@EntityListeners(TenantStampListener.class)
+public class Project implements TenantAware {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -39,12 +41,16 @@ public class Project {
     private Integer memberCount = 0;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "organization_id")
-    private Organization organization;
-
-    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "workspace_id")
     private Workspace workspace;
+
+    /**
+     * Owning company, stamped on insert. Every composite foreign key in V19
+     * pairs this with the referenced id, so a project can only ever sit under a
+     * workspace of its own company.
+     */
+    @Column(name = "company_id", nullable = false, updatable = false)
+    private Long companyId;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
@@ -92,8 +98,11 @@ public class Project {
     public Integer getMemberCount() { return memberCount; }
     public void setMemberCount(Integer memberCount) { this.memberCount = memberCount; }
 
-    public Organization getOrganization() { return organization; }
-    public void setOrganization(Organization organization) { this.organization = organization; }
+    @Override
+    public Long getCompanyId() { return companyId; }
+
+    @Override
+    public void setCompanyId(Long companyId) { this.companyId = companyId; }
 
     public Workspace getWorkspace() { return workspace; }
     public void setWorkspace(Workspace workspace) { this.workspace = workspace; }

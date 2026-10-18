@@ -1,7 +1,10 @@
 package com.nexus.backend.domain.knowledge;
 
+import com.nexus.backend.tenant.TenantAware;
+import com.nexus.backend.tenant.TenantStampListener;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
@@ -23,7 +26,8 @@ import java.time.LocalDateTime;
  */
 @Entity
 @Table(name = "knowledge_chunks")
-public class KnowledgeChunk {
+@EntityListeners(TenantStampListener.class)
+public class KnowledgeChunk implements TenantAware {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -71,6 +75,15 @@ public class KnowledgeChunk {
 
     @Column(name = "embedding_model", length = 50)
     private String embeddingModel;
+
+    /**
+     * Owning company, stamped on insert (V18/V19). The chunk table is a derived
+     * index, so it carries no foreign keys; retrieval filters on this column
+     * plus {@code owner_id} to keep one company's wiki, tasks and messages out
+     * of another's answers.
+     */
+    @Column(name = "company_id", nullable = false, updatable = false)
+    private Long companyId;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
@@ -124,6 +137,12 @@ public class KnowledgeChunk {
 
     public String getEmbeddingModel() { return embeddingModel; }
     public void setEmbeddingModel(String embeddingModel) { this.embeddingModel = embeddingModel; }
+
+    @Override
+    public Long getCompanyId() { return companyId; }
+
+    @Override
+    public void setCompanyId(Long companyId) { this.companyId = companyId; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

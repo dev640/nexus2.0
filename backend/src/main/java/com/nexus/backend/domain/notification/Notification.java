@@ -1,8 +1,11 @@
 package com.nexus.backend.domain.notification;
 
 import com.nexus.backend.domain.user.User;
+import com.nexus.backend.tenant.TenantAware;
+import com.nexus.backend.tenant.TenantStampListener;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
@@ -17,7 +20,8 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "notifications")
-public class Notification {
+@EntityListeners(TenantStampListener.class)
+public class Notification implements TenantAware {
 
     public enum Category {
         MENTIONS, TASKS, PROJECTS, AI, SYSTEM
@@ -49,6 +53,10 @@ public class Notification {
     @Column(nullable = false)
     private boolean read;
 
+    /** Owning company, stamped on insert (V18/V19). Never reassigned. */
+    @Column(name = "company_id", nullable = false, updatable = false)
+    private Long companyId;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
@@ -69,6 +77,12 @@ public class Notification {
 
     public boolean isRead() { return read; }
     public void setRead(boolean read) { this.read = read; }
+
+    @Override
+    public Long getCompanyId() { return companyId; }
+
+    @Override
+    public void setCompanyId(Long companyId) { this.companyId = companyId; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

@@ -1,8 +1,11 @@
 package com.nexus.backend.domain.message;
 
 import com.nexus.backend.domain.user.User;
+import com.nexus.backend.tenant.TenantAware;
+import com.nexus.backend.tenant.TenantStampListener;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -22,7 +25,8 @@ import java.time.LocalDateTime;
  */
 @Entity
 @Table(name = "messages")
-public class Message {
+@EntityListeners(TenantStampListener.class)
+public class Message implements TenantAware {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -64,6 +68,14 @@ public class Message {
     @Column(name = "is_broadcast", nullable = false)
     private boolean broadcast;
 
+    /**
+     * Owning company, stamped on insert (V18/V19). V19 pairs it with both the
+     * sender and the recipient, so mail can only pass between members of the
+     * same company — a broadcast fans out within the company, never across it.
+     */
+    @Column(name = "company_id", nullable = false, updatable = false)
+    private Long companyId;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
@@ -103,6 +115,12 @@ public class Message {
 
     public boolean isBroadcast() { return broadcast; }
     public void setBroadcast(boolean broadcast) { this.broadcast = broadcast; }
+
+    @Override
+    public Long getCompanyId() { return companyId; }
+
+    @Override
+    public void setCompanyId(Long companyId) { this.companyId = companyId; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

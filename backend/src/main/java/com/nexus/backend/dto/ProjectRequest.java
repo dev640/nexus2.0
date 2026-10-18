@@ -12,7 +12,5 @@ public record ProjectRequest(
     @Size(max = 1000, message = "Description cannot exceed 1000 characters")
     String description,
 
-    ProjectStatus status,
-
-    Long organizationId
+    ProjectStatus status
 ) {}

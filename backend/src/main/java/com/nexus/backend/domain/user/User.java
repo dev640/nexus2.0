@@ -1,12 +1,16 @@
 package com.nexus.backend.domain.user;
 
+import com.nexus.backend.domain.company.Company;
+import com.nexus.backend.tenant.TenantAware;
+import com.nexus.backend.tenant.TenantStampListener;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "users")
-public class User {
+@EntityListeners(TenantStampListener.class)
+public class User implements TenantAware {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -18,7 +22,7 @@ public class User {
 
     @Email(message = "Email should be valid")
     @NotBlank(message = "Email is required")
-    @Column(nullable = false, unique = true, length = 255)
+    @Column(nullable = false, length = 255)
     private String email;
 
     /**
@@ -41,11 +45,29 @@ public class User {
     private java.util.UUID supabaseId;
 
     /**
-     * Human-facing employee code (NX-0007). Assigned by the database default on
-     * insert, so callers never invent one and it can never collide.
+     * Human-facing employee code (NX-0007). Unique per company, not globally,
+     * and null only for SUPER_ADMIN — a global role that belongs to no company.
+     * The per-company numbering lives in {@code companies.employee_seq}.
      */
-    @Column(name = "employee_code", nullable = false, unique = true, length = 20)
+    @Column(name = "employee_code", length = 20)
     private String employeeCode;
+
+    /**
+     * The company this account belongs to. Deliberately a relation rather than
+     * a bare id: the account's company is read on nearly every request (to scope
+     * data) and its name is shown in the UI. Null only for SUPER_ADMIN, which is
+     * enforced by {@code chk_users_company_by_role}.
+     *
+     * <p>Not {@code updatable = false}: promoting a user to SUPER_ADMIN (or
+     * demoting one back) has to be able to move the account in and out of a
+     * company.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "company_id")
+    private Company company;
+
+    @Column(name = "must_change_password", nullable = false)
+    private boolean mustChangePassword = false;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
@@ -89,6 +111,39 @@ public class User {
 
     public String getEmployeeCode() { return employeeCode; }
     public void setEmployeeCode(String employeeCode) { this.employeeCode = employeeCode; }
+
+    public Company getCompany() { return company; }
+    public void setCompany(Company company) { this.company = company; }
+
+    /**
+     * The company id, or null for a SUPER_ADMIN. Reading it from the relation
+     * keeps a single source of truth: a duplicate id column could disagree with
+     * the relation, and only one of them would reach the database.
+     */
+    @Override
+    public Long getCompanyId() {
+        return company != null ? company.getId() : null;
+    }
+
+    /**
+     * Points the account at a company by id, or at none when the id is null
+     * (SUPER_ADMIN). Only the id is used for the insert — the referenced row is
+     * assumed to exist, which the foreign key verifies — so a caller with an id
+     * from a token does not have to load the company first.
+     */
+    @Override
+    public void setCompanyId(Long companyId) {
+        if (companyId == null) {
+            this.company = null;
+            return;
+        }
+        Company reference = new Company();
+        reference.setId(companyId);
+        this.company = reference;
+    }
+
+    public boolean isMustChangePassword() { return mustChangePassword; }
+    public void setMustChangePassword(boolean mustChangePassword) { this.mustChangePassword = mustChangePassword; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

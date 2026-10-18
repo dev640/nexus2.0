@@ -2,12 +2,14 @@ package com.nexus.backend.domain.workspace;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
-import com.nexus.backend.domain.organization.Organization;
+import com.nexus.backend.tenant.TenantAware;
+import com.nexus.backend.tenant.TenantStampListener;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "workspaces")
-public class Workspace {
+@EntityListeners(TenantStampListener.class)
+public class Workspace implements TenantAware {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -20,9 +22,13 @@ public class Workspace {
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "organization_id")
-    private Organization organization;
+    /**
+     * Owning company. Stamped from {@link com.nexus.backend.tenant.TenantContext}
+     * on insert; never reassigned afterwards, because moving a workspace would
+     * orphan every project, task and message beneath it.
+     */
+    @Column(name = "company_id", nullable = false, updatable = false)
+    private Long companyId;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
@@ -38,10 +44,9 @@ public class Workspace {
     // Constructors
     public Workspace() {}
 
-    public Workspace(String name, String description, Organization organization) {
+    public Workspace(String name, String description) {
         this.name = name;
         this.description = description;
-        this.organization = organization;
     }
 
     // Getters and Setters
@@ -54,8 +59,11 @@ public class Workspace {
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
 
-    public Organization getOrganization() { return organization; }
-    public void setOrganization(Organization organization) { this.organization = organization; }
+    @Override
+    public Long getCompanyId() { return companyId; }
+
+    @Override
+    public void setCompanyId(Long companyId) { this.companyId = companyId; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

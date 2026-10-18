@@ -1,8 +1,11 @@
 package com.nexus.backend.domain.push;
 
 import com.nexus.backend.domain.user.User;
+import com.nexus.backend.tenant.TenantAware;
+import com.nexus.backend.tenant.TenantStampListener;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -29,7 +32,8 @@ import java.time.LocalDateTime;
  */
 @Entity
 @Table(name = "push_subscriptions")
-public class PushSubscription {
+@EntityListeners(TenantStampListener.class)
+public class PushSubscription implements TenantAware {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -54,6 +58,13 @@ public class PushSubscription {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
+    /**
+     * Owning company, stamped on insert (V18/V19). V19 pairs it with the user,
+     * so a device registration cannot be attached to another company's account.
+     */
+    @Column(name = "company_id", nullable = false, updatable = false)
+    private Long companyId;
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
@@ -71,4 +82,10 @@ public class PushSubscription {
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    @Override
+    public Long getCompanyId() { return companyId; }
+
+    @Override
+    public void setCompanyId(Long companyId) { this.companyId = companyId; }
 }

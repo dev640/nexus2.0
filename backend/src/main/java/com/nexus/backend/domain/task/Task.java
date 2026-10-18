@@ -5,12 +5,15 @@ import jakarta.validation.constraints.*;
 import com.nexus.backend.domain.project.Project;
 import com.nexus.backend.domain.sprint.Sprint;
 import com.nexus.backend.domain.user.User;
+import com.nexus.backend.tenant.TenantAware;
+import com.nexus.backend.tenant.TenantStampListener;
 import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
 @Table(name = "tasks")
-public class Task {
+@EntityListeners(TenantStampListener.class)
+public class Task implements TenantAware {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -63,6 +66,14 @@ public class Task {
      */
     @Column(nullable = false)
     private boolean blocked = false;
+
+    /**
+     * Owning company, stamped on insert (V18/V19). The composite foreign keys
+     * pair it with project, sprint and assignee, so a task can reference work
+     * and people from its own company only.
+     */
+    @Column(name = "company_id", nullable = false, updatable = false)
+    private Long companyId;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
@@ -122,6 +133,12 @@ public class Task {
 
     public boolean isBlocked() { return blocked; }
     public void setBlocked(boolean blocked) { this.blocked = blocked; }
+
+    @Override
+    public Long getCompanyId() { return companyId; }
+
+    @Override
+    public void setCompanyId(Long companyId) { this.companyId = companyId; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
