@@ -14,11 +14,22 @@ public interface KnowledgeChunkRepository extends JpaRepository<KnowledgeChunk, 
     List<KnowledgeChunk> findBySourceTypeAndSourceIdOrderByChunkIndex(
         KnowledgeSourceType sourceType, Long sourceId);
 
+    /**
+     * Drops one source record's chunks within one company.
+     *
+     * <p>Company-scoped even though {@code (source_type, source_id)} already
+     * identifies a single row: the delete is the destructive half of a re-index, and
+     * a where-clause that cannot reach another company's rows is worth more than the
+     * argument that it did not need to be there.
+     */
     @Modifying
     @Query(value = """
-        DELETE FROM knowledge_chunks WHERE source_type = :type AND source_id = :sourceId
+        DELETE FROM knowledge_chunks
+        WHERE source_type = :type AND source_id = :sourceId AND company_id = :companyId
         """, nativeQuery = true)
-    int deleteBySourceTypeAndSourceId(@Param("type") String type, @Param("sourceId") Long sourceId);
+    int deleteBySourceTypeAndSourceIdAndCompanyId(@Param("type") String type,
+                                                  @Param("sourceId") Long sourceId,
+                                                  @Param("companyId") Long companyId);
 
     /**
      * Permission-filtered full-text search over the generated tsvector (GIN
@@ -27,7 +38,8 @@ public interface KnowledgeChunkRepository extends JpaRepository<KnowledgeChunk, 
      */
     @Query(value = """
         SELECT * FROM knowledge_chunks c
-        WHERE (
+        WHERE c.company_id = :companyId
+        AND (
             c.access_scope = 'WORKSPACE'
             OR (c.access_scope = 'PRIVATE' AND c.owner_id = :userId)
             OR (c.access_scope = 'ADMIN' AND :isAdmin = true)
@@ -40,6 +52,7 @@ public interface KnowledgeChunkRepository extends JpaRepository<KnowledgeChunk, 
         """, nativeQuery = true)
     List<KnowledgeChunk> searchFullText(
         @Param("query") String query,
+        @Param("companyId") Long companyId,
         @Param("userId") Long userId,
         @Param("isAdmin") boolean isAdmin,
         @Param("projectId") Long projectId,
@@ -53,7 +66,8 @@ public interface KnowledgeChunkRepository extends JpaRepository<KnowledgeChunk, 
      */
     @Query(value = """
         SELECT * FROM knowledge_chunks c
-        WHERE (
+        WHERE c.company_id = :companyId
+        AND (
             c.access_scope = 'WORKSPACE'
             OR (c.access_scope = 'PRIVATE' AND c.owner_id = :userId)
             OR (c.access_scope = 'ADMIN' AND :isAdmin = true)
@@ -65,12 +79,20 @@ public interface KnowledgeChunkRepository extends JpaRepository<KnowledgeChunk, 
         """, nativeQuery = true)
     List<KnowledgeChunk> searchKeyword(
         @Param("pattern") String pattern,
+        @Param("companyId") Long companyId,
         @Param("userId") Long userId,
         @Param("isAdmin") boolean isAdmin,
         @Param("projectId") Long projectId,
         @Param("limit") int limit);
 
-    /** Most recently updated chunks that carry an embedding, for vector warm-up. */
+    /**
+     * Most recently updated chunks that carry an embedding, for vector warm-up.
+     *
+     * <p>Deliberately not company-filtered: it fills one in-memory index shared by
+     * every company, and each entry remembers whose it is, so isolation is applied
+     * when a question is asked rather than when the cache is warmed. Filtering here
+     * would mean a separate query per company on every refresh.
+     */
     @Query(value = """
         SELECT * FROM knowledge_chunks
         WHERE embedding IS NOT NULL
@@ -79,17 +101,34 @@ public interface KnowledgeChunkRepository extends JpaRepository<KnowledgeChunk, 
         """, nativeQuery = true)
     List<KnowledgeChunk> findEmbeddable(@Param("limit") int limit);
 
-    /** Per-source latest source timestamp, used to re-index only stale records. */
+    /**
+     * Per-source latest source timestamp within one company, used to re-index only
+     * stale records. Scoped so a reconcile compares against, and later prunes, only
+     * the chunks it is allowed to touch.
+     */
     @Query(value = """
         SELECT source_type, source_id, MAX(source_updated_at)
         FROM knowledge_chunks
+        WHERE company_id = :companyId
         GROUP BY source_type, source_id
         """, nativeQuery = true)
-    List<Object[]> findSourceTimestamps();
+    List<Object[]> findSourceTimestamps(@Param("companyId") Long companyId);
 
-    long countBySourceType(KnowledgeSourceType sourceType);
+    /**
+     * Drops one company's whole index, for a full rebuild of that company only.
+     *
+     * <p>Not {@code deleteAll()}: that would let one company's maintenance action
+     * empty every other company's index.
+     */
+    @Modifying
+    @Query("delete from KnowledgeChunk c where c.companyId = :companyId")
+    int deleteByCompanyId(@Param("companyId") Long companyId);
 
-    long countBySourceTypeAndEmbeddingIsNotNull(KnowledgeSourceType sourceType);
+    long countBySourceTypeAndCompanyId(KnowledgeSourceType sourceType, Long companyId);
 
-    long countByEmbeddingIsNotNull();
+    long countBySourceTypeAndEmbeddingIsNotNullAndCompanyId(KnowledgeSourceType sourceType, Long companyId);
+
+    long countByEmbeddingIsNotNullAndCompanyId(Long companyId);
+
+    long countByCompanyId(Long companyId);
 }

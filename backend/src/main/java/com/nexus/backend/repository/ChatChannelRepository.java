@@ -8,7 +8,16 @@ import java.util.Optional;
 
 public interface ChatChannelRepository extends JpaRepository<ChatChannel, Long> {
 
-    Optional<ChatChannel> findByNameAndType(String name, ChatChannel.Type type);
+    /** One channel, only if it belongs to this company. */
+    Optional<ChatChannel> findByIdAndCompanyId(Long id, Long companyId);
 
-    List<ChatChannel> findByTypeOrderByIdAsc(ChatChannel.Type type);
+    /**
+     * A named channel inside this company. Channel names are unique per company
+     * rather than globally, so two companies can both have a #general and
+     * neither one is the other's.
+     */
+    Optional<ChatChannel> findByNameAndTypeAndCompanyId(String name, ChatChannel.Type type, Long companyId);
+
+    /** The company's public channels, for browse-and-join. */
+    List<ChatChannel> findByTypeAndCompanyIdOrderByIdAsc(ChatChannel.Type type, Long companyId);
 }
