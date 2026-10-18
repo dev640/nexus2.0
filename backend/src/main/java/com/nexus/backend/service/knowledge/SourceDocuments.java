@@ -61,14 +61,22 @@ public class SourceDocuments {
         };
     }
 
-    /** Every current source document — used by the incremental re-index. */
-    public List<SourceDocument> all() {
+    /**
+     * Every current source document in one company — used by the incremental
+     * re-index.
+     *
+     * <p>Scoped in SQL rather than loaded whole and filtered in memory. The
+     * reconcile is a maintenance action one company asks for; reading every
+     * company's records to pick out a tenth of them is not just wasteful, it
+     * puts the other companies' content in this process's heap for no reason.
+     */
+    public List<SourceDocument> all(Long companyId) {
         List<SourceDocument> documents = new ArrayList<>();
-        wikiPageRepository.findAll().forEach(page -> documents.add(wikiPage(page)));
-        projectRepository.findAll().forEach(p -> documents.add(project(p)));
-        taskRepository.findAll().forEach(t -> documents.add(task(t)));
-        sprintRepository.findAll().forEach(s -> documents.add(sprint(s)));
-        whiteboardNoteRepository.findAll().forEach(n -> documents.add(note(n)));
+        wikiPageRepository.findByCompanyId(companyId).forEach(page -> documents.add(wikiPage(page)));
+        projectRepository.findByCompanyId(companyId).forEach(p -> documents.add(project(p)));
+        taskRepository.findByCompanyId(companyId).forEach(t -> documents.add(task(t)));
+        sprintRepository.findByCompanyId(companyId).forEach(s -> documents.add(sprint(s)));
+        whiteboardNoteRepository.findByCompanyId(companyId).forEach(n -> documents.add(note(n)));
         return documents;
     }
 
@@ -85,7 +93,8 @@ public class SourceDocuments {
             null,
             AccessScope.WORKSPACE,
             null,
-            page.getUpdatedAt());
+            page.getUpdatedAt(),
+            page.getCompanyId());
     }
 
     private SourceDocument project(Project project) {
@@ -107,7 +116,8 @@ public class SourceDocuments {
             null,
             AccessScope.WORKSPACE,
             null,
-            project.getUpdatedAt());
+            project.getUpdatedAt(),
+            project.getCompanyId());
     }
 
     private SourceDocument task(Task task) {
@@ -137,7 +147,8 @@ public class SourceDocuments {
             task.getLabels() != null && !task.getLabels().isEmpty() ? String.join(",", task.getLabels()) : null,
             AccessScope.WORKSPACE,
             null,
-            task.getUpdatedAt());
+            task.getUpdatedAt(),
+            task.getCompanyId());
     }
 
     private SourceDocument sprint(Sprint sprint) {
@@ -162,7 +173,8 @@ public class SourceDocuments {
             null,
             AccessScope.WORKSPACE,
             null,
-            sprint.getUpdatedAt());
+            sprint.getUpdatedAt(),
+            sprint.getCompanyId());
     }
 
     private SourceDocument note(WhiteboardNote note) {
@@ -182,7 +194,8 @@ public class SourceDocuments {
             null,
             AccessScope.WORKSPACE,
             null,
-            note.getUpdatedAt());
+            note.getUpdatedAt(),
+            note.getCompanyId());
     }
 
     private static String nullSafe(String value) {

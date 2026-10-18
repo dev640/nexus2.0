@@ -7,6 +7,7 @@ import com.nexus.backend.repository.KnowledgeChunkRepository;
 import com.nexus.backend.service.ai.AiEngine;
 import com.nexus.backend.service.ai.AiEngineException;
 import com.nexus.backend.service.ai.VectorIndex;
+import com.nexus.backend.tenant.CurrentTenant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -38,6 +39,7 @@ public class KnowledgeIndexService {
     private final Chunker chunker;
     private final AiEngine engine;
     private final VectorIndex vectorIndex;
+    private final CurrentTenant currentTenant;
     private final ObjectMapper mapper = new ObjectMapper();
 
     public KnowledgeIndexService(
@@ -45,12 +47,14 @@ public class KnowledgeIndexService {
             SourceDocuments sourceDocuments,
             Chunker chunker,
             AiEngine engine,
-            VectorIndex vectorIndex) {
+            VectorIndex vectorIndex,
+            CurrentTenant currentTenant) {
         this.chunkRepository = chunkRepository;
         this.sourceDocuments = sourceDocuments;
         this.chunker = chunker;
         this.engine = engine;
         this.vectorIndex = vectorIndex;
+        this.currentTenant = currentTenant;
     }
 
     /** Re-index one record: replace its chunks and update its vectors. */
@@ -63,8 +67,15 @@ public class KnowledgeIndexService {
             remove(type, sourceId);
             return;
         }
+        if (document.companyId() == null) {
+            // A source record with no company cannot exist under V18 — every
+            // tenant table has company_id NOT NULL — so this means a mapping gap,
+            // and indexing it would file the chunk under the wrong company.
+            log.warn("Refusing to index {} {}: its source record has no company", type, sourceId);
+            return;
+        }
 
-        chunkRepository.deleteBySourceTypeAndSourceId(type.name(), sourceId);
+        chunkRepository.deleteBySourceTypeAndSourceIdAndCompanyId(type.name(), sourceId, document.companyId());
         vectorIndex.removeBySource(type, sourceId);
 
         List<String> pieces = chunker.chunk(document.content());
@@ -77,6 +88,11 @@ public class KnowledgeIndexService {
             KnowledgeChunk chunk = new KnowledgeChunk();
             chunk.setSourceType(type);
             chunk.setSourceId(sourceId);
+            // The owning company comes from the source record, not from whoever
+            // triggered the indexing: a reconcile pass walks every company's
+            // records in one go, and an ambient tenant would misattribute all but
+            // the caller's own.
+            chunk.setCompanyId(document.companyId());
             chunk.setChunkIndex(i);
             chunk.setTitle(truncateTitle(document.title()));
             chunk.setContent(pieces.get(i));
@@ -97,11 +113,29 @@ public class KnowledgeIndexService {
         }
     }
 
-    /** Drop a deleted record's chunks from the store and the vector index. */
+    /**
+     * Drop a deleted record's chunks from the store and the vector index.
+     *
+     * <p>The company is taken from the caller when there is one, and otherwise
+     * from the indexed chunks themselves. The second case is real: a record can be
+     * deleted through a scheduled or system path with no request behind it, and the
+     * chunks still have to be removed.
+     */
     @Transactional
     public void remove(KnowledgeSourceType type, Long sourceId) {
         if (type == null || sourceId == null) return;
-        chunkRepository.deleteBySourceTypeAndSourceId(type.name(), sourceId);
+        Long companyId = currentTenant.orNull();
+        if (companyId != null) {
+            chunkRepository.deleteBySourceTypeAndSourceIdAndCompanyId(type.name(), sourceId, companyId);
+        } else {
+            chunkRepository.findBySourceTypeAndSourceIdOrderByChunkIndex(type, sourceId)
+                .forEach(chunk -> {
+                    if (chunk.getCompanyId() != null) {
+                        chunkRepository.deleteBySourceTypeAndSourceIdAndCompanyId(
+                            type.name(), sourceId, chunk.getCompanyId());
+                    }
+                });
+        }
         vectorIndex.removeBySource(type, sourceId);
     }
 
@@ -114,16 +148,28 @@ public class KnowledgeIndexService {
      */
     @Transactional
     public ReindexResult reindex(boolean full) {
+        Long companyId = currentTenant.require();
         if (full) {
-            chunkRepository.deleteAll();
+            // Only this company's chunks. A reconcile is a maintenance action one
+            // company asks for; it must not be able to wipe another's index.
+            chunkRepository.deleteByCompanyId(companyId);
             vectorIndex.clear();
         }
 
-        Map<String, java.time.LocalDateTime> indexed = sourceTimestamps();
+        Map<String, java.time.LocalDateTime> indexed = sourceTimestamps(companyId);
         Set<String> seen = new HashSet<>();
         int reindexed = 0;
 
-        for (SourceDocument document : sourceDocuments.all()) {
+        // The feed itself is scoped to this company. The filter below is kept as
+        // a second lock on the same door: the repository can only return this
+        // company's rows, but a reconcile is the one path that both reads every
+        // source record and writes the index, so it should not be able to touch
+        // another company's content even if a query were ever mis-scoped.
+        List<SourceDocument> documents = sourceDocuments.all(companyId).stream()
+            .filter(document -> companyId.equals(document.companyId()))
+            .toList();
+
+        for (SourceDocument document : documents) {
             String key = document.type().name() + ":" + document.sourceId();
             seen.add(key);
             java.time.LocalDateTime known = indexed.get(key);
@@ -154,21 +200,22 @@ public class KnowledgeIndexService {
         return result;
     }
 
-    /** Index statistics for the status endpoint. */
+    /** Index statistics for the status endpoint, for the caller's own company. */
     public Map<String, Long> chunksBySource() {
+        Long companyId = currentTenant.require();
         Map<String, Long> out = new HashMap<>();
         for (KnowledgeSourceType type : KnowledgeSourceType.values()) {
-            out.put(type.name(), chunkRepository.countBySourceType(type));
+            out.put(type.name(), chunkRepository.countBySourceTypeAndCompanyId(type, companyId));
         }
         return out;
     }
 
     public long totalChunks() {
-        return chunkRepository.count();
+        return chunkRepository.countByCompanyId(currentTenant.require());
     }
 
     public long embeddedChunks() {
-        return chunkRepository.countByEmbeddingIsNotNull();
+        return chunkRepository.countByEmbeddingIsNotNullAndCompanyId(currentTenant.require());
     }
 
     // ---------- internals ----------
@@ -197,9 +244,9 @@ public class KnowledgeIndexService {
         }
     }
 
-    private Map<String, java.time.LocalDateTime> sourceTimestamps() {
+    private Map<String, java.time.LocalDateTime> sourceTimestamps(Long companyId) {
         Map<String, java.time.LocalDateTime> out = new HashMap<>();
-        for (Object[] row : chunkRepository.findSourceTimestamps()) {
+        for (Object[] row : chunkRepository.findSourceTimestamps(companyId)) {
             String type = String.valueOf(row[0]);
             Object id = row[1];
             Object ts = row[2];

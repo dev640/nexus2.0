@@ -21,6 +21,8 @@ import com.nexus.backend.service.ai.RetrievalService;
 import com.nexus.backend.service.ai.RetrievedContext;
 import com.nexus.backend.service.ai.VectorIndex;
 import com.nexus.backend.service.knowledge.KnowledgeIndexService;
+import com.nexus.backend.tenant.CurrentTenant;
+import com.nexus.backend.tenant.TenantScope;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -74,6 +76,7 @@ public class AiController {
     private final AiEngine engine;
     private final KnowledgeIndexService knowledgeIndexService;
     private final VectorIndex vectorIndex;
+    private final CurrentTenant currentTenant;
     private final ObjectMapper mapper = new ObjectMapper();
     private final ExecutorService streamExecutor;
 
@@ -84,7 +87,8 @@ public class AiController {
             AiService aiService,
             AiEngine engine,
             KnowledgeIndexService knowledgeIndexService,
-            VectorIndex vectorIndex) {
+            VectorIndex vectorIndex,
+            CurrentTenant currentTenant) {
         this.permissionService = permissionService;
         this.conversationService = conversationService;
         this.retrievalService = retrievalService;
@@ -92,6 +96,7 @@ public class AiController {
         this.engine = engine;
         this.knowledgeIndexService = knowledgeIndexService;
         this.vectorIndex = vectorIndex;
+        this.currentTenant = currentTenant;
         this.streamExecutor = new ThreadPoolExecutor(
             4, 16, 60L, TimeUnit.SECONDS,
             new LinkedBlockingQueue<>(32),
@@ -189,10 +194,20 @@ public class AiController {
 
     // ---------- streaming internals ----------
 
+    /**
+     * Starts an answer on a pool thread.
+     *
+     * <p>The tenant is captured here, on the request thread where it is known,
+     * and re-established inside the task. The answer persists its own turns
+     * ({@code ai_messages}), and those rows must carry the asker's company —
+     * without this the pooled thread would have no tenant, and the insert would
+     * be refused rather than silently filed under the wrong company.
+     */
     private SseEmitter startStream(Consumer<SseEmitter> task) {
         SseEmitter emitter = new SseEmitter(STREAM_TIMEOUT_MS);
+        Long companyId = currentTenant.orNull();
         try {
-            streamExecutor.execute(() -> task.accept(emitter));
+            streamExecutor.execute(() -> TenantScope.run(companyId, () -> task.accept(emitter)));
         } catch (RejectedExecutionException e) {
             throw new AiEngineException(AiEngineException.Kind.UNAVAILABLE, "The AI assistant is at capacity");
         }

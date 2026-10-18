@@ -88,11 +88,18 @@ public class RetrievalService {
         if (q.isEmpty() || !q.matches(".*[A-Za-z0-9].*") || user == null) return List.of();
 
         Long userId = user.getId();
+        Long companyId = user.getCompanyId();
+        if (companyId == null) {
+            // An account with no company (a SUPER_ADMIN) has no company's knowledge
+            // to search. Answering from the whole store would be the one thing the
+            // company filter exists to prevent.
+            return List.of();
+        }
         boolean isAdmin = permissionService.isAdmin(user);
         Map<Long, Candidate> candidates = new LinkedHashMap<>();
 
-        // 1) Full-text candidates (permission-filtered in SQL).
-        List<KnowledgeChunk> fts = chunkRepository.searchFullText(q, userId, isAdmin, projectId, ftsCandidates);
+        // 1) Full-text candidates (company- and permission-filtered in SQL).
+        List<KnowledgeChunk> fts = chunkRepository.searchFullText(q, companyId, userId, isAdmin, projectId, ftsCandidates);
         for (int i = 0; i < fts.size(); i++) {
             candidate(candidates, fts.get(i).getId()).accept(fts.get(i), i + 1, null, null, 0f);
         }
@@ -101,7 +108,7 @@ public class RetrievalService {
         String pattern = keywordPattern(q);
         if (pattern != null) {
             List<KnowledgeChunk> keyword = chunkRepository.searchKeyword(
-                pattern, userId, isAdmin, projectId, keywordCandidates);
+                pattern, companyId, userId, isAdmin, projectId, keywordCandidates);
             for (int i = 0; i < keyword.size(); i++) {
                 candidate(candidates, keyword.get(i).getId()).accept(keyword.get(i), null, i + 1, null, 0f);
             }

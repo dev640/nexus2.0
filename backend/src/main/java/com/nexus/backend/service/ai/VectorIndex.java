@@ -47,7 +47,9 @@ public class VectorIndex {
         AccessScope accessScope,
         String category,
         java.time.LocalDateTime updatedAt,
-        float[] vector
+        float[] vector,
+        /** Owning company. The index is shared, so every hit is filtered by it. */
+        Long companyId
     ) {}
 
     /** A semantic candidate with its cosine similarity to the question. */
@@ -128,9 +130,14 @@ public class VectorIndex {
      */
     public List<Scored> topSemantic(float[] query, int limit, User user, Long projectIdFilter) {
         if (query == null || query.length == 0 || user == null) return List.of();
+        Long companyId = user.getCompanyId();
+        if (companyId == null) return List.of();
 
         List<Scored> scored = new ArrayList<>();
         for (Entry entry : store.values()) {
+            // The index holds every company's vectors in one map, so the company
+            // filter is applied here, on every hit, alongside the permission check.
+            if (!companyId.equals(entry.companyId())) continue;
             if (!permissionService.canRead(entry.accessScope(), entry.ownerId(), user)) continue;
             if (projectIdFilter != null && entry.projectId() != null
                     && !entry.projectId().equals(projectIdFilter)) continue;
@@ -171,7 +178,8 @@ public class VectorIndex {
                 chunk.getAccessScope(),
                 chunk.getCategory(),
                 chunk.getUpdatedAt(),
-                vector);
+                vector,
+                chunk.getCompanyId());
         } catch (Exception e) {
             log.warn("Skipping unreadable embedding on chunk {}", chunk.getId());
             return null;
