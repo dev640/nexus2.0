@@ -65,11 +65,23 @@ public class PushSubscriptionService {
     @Transactional
     public void subscribe(PushSubscriptionRequest request) {
         User me = currentUser();
+        Long companyId = currentCompanyId();
         String endpoint = requireReachableEndpoint(request.endpoint());
 
-        PushSubscription device = subscriptionRepository.findByEndpoint(endpoint)
-            .orElseGet(PushSubscription::new);
-        device.setUser(me);
+        PushSubscription device = subscriptionRepository.findByEndpointAndCompanyId(
+                endpoint, companyId).orElseGet(PushSubscription::new);
+
+        if (device.getId() == null) {
+            device.setUser(me);
+            device.setCompanyId(companyId);
+        } else if (!device.getUser().getId().equals(me.getId())) {
+            Long previousOwnerId = device.getUser().getId();
+            if (!previousOwnerId.equals(me.getId())) {
+                pruneOtherOwner(previousOwnerId, endpoint);
+            }
+            device.setUser(me);
+        }
+
         device.setEndpoint(endpoint);
         device.setP256dh(request.keys().p256dh().trim());
         device.setAuth(request.keys().auth().trim());
@@ -79,13 +91,18 @@ public class PushSubscriptionService {
     /**
      * Silences one device. Removing something that is not there is success, not
      * an error: the caller asked for the outcome, and it already holds.
+     *
+     * <p>Scoped to the caller's company on purpose: an endpoint is only ever stored
+     * for the caller, and the unsubscribe came from the caller, but a global lookup
+     * would still match another company's row with the same endpoint — this refuses
+     * to touch it.
      */
     @Transactional
     public void unsubscribe(String endpoint) {
         if (endpoint == null || endpoint.isBlank()) return;
         User me = currentUser();
         String candidate = endpoint.trim();
-        subscriptionRepository.findByEndpoint(candidate)
+        subscriptionRepository.findByEndpointAndCompanyId(candidate, me.getCompanyId())
             .filter(device -> device.getUser().getId().equals(me.getId()))
             .ifPresent(subscriptionRepository::delete);
     }
@@ -110,13 +127,68 @@ public class PushSubscriptionService {
         payload.put("url", "/");
         payload.put("tag", "nexus-push-test");
 
-        return sender.sendToUser(me.getId(), payload);
+        return sender.sendToUser(me.getId(), me.getCompanyId(), payload);
+    }
+
+    /**
+     * Removes the subscription that currently belongs to this browser under a
+     * different user, so the re-registration path can create a clean one for the
+     * current account.
+     *
+     * <p>This is the cleanup for the normal re-register path above: when the
+     * browser re-files its subscription, {@code subscribe} reuses the existing row
+     * instead of deleting and re-inserting it. When the stored row is the caller's
+     * own but the caller is not the current account — i.e. the browser changed
+     * hands — the row is orphaned under the previous owner and has to be removed so
+     * the re-register can create a proper one.
+     *
+     * <p>The delete is company-scoped: a matching endpoint from another company is
+     * not this caller's orphan and must not be removed for this caller.
+     */
+    @Transactional
+    public void pruneOtherOwner(Long userId, String endpoint) {
+        User me = currentUser();
+        subscriptionRepository.findByUserIdAndEndpointAndCompanyId(
+                userId, endpoint, me.getCompanyId())
+            .filter(device -> !device.getUser().getId().equals(me.getId()))
+            .ifPresent(device -> subscriptionRepository.deleteByIdAndCompanyId(
+                device.getId(), me.getCompanyId()));
+    }
+
+    /**
+     * Re-stamps the explicit company id on each of the caller's subscriptions
+     * with the account's current company, and saves them.
+     *
+     * <p>A browser that moves from one company to another keeps physical access to
+     * the same endpoint, so the endpoint id is not what makes it this workspace's —
+     * the company on the row is. Re-stamping keeps the endpoint answering to this
+     * company's send path and this company's unsubscribe path.
+     */
+    @Transactional
+    public void restampCompanyOnDevices(User me) {
+        for (PushSubscription device
+                : subscriptionRepository.findByUserIdAndCompanyId(me.getId(), me.getCompanyId())) {
+            device.setCompanyId(me.getCompanyId());
+            subscriptionRepository.save(device);
+        }
+    }
+
+    /**
+     * Calls {@link #restampCompanyOnDevices(User)} for the given account. Public so
+     * the notification service can re-stamp this account's devices when the account's
+     * company changes.
+     */
+    public void restampCompanyOnDevicesForUser(Long userId) {
+        User me = userRepository.findById(userId)
+            .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+        restampCompanyOnDevices(me);
     }
 
     /** How many browsers this account has registered; used by tests and diagnostics. */
     @Transactional(readOnly = true)
     public long deviceCount() {
-        return subscriptionRepository.countByUserId(currentUser().getId());
+        return subscriptionRepository.countByUserIdAndCompanyId(
+                currentUser().getId(), currentUser().getCompanyId());
     }
 
     /**
@@ -144,7 +216,8 @@ public class PushSubscriptionService {
             sender.publicKeyMatchesPrivateKey(),
             sender.subject(),
             sender.ttlHours(),
-            subscriptionRepository.countByUserId(me.getId()),
+            subscriptionRepository.countByUserIdAndCompanyId(
+                me.getId(), me.getCompanyId()),
             last == null ? null : new PushSelfCheckResponse.LastAttempt(
                 last.at(),
                 last.attempted(),
@@ -210,5 +283,15 @@ public class PushSubscriptionService {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         return userRepository.findByEmail(email)
             .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
+    }
+
+    private Long currentCompanyId() {
+        User me = currentUser();
+        Long companyId = me.getCompanyId();
+        if (companyId == null) {
+            throw new ValidationException(
+                "There is nobody else in the workspace to write to");
+        }
+        return companyId;
     }
 }

@@ -42,6 +42,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -247,27 +248,41 @@ public class WebPushSender {
      * hypothetical: the test-notification endpoint was marked read-only and the
      * pruning vanished until an end-to-end run caught it.
      */
-    public int sendToUser(Long userId, Map<String, Object> payload) {
-        if (vapidKeyPair == null || userId == null) return 0;
+    public int sendToUser(Long userId, Long companyId, Map<String, Object> payload) {
+        if (vapidKeyPair == null || userId == null || companyId == null) return 0;
 
-        List<PushSubscription> devices = subscriptionRepository.findByUserId(userId);
+        List<PushSubscription> devices = subscriptionRepository.findByUserIdAndCompanyId(
+            userId, companyId);
+
+        // Defensive scope check: the repository query already answers for one company,
+        // but a wrong company id here would silently fan out to the wrong workspace.
+        // Drop anything that does not belong to this caller's company before sending.
+        List<PushSubscription> inScope = new java.util.ArrayList<>();
+        for (PushSubscription device : devices) {
+            if (device.getCompanyId() != null
+                && device.getCompanyId().equals(companyId)
+                && device.getUser().getId().equals(userId)) {
+                inScope.add(device);
+            }
+        }
+
         // Nothing registered is not a failed attempt — there was nowhere to send —
         // and recording it would wipe the diagnostics of the last real send.
-        if (devices.isEmpty()) return 0;
+        if (inScope.isEmpty()) return 0;
 
         byte[] body;
         try {
             body = JSON.writeValueAsBytes(payload);
         } catch (JsonProcessingException e) {
             log.warn("Could not serialize a push payload: {}", e.getMessage());
-            remember(userId, devices.size(), 0, PushAttempt.Outcome.UNSENDABLE, NO_RESPONSE);
+            remember(userId, inScope.size(), 0, PushAttempt.Outcome.UNSENDABLE, NO_RESPONSE);
             return 0;
         }
 
         int delivered = 0;
         Result lastFailure = null;
         Result last = null;
-        for (PushSubscription device : devices) {
+        for (PushSubscription device : inScope) {
             last = send(device, body);
             if (last.accepted()) delivered++;
             else lastFailure = last;
@@ -276,7 +291,7 @@ public class WebPushSender {
         // The most recent refusal is more use than the last device's luck: with two
         // browsers and one refused, the refusal is the thing to act on.
         Result reported = lastFailure != null ? lastFailure : last;
-        remember(userId, devices.size(), delivered, reported.outcome(), reported.status());
+        remember(userId, inScope.size(), delivered, reported.outcome(), reported.status());
         return delivered;
     }
 
@@ -285,9 +300,9 @@ public class WebPushSender {
      * the person who caused it should not wait on Google's or Apple's response,
      * and a failure is not theirs to see.
      */
-    public void sendToUserInBackground(Long userId, Map<String, Object> payload) {
-        if (vapidKeyPair == null || userId == null) return;
-        sender.execute(() -> sendToUser(userId, payload));
+    public void sendToUserInBackground(Long userId, Long companyId, Map<String, Object> payload) {
+        if (vapidKeyPair == null || userId == null || companyId == null) return;
+        sender.execute(() -> sendToUser(userId, companyId, payload));
     }
 
     @PreDestroy
@@ -345,7 +360,12 @@ public class WebPushSender {
                 // its subscription replaced. Keeping the row would mean retrying a
                 // dead address forever. Logged rather than silent, because an
                 // operator watching a push fail deserves to see why it stopped.
-                subscriptionRepository.deleteById(device.getId());
+                Long deviceCompanyId = device.getCompanyId();
+                if (deviceCompanyId == null) {
+                    subscriptionRepository.deleteById(device.getId());
+                } else {
+                    subscriptionRepository.deleteByIdAndCompanyId(device.getId(), deviceCompanyId);
+                }
                 log.info("Dropped push subscription {}: the push service reports it is gone (HTTP {})",
                     device.getId(), status);
                 return new Result(false, PushAttempt.Outcome.GONE, status);
