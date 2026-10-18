@@ -9,6 +9,7 @@ import com.nexus.backend.dto.ChatUnreadResponse;
 import com.nexus.backend.security.WorkspaceWrite;
 import com.nexus.backend.service.ChatService;
 import com.nexus.backend.service.ChatSocketFacade;
+import com.nexus.backend.tenant.CurrentTenant;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -35,10 +36,12 @@ public class ChatController {
 
     private final ChatService chatService;
     private final ChatSocketFacade presence;
+    private final CurrentTenant currentTenant;
 
-    public ChatController(ChatService chatService, ChatSocketFacade presence) {
+    public ChatController(ChatService chatService, ChatSocketFacade presence, CurrentTenant currentTenant) {
         this.chatService = chatService;
         this.presence = presence;
+        this.currentTenant = currentTenant;
     }
 
     // ---------- channels ----------
@@ -157,7 +160,8 @@ public class ChatController {
 
     @GetMapping("/presence")
     public ResponseEntity<PresenceResponse> presence() {
-        return ResponseEntity.ok(new PresenceResponse(presence.onlineUserIds()));
+        // The caller's own company, so the roster it receives is the one it can act on.
+        return ResponseEntity.ok(new PresenceResponse(presence.onlineUserIds(currentTenant.require())));
     }
 
     public record UpdateTopicRequest(String topic) {}

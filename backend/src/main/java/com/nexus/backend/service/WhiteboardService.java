@@ -63,7 +63,9 @@ public class WhiteboardService {
         KnowledgeEvents.changed(knowledgePublisher, KnowledgeSourceType.WHITEBOARD_NOTE, saved.getId());
 
         WhiteboardNoteResponse response = mapToResponse(saved);
-        broadcaster.publish("created", response);
+        // The note's own company, not the caller's: the row is the record of
+        // whose board it is, and it is what the fan-out must agree with.
+        broadcaster.publish("created", response, saved.getCompanyId());
         return response;
     }
 
@@ -91,7 +93,7 @@ public class WhiteboardService {
         }
 
         WhiteboardNoteResponse response = mapToResponse(saved);
-        broadcaster.publish("updated", response);
+        broadcaster.publish("updated", response, saved.getCompanyId());
         return response;
     }
 
@@ -100,9 +102,10 @@ public class WhiteboardService {
         WhiteboardNote note = noteRepository.findByIdAndCompanyId(id, currentTenant.require())
             .orElseThrow(() -> new ResourceNotFoundException("Whiteboard note", "id", id));
         WhiteboardNoteResponse response = mapToResponse(note);
+        Long companyId = note.getCompanyId();
         noteRepository.delete(note);
         KnowledgeEvents.removed(knowledgePublisher, KnowledgeSourceType.WHITEBOARD_NOTE, id);
-        broadcaster.publish("deleted", response);
+        broadcaster.publish("deleted", response, companyId);
     }
 
     private String currentUserEmail() {

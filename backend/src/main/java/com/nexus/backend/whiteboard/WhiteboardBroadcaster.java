@@ -10,11 +10,13 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
 /**
- * Fans note events out to every connected client.
+ * Fans note events out to the clients of one company.
  *
- * Local WebSocket sessions are always notified. When Redis is reachable the event
- * is also published on a channel so other backend instances (each of which
- * subscribes to {@link #CHANNEL}) relay it to their own clients.
+ * <p>That company's local WebSocket sessions are always notified. When Redis is
+ * reachable the event is also published on a channel so other backend instances
+ * (each of which subscribes to {@link #CHANNEL}) relay it to their own clients -
+ * and every instance applies the same company filter on the way out, because the
+ * event has to say whose it is before it can be delivered at all.
  */
 @Component
 public class WhiteboardBroadcaster {
@@ -40,9 +42,19 @@ public class WhiteboardBroadcaster {
         return instanceId;
     }
 
-    /** Publish an event: locally always, plus Redis so other instances relay it. */
-    public void publish(String type, WhiteboardNoteResponse note) {
-        WhiteboardEvent event = new WhiteboardEvent(type, note, instanceId);
+    /**
+     * Publish an event: locally always, plus Redis so other instances relay it.
+     *
+     * <p>The company is required. An event that cannot name whose board it
+     * describes has no audience that can be filtered, and the alternative to
+     * refusing it is delivering one company's note to all of them.
+     */
+    public void publish(String type, WhiteboardNoteResponse note, Long companyId) {
+        if (companyId == null) {
+            log.warn("Not publishing a whiteboard event that names no company");
+            return;
+        }
+        WhiteboardEvent event = new WhiteboardEvent(type, note, companyId, instanceId);
         deliver(event);
         if (redisTemplate == null) return;
         try {
@@ -58,10 +70,20 @@ public class WhiteboardBroadcaster {
         return instanceId.equals(event.origin());
     }
 
-    /** Deliver an event to this instance's connected sessions. */
+    /**
+     * Deliver an event to this instance's connected sessions.
+     *
+     * <p>Applies to events that arrived from Redis as much as to local ones: the
+     * publishing instance is a different process, so its scoping is not evidence
+     * about what this one should send.
+     */
     public void deliver(WhiteboardEvent event) {
+        if (event == null || event.companyId() == null) {
+            log.warn("Dropping a whiteboard event that names no company");
+            return;
+        }
         try {
-            socketHandler.broadcast(objectMapper.writeValueAsString(event));
+            socketHandler.broadcast(objectMapper.writeValueAsString(event), event.companyId());
         } catch (Exception e) {
             log.warn("Failed to broadcast whiteboard event: {}", e.getMessage());
         }

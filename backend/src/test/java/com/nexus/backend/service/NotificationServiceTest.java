@@ -168,7 +168,7 @@ class NotificationServiceTest {
     @Test
     void pushesToTheDeviceOfSomebodyWithNoOpenTab() {
         rowsGetIds();
-        when(socketFacade.onlineUserIds()).thenReturn(List.of());
+        when(socketFacade.onlineUserIds(1L)).thenReturn(List.of());
 
         notificationService.notifyUsers(List.of(user(4L, "Palak", "palak@nexus.com")),
             Notification.Category.PROJECTS, "Devendra created the project \"Nimbus\"", "/projects");
@@ -189,7 +189,7 @@ class NotificationServiceTest {
     @Test
     void staysOffTheDevicesOfSomebodyWhoseTabIsOpen() {
         rowsGetIds();
-        when(socketFacade.onlineUserIds()).thenReturn(List.of(4L));
+        when(socketFacade.onlineUserIds(1L)).thenReturn(List.of(4L));
 
         notificationService.notifyUsers(List.of(user(4L, "Palak", "palak@nexus.com")),
             Notification.Category.PROJECTS, "Devendra created the project \"Nimbus\"", "/projects");

@@ -48,6 +48,7 @@ class SocketHandshakeGateTest {
     private final SupabaseUserService supabaseUserService = mock(SupabaseUserService.class);
     private final SupabaseProperties supabaseProperties = mock(SupabaseProperties.class);
     private final MustChangePasswordHandshakeGuard guard = mock(MustChangePasswordHandshakeGuard.class);
+    private final SocketPrincipalResolver principalResolver = mock(SocketPrincipalResolver.class);
 
     /** How one handshake went, and what it recorded about the account. */
     private record Outcome(boolean allowed, Map<String, Object> attributes) {}
@@ -92,11 +93,15 @@ class SocketHandshakeGateTest {
         HandshakeInterceptor chat = chatInterceptor();
         nexusToken("tok", "ada@nexus.com");
         when(guard.mustChangePassword("ada@nexus.com")).thenReturn(false);
+        identity("ada@nexus.com");
 
         Outcome outcome = chat(chat, "/ws/chat", "tok");
 
         assertThat(outcome.allowed()).isTrue();
         assertThat(outcome.attributes()).containsEntry("email", "ada@nexus.com");
+        // The company is what every fan-out decision filters on, so a socket
+        // that opened without one would be a socket nobody could address safely.
+        assertThat(outcome.attributes()).containsEntry(ChatSocketConfig.COMPANY_ATTRIBUTE, 3L);
     }
 
     @Test
@@ -104,8 +109,27 @@ class SocketHandshakeGateTest {
         HandshakeInterceptor whiteboard = whiteboardInterceptor();
         nexusToken("tok", "ada@nexus.com");
         when(guard.mustChangePassword("ada@nexus.com")).thenReturn(false);
+        identity("ada@nexus.com");
 
-        assertThat(chat(whiteboard, "/ws/whiteboard", "tok").allowed()).isTrue();
+        Outcome outcome = chat(whiteboard, "/ws/whiteboard", "tok");
+
+        assertThat(outcome.allowed()).isTrue();
+        assertThat(outcome.attributes())
+            .containsEntry(WhiteboardSocketConfig.COMPANY_ATTRIBUTE, 3L);
+    }
+
+    /**
+     * An operator account belongs to no company, so there is no company's traffic
+     * to subscribe it to: the socket is refused rather than left unattributed.
+     */
+    @Test
+    void aSocketWithNoCompanyToAttributeIsRefused() throws Exception {
+        HandshakeInterceptor chat = chatInterceptor();
+        nexusToken("tok", "root@nexus.com");
+        when(guard.mustChangePassword("root@nexus.com")).thenReturn(false);
+        when(principalResolver.resolve("root@nexus.com")).thenReturn(java.util.Optional.empty());
+
+        assertThat(chat(chat, "/ws/chat", "tok").allowed()).isFalse();
     }
 
     /** A token the socket cannot prove is refused for its own reason, not this one. */
@@ -127,6 +151,12 @@ class SocketHandshakeGateTest {
         when(jwtUtil.validateToken(token, email)).thenReturn(true);
     }
 
+    /** The account the resolver finds, in company 3. */
+    private void identity(String email) {
+        when(principalResolver.resolve(email)).thenReturn(java.util.Optional.of(
+            new SocketPrincipalResolver.Identity(9L, 3L, email)));
+    }
+
     private static User account(boolean mustChangePassword) {
         User user = new User("Ada", "ada@nexus.com", null, UserRole.MEMBER);
         user.setId(9L);
@@ -137,13 +167,13 @@ class SocketHandshakeGateTest {
     private HandshakeInterceptor chatInterceptor() {
         return interceptorOf(new ChatSocketConfig(
             mock(ChatSocketHandler.class), jwtUtil, supabaseTokenVerifier,
-            supabaseUserService, supabaseProperties, guard));
+            supabaseUserService, supabaseProperties, guard, principalResolver));
     }
 
     private HandshakeInterceptor whiteboardInterceptor() {
         return interceptorOf(new WhiteboardSocketConfig(
             mock(WhiteboardSocketHandler.class), jwtUtil, supabaseTokenVerifier,
-            supabaseUserService, supabaseProperties, guard));
+            supabaseUserService, supabaseProperties, guard, principalResolver));
     }
 
     /**

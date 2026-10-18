@@ -6,11 +6,10 @@ import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.nexus.backend.domain.chat.ChatChannel;
 import com.nexus.backend.dto.ChatEvent;
-import com.nexus.backend.domain.user.User;
 import com.nexus.backend.repository.ChatChannelMemberRepository;
 import com.nexus.backend.repository.ChatChannelRepository;
-import com.nexus.backend.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -24,6 +23,7 @@ import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -32,16 +32,24 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Live chat socket. Each connection belongs to one authenticated user (the
- * handshake stores the email in the session attributes); incoming frames are
- * typing indicators, outgoing frames are {@link ChatEvent}s addressed to the
- * users who should see them.
+ * handshake stores the email, the user id and the company in the session
+ * attributes); incoming frames are typing indicators, outgoing frames are
+ * {@link ChatEvent}s addressed to the users who should see them.
+ *
+ * <p>Every delivery decides its audience by company first. Membership of a
+ * channel is a company-scoped fact and presence is a workspace fact, so a
+ * connection that cannot name its company is closed rather than left in a
+ * registry that every broadcast would have to filter.
  */
 @Component
 public class ChatSocketHandler extends TextWebSocketHandler {
 
     private static final Logger log = LoggerFactory.getLogger(ChatSocketHandler.class);
 
-    private final Map<WebSocketSession, Long> users = new ConcurrentHashMap<>();
+    /** One socket, the account behind it, and the company it belongs to. */
+    private record Client(Long userId, Long companyId) {}
+
+    private final Map<WebSocketSession, Client> users = new ConcurrentHashMap<>();
 
     /** Per-connection inbound frame budget: an open socket cannot be used as a flood source. */
     private record MessageWindow(long startMillis, int count) {}
@@ -72,19 +80,16 @@ public class ChatSocketHandler extends TextWebSocketHandler {
     private final ObjectMapper objectMapper = eventMapper();
     private final ChatChannelMemberRepository memberRepository;
     private final ChatChannelRepository channelRepository;
-    private final UserRepository userRepository;
 
     public ChatSocketHandler(
         ChatChannelMemberRepository memberRepository,
         ChatChannelRepository channelRepository,
-        UserRepository userRepository,
         @Value("${nexus.ws.max-text-message-bytes:65536}") int maxTextMessageBytes,
         @Value("${nexus.ws.max-messages-per-window:120}") int maxMessagesPerWindow,
         @Value("${nexus.ws.message-window-seconds:60}") long messageWindowSeconds
     ) {
         this.memberRepository = memberRepository;
         this.channelRepository = channelRepository;
-        this.userRepository = userRepository;
         this.maxTextMessageBytes = maxTextMessageBytes;
         this.maxMessagesPerWindow = maxMessagesPerWindow;
         this.messageWindowMillis = messageWindowSeconds * 1000;
@@ -96,12 +101,17 @@ public class ChatSocketHandler extends TextWebSocketHandler {
         session.setTextMessageSizeLimit(maxTextMessageBytes);
         session.setBinaryMessageSizeLimit(maxTextMessageBytes);
 
-        Long userId = userIdOf(session);
-        if (userId == null) {
+        Long userId = attribute(session, ChatSocketConfig.USER_ATTRIBUTE);
+        Long companyId = attribute(session, ChatSocketConfig.COMPANY_ATTRIBUTE);
+        if (userId == null || companyId == null) {
+            // The handshake is supposed to have refused this. Closing here is the
+            // backstop, because a socket with no company could not be sent a
+            // correct subset of events and the only safe audience is none.
+            log.warn("Closing chat session {}: the handshake named no account or company", session.getId());
             closeQuietly(session, CloseStatus.POLICY_VIOLATION);
             return;
         }
-        users.put(session, userId);
+        users.put(session, new Client(userId, companyId));
         broadcastPresence();
     }
 
@@ -114,8 +124,8 @@ public class ChatSocketHandler extends TextWebSocketHandler {
 
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message) {
-        Long userId = users.get(session);
-        if (userId == null) return;
+        Client client = users.get(session);
+        if (client == null) return;
         if (!withinMessageBudget(session)) {
             log.debug("Closing chat session {}: message rate exceeded", session.getId());
             users.remove(session);
@@ -128,9 +138,10 @@ public class ChatSocketHandler extends TextWebSocketHandler {
             String type = frame.path("type").asText("");
             if (ChatEvent.TYPING.equals(type)) {
                 Long channelId = frame.path("channelId").asLong(0);
-                if (channelId > 0 && memberRepository.existsByChannelIdAndUserId(channelId, userId)) {
+                if (channelId > 0 && memberRepository.existsByChannelIdAndUserId(channelId, client.userId())) {
                     sendToChannel(channelId, new ChatEvent(ChatEvent.TYPING, channelId, null, null,
-                        userId, frame.path("name").asText("Someone"), channelName(channelId), null), userId);
+                        client.userId(), frame.path("name").asText("Someone"), channelName(channelId), null),
+                        client.userId());
                 }
             }
             // "read" frames are persisted over REST; nothing to relay here.
@@ -139,16 +150,29 @@ public class ChatSocketHandler extends TextWebSocketHandler {
         }
     }
 
-    /** Send an event to every connected member of the channel (except one user). */
+    /**
+     * Send an event to every connected member of the channel (except one user).
+     *
+     * <p>Two facts have to agree before a frame is written: the recipient is a
+     * member of the channel, and the recipient is in the channel's company. The
+     * second is not redundant - membership rows are company-scoped today, so a
+     * mismatch would mean one of the two facts is already wrong, and a broadcast
+     * is the wrong place to discover that.
+     */
     public void sendToChannel(Long channelId, ChatEvent event, Long excludeUserId) {
         String payload = write(event);
         if (payload == null) return;
-        ChatChannelMemberRepository repo = memberRepository;
-        Set<Long> memberIds = new HashSet<>(repo.findByChannelId(channelId)
+        Long companyId = companyIdOfChannel(channelId);
+        if (companyId == null) {
+            log.warn("Not sending a chat event for channel {}: it names no company", channelId);
+            return;
+        }
+        Set<Long> memberIds = new HashSet<>(memberRepository.findByChannelId(channelId)
             .stream().map(m -> m.getUser().getId()).toList());
-        for (Map.Entry<WebSocketSession, Long> entry : users.entrySet()) {
-            Long userId = entry.getValue();
-            if (userId.equals(excludeUserId) || !memberIds.contains(userId)) continue;
+        for (Map.Entry<WebSocketSession, Client> entry : users.entrySet()) {
+            Client client = entry.getValue();
+            if (!companyId.equals(client.companyId())) continue;
+            if (client.userId().equals(excludeUserId) || !memberIds.contains(client.userId())) continue;
             send(entry.getKey(), payload);
         }
     }
@@ -158,8 +182,8 @@ public class ChatSocketHandler extends TextWebSocketHandler {
         String payload = write(event);
         if (payload == null) return;
         Set<Long> targets = new HashSet<>(userIds);
-        for (Map.Entry<WebSocketSession, Long> entry : users.entrySet()) {
-            if (targets.contains(entry.getValue())) send(entry.getKey(), payload);
+        for (Map.Entry<WebSocketSession, Client> entry : users.entrySet()) {
+            if (targets.contains(entry.getValue().userId())) send(entry.getKey(), payload);
         }
     }
 
@@ -172,32 +196,79 @@ public class ChatSocketHandler extends TextWebSocketHandler {
         String json = write(payload);
         if (json == null) return;
         Set<Long> targets = new HashSet<>(userIds);
-        for (Map.Entry<WebSocketSession, Long> entry : users.entrySet()) {
-            if (targets.contains(entry.getValue())) send(entry.getKey(), json);
+        for (Map.Entry<WebSocketSession, Client> entry : users.entrySet()) {
+            if (targets.contains(entry.getValue().userId())) send(entry.getKey(), json);
         }
     }
 
-    /** Broadcast the current online user ids to everyone (presence badges). */
+    /**
+     * Tell each connection who is online <em>in its own company</em>.
+     *
+     * <p>Presence is shown as a workspace roster, so one company's members are
+     * the only accounts that can answer it. Sending the global list would tell
+     * every workspace how many people every other workspace has signed in, which
+     * is neither useful to them nor theirs to know.
+     */
     public void broadcastPresence() {
-        String payload = write(Map.of("type", ChatEvent.PRESENCE, "online", onlineUserIds()));
-        if (payload == null) return;
-        for (WebSocketSession session : users.keySet()) {
-            send(session, payload);
+        Map<Long, List<Long>> onlineByCompany = new HashMap<>();
+        for (Client client : users.values()) {
+            onlineByCompany.computeIfAbsent(client.companyId(), company -> new ArrayList<>())
+                .add(client.userId());
+        }
+        for (Map.Entry<WebSocketSession, Client> entry : users.entrySet()) {
+            List<Long> online = distinct(onlineByCompany.get(entry.getValue().companyId()));
+            send(entry.getKey(), write(Map.of("type", ChatEvent.PRESENCE, "online", online)));
         }
     }
 
-    public List<Long> onlineUserIds() {
-        return new ArrayList<>(new HashSet<>(users.values()));
+    /** The accounts online in one company, which is what that company's UI shows. */
+    public List<Long> onlineUserIds(Long companyId) {
+        if (companyId == null) return List.of();
+        List<Long> ids = new ArrayList<>();
+        for (Client client : users.values()) {
+            if (companyId.equals(client.companyId())) ids.add(client.userId());
+        }
+        return distinct(ids);
+    }
+
+    /** How many sockets are connected, for diagnostics and tests. */
+    public int connectedCount() {
+        return users.size();
+    }
+
+    /**
+     * Close and forget every socket belonging to one company. Used when a
+     * company is suspended: the stream carries the same traffic its HTTP
+     * requests are being refused, so it cannot stay open.
+     */
+    public void closeCompany(Long companyId) {
+        if (companyId == null) return;
+        for (Map.Entry<WebSocketSession, Client> entry : users.entrySet()) {
+            if (companyId.equals(entry.getValue().companyId())) {
+                users.remove(entry.getKey());
+                messageWindows.remove(entry.getKey().getId());
+                closeQuietly(entry.getKey(), CloseStatus.POLICY_VIOLATION);
+            }
+        }
+    }
+
+    private Long companyIdOfChannel(Long channelId) {
+        return channelRepository.findById(channelId).map(ChatChannel::getCompanyId).orElse(null);
     }
 
     private String channelName(Long channelId) {
-        return channelRepository.findById(channelId).map(c -> c.getName()).orElse(null);
+        return channelRepository.findById(channelId).map(ChatChannel::getName).orElse(null);
     }
 
-    private Long userIdOf(WebSocketSession session) {
-        Object email = session.getAttributes().get("email");
-        if (email == null) return null;
-        return userRepository.findByEmail(email.toString()).map(User::getId).orElse(null);
+    /** A session attribute written by the handshake, or null when it is missing. */
+    private static Long attribute(WebSocketSession session, String name) {
+        Object value = session.getAttributes().get(name);
+        return value instanceof Long number ? number : null;
+    }
+
+    private static List<Long> distinct(List<Long> ids) {
+        if (ids == null) return List.of();
+        return new ArrayList<>(new HashSet<>(ids));
     }
 
     private String write(Object value) {
@@ -210,7 +281,7 @@ public class ChatSocketHandler extends TextWebSocketHandler {
     }
 
     private void send(WebSocketSession session, String payload) {
-        if (session == null || !session.isOpen()) return;
+        if (session == null || payload == null || !session.isOpen()) return;
         try {
             synchronized (session) {
                 session.sendMessage(new TextMessage(payload));

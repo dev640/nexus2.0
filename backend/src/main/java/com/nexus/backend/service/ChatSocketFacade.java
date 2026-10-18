@@ -22,8 +22,15 @@ public class ChatSocketFacade {
         this.socketHandler = socketHandler;
     }
 
-    public List<Long> onlineUserIds() {
-        return socketHandler.onlineUserIds();
+    /**
+     * The accounts online in one company.
+     *
+     * <p>Scoped rather than global because presence is shown as a workspace
+     * roster: the caller is always asking about its own company, and the global
+     * list would also tell it how many people every other company has signed in.
+     */
+    public List<Long> onlineUserIds(Long companyId) {
+        return socketHandler.onlineUserIds(companyId);
     }
 
     /**

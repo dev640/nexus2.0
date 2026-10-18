@@ -14,6 +14,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -65,7 +66,9 @@ public class NotificationService {
         if (recipients == null || recipients.isEmpty()) return;
         String message = trim(text);
         String target = appRelativeLink(link);
-        Set<Long> connected = new HashSet<>(socketFacade.onlineUserIds());
+        // Read once per company: presence is a workspace fact, and a recipient's
+        // live socket is found by looking in their own company, not in all of them.
+        Map<Long, Set<Long>> connectedByCompany = new HashMap<>();
         for (User recipient : recipients) {
             if (recipient == null || recipient.getId() == null) continue;
             Notification n = new Notification();
@@ -75,6 +78,8 @@ public class NotificationService {
             n.setLink(target);
             Notification saved = notificationRepository.save(n);
             socketFacade.pushNotification(recipient.getId(), mapToResponse(saved));
+            Set<Long> connected = connectedByCompany.computeIfAbsent(recipient.getCompanyId(),
+                company -> company == null ? Set.of() : new HashSet<>(socketFacade.onlineUserIds(company)));
             if (!connected.contains(recipient.getId())) {
                 webPushSender.sendToUserInBackground(
                     recipient.getId(), recipient.getCompanyId(), pushPayload(saved));

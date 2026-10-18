@@ -6,6 +6,7 @@ import com.nexus.backend.config.SupabaseProperties;
 import com.nexus.backend.domain.user.User;
 import com.nexus.backend.security.JwtUtil;
 import com.nexus.backend.security.MustChangePasswordHandshakeGuard;
+import com.nexus.backend.security.SocketPrincipalResolver;
 import com.nexus.backend.security.SupabaseTokenVerifier;
 import com.nexus.backend.service.SupabaseUserService;
 import io.jsonwebtoken.Claims;
@@ -27,6 +28,7 @@ import org.springframework.context.annotation.Bean;
 
 import java.net.URI;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Registers the whiteboard socket at /ws/whiteboard and authenticates the
@@ -41,12 +43,22 @@ public class WhiteboardSocketConfig implements WebSocketConfigurer {
 
     private static final Logger log = LoggerFactory.getLogger(WhiteboardSocketConfig.class);
 
+    /**
+     * Session attributes the handler reads. Named here because the handshake
+     * writes them and the handler is what depends on them: a handshake that
+     * forgot one would leave the socket silently out of every broadcast, or
+     * worse, in the wrong company's.
+     */
+    public static final String COMPANY_ATTRIBUTE = "companyId";
+    public static final String USER_ATTRIBUTE = "userId";
+
     private final WhiteboardSocketHandler handler;
     private final JwtUtil jwtUtil;
     private final SupabaseTokenVerifier supabaseTokenVerifier;
     private final SupabaseUserService supabaseUserService;
     private final SupabaseProperties supabaseProperties;
     private final MustChangePasswordHandshakeGuard mustChangePasswordGuard;
+    private final SocketPrincipalResolver principalResolver;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public WhiteboardSocketConfig(
@@ -55,7 +67,8 @@ public class WhiteboardSocketConfig implements WebSocketConfigurer {
         SupabaseTokenVerifier supabaseTokenVerifier,
         SupabaseUserService supabaseUserService,
         SupabaseProperties supabaseProperties,
-        MustChangePasswordHandshakeGuard mustChangePasswordGuard
+        MustChangePasswordHandshakeGuard mustChangePasswordGuard,
+        SocketPrincipalResolver principalResolver
     ) {
         this.handler = handler;
         this.jwtUtil = jwtUtil;
@@ -63,6 +76,7 @@ public class WhiteboardSocketConfig implements WebSocketConfigurer {
         this.supabaseUserService = supabaseUserService;
         this.supabaseProperties = supabaseProperties;
         this.mustChangePasswordGuard = mustChangePasswordGuard;
+        this.principalResolver = principalResolver;
     }
 
     @Override
@@ -105,7 +119,7 @@ public class WhiteboardSocketConfig implements WebSocketConfigurer {
                         return false;
                     }
                     attributes.put("email", email);
-                    return true;
+                    return stampIdentity(email, attributes);
                 }
             } catch (Exception e) {
                 log.debug("Not a Nexus token on whiteboard handshake: {}", e.getMessage());
@@ -123,7 +137,9 @@ public class WhiteboardSocketConfig implements WebSocketConfigurer {
                         return false;
                     }
                     attributes.put("email", user.getEmail());
-                    return true;
+                    // The account is already in hand, so its company is read from
+                    // it rather than looked up again.
+                    return stampCompany(user.getCompanyId(), user.getId(), attributes);
                 } catch (JwtException | IllegalArgumentException e) {
                     log.debug("Supabase token rejected on whiteboard handshake: {}", e.getMessage());
                 }
@@ -131,6 +147,32 @@ public class WhiteboardSocketConfig implements WebSocketConfigurer {
 
             log.debug("Whiteboard handshake rejected: no valid token");
             return false;
+        }
+
+        /**
+         * Records which company the socket belongs to. Refuses the handshake when
+         * the address has no company to record: an operator account, or one the
+         * database does not know. A socket that cannot be attributed would have
+         * to be left out of every broadcast - so the connection is not opened.
+         */
+        private boolean stampIdentity(String email, Map<String, Object> attributes) {
+            Optional<SocketPrincipalResolver.Identity> identity = principalResolver.resolve(email);
+            if (identity.isEmpty()) {
+                log.debug("Whiteboard handshake refused: no company for {}", email);
+                return false;
+            }
+            return stampCompany(identity.get().companyId(), identity.get().userId(), attributes);
+        }
+
+        /** The one place the company and user attributes are written. */
+        private boolean stampCompany(Long companyId, Long userId, Map<String, Object> attributes) {
+            if (companyId == null) {
+                log.debug("Whiteboard handshake refused: account belongs to no company");
+                return false;
+            }
+            attributes.put(COMPANY_ATTRIBUTE, companyId);
+            attributes.put(USER_ATTRIBUTE, userId);
+            return true;
         }
 
         @Override
