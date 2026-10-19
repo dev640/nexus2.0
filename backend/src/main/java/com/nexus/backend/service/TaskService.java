@@ -20,7 +20,6 @@ import com.nexus.backend.security.RolePolicy;
 import com.nexus.backend.service.activity.ActivityEvents;
 import com.nexus.backend.service.knowledge.KnowledgeEvents;
 import com.nexus.backend.tenant.CurrentTenant;
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Lazy;
@@ -30,7 +29,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 
 @Service
-@RequiredArgsConstructor
 public class TaskService {
 
     private final TaskRepository taskRepository;
@@ -43,6 +41,22 @@ public class TaskService {
     @Autowired
     @Lazy
     private NotificationService notificationService;
+
+    public TaskService(
+        TaskRepository taskRepository,
+        ProjectRepository projectRepository,
+        SprintRepository sprintRepository,
+        UserRepository userRepository,
+        CurrentTenant currentTenant,
+        ApplicationEventPublisher knowledgePublisher
+    ) {
+        this.taskRepository = taskRepository;
+        this.projectRepository = projectRepository;
+        this.sprintRepository = sprintRepository;
+        this.userRepository = userRepository;
+        this.currentTenant = currentTenant;
+        this.knowledgePublisher = knowledgePublisher;
+    }
 
     @Transactional
     public TaskResponse create(TaskRequest request) {

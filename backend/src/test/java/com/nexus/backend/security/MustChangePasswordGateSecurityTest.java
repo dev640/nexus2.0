@@ -88,7 +88,7 @@ class MustChangePasswordGateSecurityTest {
      */
     private static RequestPostProcessor principal(boolean mustChangePassword) {
         return authentication(new UsernamePasswordAuthenticationToken(
-            new NexusUserPrincipal(USER_ID, "ada@nexus.com", "", UserRole.MEMBER, 31L, mustChangePassword),
+            new NexusUserPrincipal(USER_ID, "ada@nexus.com", "", UserRole.MEMBER, 31L, mustChangePassword, false),
             null,
             List.of(new SimpleGrantedAuthority("ROLE_MEMBER"))));
     }

@@ -6,7 +6,6 @@ import com.nexus.backend.dto.AuthResponse;
 import com.nexus.backend.service.AdminAccountService;
 import com.nexus.backend.service.UserService;
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -15,13 +14,17 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/auth")
-@RequiredArgsConstructor
 public class AuthController {
 
     private static final Logger log = LoggerFactory.getLogger(AuthController.class);
 
     private final UserService userService;
     private final AdminAccountService adminAccountService;
+
+    public AuthController(UserService userService, AdminAccountService adminAccountService) {
+        this.userService = userService;
+        this.adminAccountService = adminAccountService;
+    }
 
     /**
      * Self-service registration, now closed to the public: the workspace is

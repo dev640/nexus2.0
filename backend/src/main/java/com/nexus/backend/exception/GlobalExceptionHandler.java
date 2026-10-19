@@ -25,6 +25,22 @@ public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
+    /**
+     * A suspended workspace's sign-in or refresh. The body carries the same
+     * {@code code} the servlet filter writes for an already-authenticated
+     * request, so a client meets one marker whether it was refused at the door
+     * or mid-session.
+     */
+    @ExceptionHandler(CompanySuspendedException.class)
+    public ResponseEntity<CodedErrorResponse> handleCompanySuspended(CompanySuspendedException ex) {
+        CodedErrorResponse error = new CodedErrorResponse(
+            HttpStatus.FORBIDDEN.value(),
+            CompanySuspendedException.CODE,
+            ex.getMessage()
+        );
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+    }
+
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleResourceNotFound(ResourceNotFoundException ex) {
         ErrorResponse error = new ErrorResponse(
@@ -43,6 +59,16 @@ public class GlobalExceptionHandler {
             LocalDateTime.now()
         );
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    }
+
+    @ExceptionHandler(DuplicateEmailException.class)
+    public ResponseEntity<ErrorResponse> handleDuplicateEmail(DuplicateEmailException ex) {
+        ErrorResponse error = new ErrorResponse(
+            HttpStatus.CONFLICT.value(),
+            DuplicateEmailException.MESSAGE,
+            LocalDateTime.now()
+        );
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -157,5 +183,17 @@ public class GlobalExceptionHandler {
         int status,
         String message,
         LocalDateTime timestamp
+    ) {}
+
+    /**
+     * A refusal that names a machine-readable code, so the client can route on it
+     * (to a suspended-workspace screen, for example) rather than parse prose.
+     * Kept separate from {@link ErrorResponse}: the coded refusals are written by
+     * filters before this advice runs, and both shapes must agree.
+     */
+    public record CodedErrorResponse(
+        int status,
+        String code,
+        String message
     ) {}
 }

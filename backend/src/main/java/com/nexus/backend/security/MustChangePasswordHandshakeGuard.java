@@ -2,7 +2,6 @@ package com.nexus.backend.security;
 
 import com.nexus.backend.domain.user.User;
 import com.nexus.backend.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
@@ -26,10 +25,13 @@ import java.util.Optional;
  * socket's own failure to find an account stays whatever it was.
  */
 @Component
-@RequiredArgsConstructor
 public class MustChangePasswordHandshakeGuard {
 
     private final UserRepository userRepository;
+
+    public MustChangePasswordHandshakeGuard(UserRepository userRepository) {
+        this.userRepository = userRepository;
+    }
 
     /** True when this account may not open a socket until it changes its password. */
     public boolean mustChangePassword(String email) {

@@ -23,4 +23,8 @@ public interface CompanyRepository extends JpaRepository<Company, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select c from Company c where c.id = :id")
     Optional<Company> findByIdForUpdate(@Param("id") Long id);
+
+    /** Matches the case-insensitive unique index on company names. */
+    @Query("select c from Company c where lower(c.name) = lower(:name)")
+    Optional<Company> findByNameIgnoreCase(@Param("name") String name);
 }

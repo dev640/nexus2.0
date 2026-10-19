@@ -6,7 +6,6 @@ import com.nexus.backend.dto.PasswordResetResponse;
 import com.nexus.backend.exception.ResourceNotFoundException;
 import com.nexus.backend.repository.UserRepository;
 import com.nexus.backend.service.AdminAccountService;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -30,11 +29,18 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/admin/password-resets")
 @PreAuthorize("hasRole('ADMIN')")
-@RequiredArgsConstructor
 public class AdminPasswordResetController {
 
     private final AdminAccountService adminAccountService;
     private final UserRepository userRepository;
+
+    public AdminPasswordResetController(
+        AdminAccountService adminAccountService,
+        UserRepository userRepository
+    ) {
+        this.adminAccountService = adminAccountService;
+        this.userRepository = userRepository;
+    }
 
     @GetMapping
     public ResponseEntity<List<PasswordResetResponse>> list(

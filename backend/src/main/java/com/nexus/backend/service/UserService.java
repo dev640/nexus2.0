@@ -7,12 +7,12 @@ import com.nexus.backend.dto.LoginRequest;
 import com.nexus.backend.dto.RegisterRequest;
 import com.nexus.backend.dto.UserResponse;
 import com.nexus.backend.dto.AuthResponse;
+import com.nexus.backend.exception.CompanySuspendedException;
 import com.nexus.backend.exception.ResourceNotFoundException;
 import com.nexus.backend.exception.ValidationException;
 import com.nexus.backend.repository.UserRepository;
 import com.nexus.backend.security.JwtUtil;
 import com.nexus.backend.tenant.CurrentTenant;
-import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,7 +21,6 @@ import java.util.List;
 import java.util.Map;
 
 @Service
-@RequiredArgsConstructor
 public class UserService {
 
     private final UserRepository userRepository;
@@ -30,6 +29,22 @@ public class UserService {
     private final EmployeeCodeService employeeCodeService;
     private final AuditService auditService;
     private final CurrentTenant currentTenant;
+
+    public UserService(
+        UserRepository userRepository,
+        PasswordEncoder passwordEncoder,
+        JwtUtil jwtUtil,
+        EmployeeCodeService employeeCodeService,
+        AuditService auditService,
+        CurrentTenant currentTenant
+    ) {
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.jwtUtil = jwtUtil;
+        this.employeeCodeService = employeeCodeService;
+        this.auditService = auditService;
+        this.currentTenant = currentTenant;
+    }
 
     /**
      * Creates an account in the caller's company. ADMIN-only at the endpoint.
@@ -83,12 +98,17 @@ public class UserService {
      * the whole table. It is the documented exception to company scoping.
      */
     public AuthResponse login(LoginRequest request) {
-        User user = userRepository.findByEmail(request.email())
+        // Company fetched with the account so suspension is checked here: a
+        // suspended workspace must be refused at the door, not handed a token its
+        // next request would be rejected with.
+        User user = userRepository.findByEmailWithCompany(request.email())
             .orElseThrow(() -> new ValidationException("Invalid email or password"));
 
         if (!passwordEncoder.matches(request.password(), user.getPassword())) {
             throw new ValidationException("Invalid email or password");
         }
+
+        refuseIfSuspended(user);
 
         String token = jwtUtil.generateToken(user.getEmail());
         String refreshToken = jwtUtil.generateRefreshToken(user.getEmail());
@@ -106,14 +126,31 @@ public class UserService {
             throw new ValidationException("Invalid or expired refresh token");
         }
         String email = jwtUtil.extractUsername(refreshToken);
-        User user = userRepository.findByEmail(email)
+        User user = userRepository.findByEmailWithCompany(email)
             .orElseThrow(() -> new ValidationException("Invalid or expired refresh token"));
+
+        // Refreshing a suspended workspace's token would extend the credential its
+        // requests are refused with; refuse it here for the same reason as login.
+        refuseIfSuspended(user);
 
         return new AuthResponse(
             jwtUtil.generateToken(user.getEmail()),
             jwtUtil.generateRefreshToken(user.getEmail()),
             mapToResponse(user)
         );
+    }
+
+    /**
+     * Refuses a sign-in or refresh for an account whose company is suspended.
+     *
+     * <p>Called on the two endpoints that run before any authentication exists,
+     * where there is no principal for the servlet filter to gate. A SUPER_ADMIN
+     * belongs to no company and so is never suspended by this rule.
+     */
+    private static void refuseIfSuspended(User user) {
+        if (user.getCompany() != null && user.getCompany().isSuspended()) {
+            throw new CompanySuspendedException();
+        }
     }
 
     /** The caller's company's people. */

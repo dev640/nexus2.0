@@ -42,7 +42,7 @@ class MustChangePasswordFilterTest {
     /** Puts a gated or ungated principal in scope, exactly as the JWT filter does. */
     private static void authenticate(boolean mustChangePassword) {
         NexusUserPrincipal principal = new NexusUserPrincipal(
-            9L, "ada@nexus.com", "", UserRole.MEMBER, 31L, mustChangePassword);
+            9L, "ada@nexus.com", "", UserRole.MEMBER, 31L, mustChangePassword, false);
         SecurityContextHolder.getContext().setAuthentication(
             new UsernamePasswordAuthenticationToken(principal, null,
                 List.of(new SimpleGrantedAuthority("ROLE_MEMBER"))));

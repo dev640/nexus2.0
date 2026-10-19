@@ -1,9 +1,13 @@
 package com.nexus.backend.security;
 
 import com.nexus.backend.config.SupabaseProperties;
+import com.nexus.backend.exception.DuplicateEmailException;
 import com.nexus.backend.exception.ValidationException;
+import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.Test;
 
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.UUID;
 
@@ -93,6 +97,35 @@ class SupabaseAdminClientTest {
         properties.setServiceRoleKey(NEW_SECRET_KEY);
 
         assertThat(new SupabaseAdminClient(properties).isAvailable()).isTrue();
+    }
+
+    @Test
+    void duplicateSupabaseIdentityProducesGenericEmailConflict() throws Exception {
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/auth/v1/admin/users", exchange -> {
+            byte[] body = """
+                {"code":"email_exists","message":"User already registered"}
+                """.getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(422, body.length);
+            try (var responseBody = exchange.getResponseBody()) {
+                responseBody.write(body);
+            }
+        });
+        server.start();
+
+        try {
+            SupabaseProperties properties = new SupabaseProperties();
+            properties.setUrl("http://127.0.0.1:" + server.getAddress().getPort());
+            properties.setServiceRoleKey(NEW_SECRET_KEY);
+
+            assertThatThrownBy(() -> new SupabaseAdminClient(properties)
+                .createUser("existing@example.com", "a-secret-password", "Existing User"))
+                .isInstanceOf(DuplicateEmailException.class)
+                .hasMessage(DuplicateEmailException.MESSAGE)
+                .hasMessageNotContaining("existing@example.com");
+        } finally {
+            server.stop(0);
+        }
     }
 
     @Test

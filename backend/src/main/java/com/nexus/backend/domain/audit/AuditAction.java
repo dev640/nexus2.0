@@ -30,5 +30,14 @@ public enum AuditAction {
     PASSWORD_RESET_RESOLVED,
 
     /** An admin closed a reset request without issuing a password. */
-    PASSWORD_RESET_DISMISSED
+    PASSWORD_RESET_DISMISSED,
+
+    /** A SUPER_ADMIN suspended a company, locking its people out. */
+    COMPANY_SUSPENDED,
+
+    /** A SUPER_ADMIN restored a suspended company. */
+    COMPANY_REINSTATED,
+
+    /** A SUPER_ADMIN created a company together with its first admin account. */
+    COMPANY_CREATED
 }

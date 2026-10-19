@@ -3,6 +3,7 @@ package com.nexus.backend.security;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nexus.backend.config.SupabaseProperties;
+import com.nexus.backend.exception.DuplicateEmailException;
 import com.nexus.backend.exception.ValidationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -74,13 +75,28 @@ public class SupabaseAdminClient {
             body.put("user_metadata", Map.of("full_name", fullName.trim()));
         }
 
-        JsonNode response = send("POST", "/admin/users", body);
+        HttpResponse<String> httpResponse = exchange("POST", authUrl("/admin/users"), body,
+            authHeaders(properties.getServiceRoleKey()));
+        if (httpResponse.statusCode() / 100 != 2 && isDuplicateEmailResponse(httpResponse)) {
+            throw new DuplicateEmailException();
+        }
+        if (httpResponse.statusCode() / 100 != 2) {
+            throw new ValidationException(describeFailure(httpResponse));
+        }
+        JsonNode response = parseSuccess(httpResponse);
         String id = response.path("id").asText(null);
         if (id == null || id.isBlank()) {
             throw new ValidationException("Supabase did not return a user id");
         }
         log.info("Created Supabase auth user for {}", email);
         return UUID.fromString(id);
+    }
+
+    /** Deletes an auth user created for a database transaction that rolled back. */
+    public void deleteUser(UUID supabaseUserId) {
+        requireAvailable();
+        send("DELETE", "/admin/users/" + supabaseUserId, null);
+        log.info("Deleted Supabase auth user {}", supabaseUserId);
     }
 
     /**
@@ -356,6 +372,10 @@ public class SupabaseAdminClient {
         if (response.statusCode() / 100 != 2) {
             throw new ValidationException(describeFailure(response));
         }
+        return parseSuccess(response);
+    }
+
+    private JsonNode parseSuccess(HttpResponse<String> response) {
         try {
             String payload = response.body();
             return payload == null || payload.isBlank()
@@ -363,6 +383,23 @@ public class SupabaseAdminClient {
                 : objectMapper.readTree(payload);
         } catch (IOException e) {
             throw new ValidationException("Supabase returned an unreadable response");
+        }
+    }
+
+    private boolean isDuplicateEmailResponse(HttpResponse<String> response) {
+        if (response.statusCode() != 409 && response.statusCode() != 422) {
+            return false;
+        }
+        try {
+            JsonNode error = objectMapper.readTree(response.body());
+            String code = error.path("code").asText(null);
+            if (code == null || code.isBlank()) {
+                code = error.path("error_code").asText(null);
+            }
+            return "email_exists".equalsIgnoreCase(code)
+                || "user_already_exists".equalsIgnoreCase(code);
+        } catch (IOException e) {
+            return false;
         }
     }
 

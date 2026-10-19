@@ -76,7 +76,7 @@ class PasswordChangeServiceTest {
     }
 
     private static NexusUserPrincipal principal() {
-        return new NexusUserPrincipal(USER_ID, EMAIL, "", UserRole.MEMBER, COMPANY_ID, true);
+        return new NexusUserPrincipal(USER_ID, EMAIL, "", UserRole.MEMBER, COMPANY_ID, true, false);
     }
 
     private static ChangePasswordRequest request(String current, String next) {

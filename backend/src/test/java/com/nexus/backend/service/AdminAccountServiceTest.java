@@ -15,6 +15,7 @@ import com.nexus.backend.domain.user.ResetRequestStatus;
 import com.nexus.backend.domain.user.User;
 import com.nexus.backend.domain.user.UserRole;
 import com.nexus.backend.dto.CreateUserRequest;
+import com.nexus.backend.exception.DuplicateEmailException;
 import com.nexus.backend.exception.ValidationException;
 import com.nexus.backend.repository.PasswordResetRequestRepository;
 import com.nexus.backend.repository.UserRepository;
@@ -28,6 +29,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @ExtendWith(MockitoExtension.class)
 class AdminAccountServiceTest {
@@ -127,6 +130,28 @@ class AdminAccountServiceTest {
     }
 
     @Test
+    void createUserDeletesSupabaseIdentityWhenDatabaseTransactionRollsBack() {
+        stubSave();
+        when(userRepository.findByEmail("new@nexus.com")).thenReturn(Optional.empty());
+        when(userRepository.findFirstByEmailIgnoreCase("new@nexus.com")).thenReturn(Optional.empty());
+        when(supabaseAdminClient.isAvailable()).thenReturn(true);
+        when(supabaseAdminClient.createUser(anyString(), anyString(), anyString())).thenReturn(SUPABASE_ID);
+
+        TransactionSynchronizationManager.initSynchronization();
+        try {
+            service.createUser(new CreateUserRequest("New Person", "new@nexus.com", null, UserRole.ADMIN));
+
+            var synchronizations = TransactionSynchronizationManager.getSynchronizations();
+            assertThat(synchronizations).hasSize(1);
+            synchronizations.getFirst().afterCompletion(TransactionSynchronization.STATUS_ROLLED_BACK);
+
+            verify(supabaseAdminClient).deleteUser(SUPABASE_ID);
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
+    }
+
+    @Test
     void createUserDoesNotEchoBackAnAdminSuppliedPassword() {
         stubSave();
         when(userRepository.findByEmail("new@nexus.com")).thenReturn(Optional.empty());
@@ -147,6 +172,18 @@ class AdminAccountServiceTest {
         assertThatThrownBy(() -> service.createUser(new CreateUserRequest("Dup", "dup@nexus.com", null, null)))
             .isInstanceOf(ValidationException.class)
             .hasMessageContaining("already exists");
+    }
+
+    @Test
+    void duplicateEmailConflictIsCheckedBeforeSupabaseAvailability() {
+        when(userRepository.findByEmail("dup@nexus.com")).thenReturn(Optional.of(new User()));
+
+        assertThatThrownBy(() -> service.provisionUser(
+            COMPANY_ID, "Dup", "dup@nexus.com", UserRole.ADMIN, null))
+            .isInstanceOf(DuplicateEmailException.class)
+            .hasMessage(DuplicateEmailException.MESSAGE);
+
+        verify(supabaseAdminClient, never()).isAvailable();
     }
 
     @Test

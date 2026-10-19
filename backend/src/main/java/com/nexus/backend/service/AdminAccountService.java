@@ -9,6 +9,7 @@ import com.nexus.backend.domain.user.UserRole;
 import com.nexus.backend.dto.CreateUserRequest;
 import com.nexus.backend.dto.CreatedUserResponse;
 import com.nexus.backend.dto.PasswordResetResponse;
+import com.nexus.backend.exception.DuplicateEmailException;
 import com.nexus.backend.exception.ResourceNotFoundException;
 import com.nexus.backend.exception.ValidationException;
 import com.nexus.backend.repository.PasswordResetRequestRepository;
@@ -20,6 +21,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.security.SecureRandom;
 import java.util.List;
@@ -90,6 +93,55 @@ public class AdminAccountService {
         // from the request: one company's admin placing accounts inside another
         // company is precisely what tenancy is here to prevent.
         Long companyId = currentTenant.require();
+        String email = normalize(request.email());
+        String name = request.name().trim();
+        // An absent role must not accidentally create an admin: default to MEMBER.
+        UserRole role = request.role() == null ? UserRole.MEMBER : request.role();
+
+        ProvisionedUser provisioned;
+        try {
+            provisioned = provisionUser(companyId, name, email, role, request.password());
+        } catch (DuplicateEmailException ex) {
+            // Keep the established /api/users response unchanged. The global
+            // SUPER_ADMIN provisioning path keeps the conflict status instead.
+            throw new ValidationException("A user with that email already exists");
+        }
+
+        User saved = provisioned.user();
+        auditService.record(AuditAction.USER_CREATED, "User", saved.getId(),
+            Map.of("email", saved.getEmail(), "role", role.name(),
+                "via", "admin", "generatedPassword", provisioned.generatedPassword()));
+
+        return new CreatedUserResponse(
+            saved.getId(), saved.getName(), saved.getEmail(), saved.getRole(),
+            provisioned.generatedPassword() ? provisioned.password() : null
+        );
+    }
+
+    /**
+     * The persisted account and its one-time credential. Package-visible because
+     * company provisioning composes the same policy with a different audit action.
+     */
+    record ProvisionedUser(User user, String password, boolean generatedPassword) {}
+
+    /**
+     * Creates a company-bound user without choosing the caller's tenant or
+     * writing an audit action. The caller owns those two decisions.
+     */
+    @Transactional
+    ProvisionedUser provisionUser(
+        Long companyId,
+        String name,
+        String email,
+        UserRole role,
+        String suppliedPassword
+    ) {
+        String normalizedEmail = normalize(email);
+        if (userRepository.findByEmail(normalizedEmail).isPresent()
+            || userRepository.findFirstByEmailIgnoreCase(normalizedEmail).isPresent()) {
+            throw new DuplicateEmailException();
+        }
+
         // If the workspace authenticates through Supabase but the Admin API is
         // unreachable, a local-only account would be created that the login screen
         // can never authenticate — the admin would believe it worked. Refuse
@@ -101,15 +153,6 @@ public class AdminAccountService {
             );
         }
 
-        String email = normalize(request.email());
-        if (userRepository.findByEmail(email).isPresent()
-            || userRepository.findFirstByEmailIgnoreCase(email).isPresent()) {
-            throw new ValidationException("A user with that email already exists");
-        }
-
-        String name = request.name().trim();
-        // An absent role must not accidentally create an admin: default to MEMBER.
-        UserRole role = request.role() == null ? UserRole.MEMBER : request.role();
         if (role == UserRole.SUPER_ADMIN) {
             // SUPER_ADMIN belongs to no company, which a company admin cannot
             // express: the account would be created outside every company and
@@ -119,40 +162,56 @@ public class AdminAccountService {
                 "SUPER_ADMIN cannot be created from a company account. Ask an operator to set it up.");
         }
 
-        boolean adminSuppliedPassword = request.password() != null && !request.password().isBlank();
-        String password = adminSuppliedPassword ? request.password() : generatePassword();
+        boolean generatedPassword = suppliedPassword == null || suppliedPassword.isBlank();
+        String password = generatedPassword ? generatePassword() : suppliedPassword;
 
         User user = new User();
-        user.setName(name);
-        user.setEmail(email);
+        user.setName(name.trim());
+        user.setEmail(normalizedEmail);
         user.setRole(role);
         user.setCompanyId(companyId);
         user.setEmployeeCode(employeeCodeService.nextCode(companyId));
         // A password the admin chose is one the person already knows; a generated
         // one must be replaced by its owner on first use.
-        user.setMustChangePassword(!adminSuppliedPassword);
+        user.setMustChangePassword(generatedPassword);
 
         if (supabaseAdminClient.isAvailable()) {
-            UUID supabaseId = supabaseAdminClient.createUser(email, password, name);
+            UUID supabaseId = supabaseAdminClient.createUser(normalizedEmail, password, name.trim());
             user.setSupabaseId(supabaseId);
+            registerSupabaseRollbackCleanup(supabaseId);
             // Supabase owns the credential; leave the local hash null.
             user.setPassword(null);
         } else {
-            log.warn("Supabase admin API unavailable — creating {} with a local password only", email);
+            log.warn("Supabase admin API unavailable — creating {} with a local password only", normalizedEmail);
             user.setPassword(passwordEncoder.encode(password));
         }
 
         User saved = userRepository.save(user);
         log.info("Admin created account {} with role {}", saved.getEmail(), role);
 
-        auditService.record(AuditAction.USER_CREATED, "User", saved.getId(),
-            Map.of("email", saved.getEmail(), "role", role.name(),
-                "via", "admin", "generatedPassword", !adminSuppliedPassword));
+        return new ProvisionedUser(saved, password, generatedPassword);
+    }
 
-        return new CreatedUserResponse(
-            saved.getId(), saved.getName(), saved.getEmail(), saved.getRole(),
-            adminSuppliedPassword ? null : password
-        );
+    private void registerSupabaseRollbackCleanup(UUID supabaseId) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCompletion(int status) {
+                if (status != STATUS_ROLLED_BACK) {
+                    return;
+                }
+                try {
+                    supabaseAdminClient.deleteUser(supabaseId);
+                } catch (RuntimeException cleanupFailure) {
+                    // Do not include the exception message: remote errors may
+                    // contain account data. The UUID is enough to investigate.
+                    log.error("Failed to delete Supabase identity {} after database rollback ({})",
+                        supabaseId, cleanupFailure.getClass().getSimpleName());
+                }
+            }
+        });
     }
 
     // ------------------------------------------------------- reset requests

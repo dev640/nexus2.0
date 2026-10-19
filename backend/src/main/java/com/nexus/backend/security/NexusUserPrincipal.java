@@ -1,5 +1,6 @@
 package com.nexus.backend.security;
 
+import com.nexus.backend.domain.company.Company;
 import com.nexus.backend.domain.user.User;
 import com.nexus.backend.domain.user.UserRole;
 import org.springframework.security.core.GrantedAuthority;
@@ -48,17 +49,27 @@ public class NexusUserPrincipal implements UserDetails {
      */
     private final boolean mustChangePassword;
 
+    /**
+     * True while the account's company is suspended. Read from the company row
+     * on every request for the same reason as the password flag: suspension is
+     * an operator action taken against the workspace, so it has to take effect
+     * on the very next request rather than when the current token expires.
+     */
+    private final boolean companySuspended;
+
     public NexusUserPrincipal(Long userId, String email, String password, UserRole role, Long companyId,
-                              boolean mustChangePassword) {
+                              boolean mustChangePassword, boolean companySuspended) {
         this.userId = userId;
         this.email = email;
         this.password = password;
         this.role = role;
         this.companyId = companyId;
         this.mustChangePassword = mustChangePassword;
+        this.companySuspended = companySuspended;
     }
 
     public static NexusUserPrincipal from(User user) {
+        Company company = user.getCompany();
         return new NexusUserPrincipal(
             user.getId(),
             user.getEmail(),
@@ -68,7 +79,8 @@ public class NexusUserPrincipal implements UserDetails {
             user.getPassword() == null ? "" : user.getPassword(),
             user.getRole(),
             user.getCompanyId(),
-            user.isMustChangePassword()
+            user.isMustChangePassword(),
+            company != null && company.isSuspended()
         );
     }
 
@@ -79,6 +91,8 @@ public class NexusUserPrincipal implements UserDetails {
     public UserRole getRole() { return role; }
 
     public boolean isMustChangePassword() { return mustChangePassword; }
+
+    public boolean isCompanySuspended() { return companySuspended; }
 
     /** True for the one role that is not a member of any company. */
     public boolean isSuperAdmin() { return role == UserRole.SUPER_ADMIN; }
@@ -110,6 +124,7 @@ public class NexusUserPrincipal implements UserDetails {
     @Override
     public String toString() {
         return "NexusUserPrincipal[userId=" + userId + ", email=" + email + ", role=" + role
-            + ", companyId=" + companyId + ", mustChangePassword=" + mustChangePassword + "]";
+            + ", companyId=" + companyId + ", mustChangePassword=" + mustChangePassword
+            + ", companySuspended=" + companySuspended + "]";
     }
 }

@@ -2,7 +2,6 @@ package com.nexus.backend.security;
 
 import com.nexus.backend.domain.user.User;
 import com.nexus.backend.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -18,14 +17,20 @@ import org.springframework.stereotype.Service;
  * by the architecture test.
  */
 @Service
-@RequiredArgsConstructor
 public class CustomUserDetailsService implements UserDetailsService {
 
     private final UserRepository userRepository;
 
+    public CustomUserDetailsService(UserRepository userRepository) {
+        this.userRepository = userRepository;
+    }
+
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        User user = userRepository.findByEmail(email)
+        // The company is fetched with the account because the principal carries its
+        // suspension status, and a lazily-loaded company would be a detached proxy
+        // here — reading it outside a transaction would throw rather than answer.
+        User user = userRepository.findByEmailWithCompany(email)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
 
         return NexusUserPrincipal.from(user);

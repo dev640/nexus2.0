@@ -10,6 +10,11 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "companies")
 public class Company {
+
+    /** The two values {@code chk_companies_status} allows. */
+    public static final String STATUS_ACTIVE = "ACTIVE";
+    public static final String STATUS_SUSPENDED = "SUSPENDED";
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -65,7 +70,7 @@ public class Company {
     private String logoContentType;
 
     @Column(nullable = false, length = 20)
-    private String status = "ACTIVE";
+    private String status = STATUS_ACTIVE;
 
     @Column(name = "employee_seq", nullable = false)
     private Long employeeSeq = 0L;
@@ -136,6 +141,15 @@ public class Company {
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+
+    /**
+     * True while this workspace is suspended and all of its accounts must be
+     * locked out. Read on the authentication and socket-handshake paths, so a
+     * suspension takes effect on the next request rather than at token expiry.
+     */
+    public boolean isSuspended() {
+        return STATUS_SUSPENDED.equalsIgnoreCase(status);
+    }
 
     public Long getEmployeeSeq() { return employeeSeq; }
     public void setEmployeeSeq(Long employeeSeq) { this.employeeSeq = employeeSeq; }

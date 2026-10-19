@@ -2,6 +2,7 @@ package com.nexus.backend.config;
 
 import com.nexus.backend.security.JwtAuthenticationFilter;
 import com.nexus.backend.security.MustChangePasswordFilter;
+import com.nexus.backend.security.SuspendedCompanyFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -70,6 +71,10 @@ public class SecurityConfig {
                 // be registered on the servlet container's chain, where it would
                 // run ahead of authentication and silently do nothing.
                 .addFilterAfter(new MustChangePasswordFilter(), JwtAuthenticationFilter.class)
+                // After the password gate: a suspended account is refused whatever it
+                // was going to do, and the two refusals are independent rules that both
+                // hold before authorization. Same construction rationale as above.
+                .addFilterAfter(new SuspendedCompanyFilter(), MustChangePasswordFilter.class)
                 .addFilterBefore(securityHeadersFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

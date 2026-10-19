@@ -165,7 +165,7 @@ class UserSprintServiceTest {
         user.setEmail("devendra@nexus.com");
         user.setRole(UserRole.ADMIN);
         user.setPassword("$2a$10$hashed");
-        when(userRepository.findByEmail("devendra@nexus.com")).thenReturn(Optional.of(user));
+        when(userRepository.findByEmailWithCompany("devendra@nexus.com")).thenReturn(Optional.of(user));
         when(passwordEncoder.matches("password123", "$2a$10$hashed")).thenReturn(true);
         when(jwtUtil.generateToken("devendra@nexus.com")).thenReturn("access-token");
         when(jwtUtil.generateRefreshToken("devendra@nexus.com")).thenReturn("refresh-token");
@@ -181,7 +181,7 @@ class UserSprintServiceTest {
         User user = new User();
         user.setEmail("devendra@nexus.com");
         user.setPassword("$2a$10$hashed");
-        when(userRepository.findByEmail("devendra@nexus.com")).thenReturn(Optional.of(user));
+        when(userRepository.findByEmailWithCompany("devendra@nexus.com")).thenReturn(Optional.of(user));
         when(passwordEncoder.matches("nope", "$2a$10$hashed")).thenReturn(false);
 
         assertThatThrownBy(() -> userService.login(new LoginRequest("devendra@nexus.com", "nope")))

@@ -123,16 +123,41 @@ a mis-scoped query still cannot index another company's content
 
 ### Still open (phase 3)
 
-- **SUPER_ADMIN cross-company tooling does not exist.** `CurrentTenant.require()`
-  answers a SUPER_ADMIN with 403 rather than an unscoped listing, which is the
-  safe default; a deliberate cross-company view (list companies, list accounts
-  across companies) needs its own endpoints that never reuse a tenant-scoped
-  service method.
-- **Creating a second company.** The gate item — "every read path is
-  company-scoped" — now holds and is pinned by tests. A second company can be
-  created once the deployment gate below is satisfied; the two must land
-  together, because a second company on an unscoped read path is the exact
-  failure this rollout exists to prevent.
+- ~~SUPER_ADMIN cross-company tooling does not exist~~ — **done**:
+  `SuperAdminService` + `SuperAdminController` (`/api/admin/companies`,
+  `/api/admin/accounts`, and the suspend/resume routes) give a deliberate
+  cross-company view. They never reuse a tenant-scoped method: the listings take
+  no ambient tenant and are the only place a cross-company read is allowed,
+  reachable solely from a `hasRole('SUPER_ADMIN')` endpoint. That is the exact
+  shape the note below called for — the safe 403 default for every workspace read
+  stays untouched, and the operator who must see across workspaces gets their own
+  route (`SuperAdminSecurityTest` pins that an ordinary ADMIN is refused every
+  one of them).
+- **Creating a second company — done.** `POST /api/admin/companies` is
+  SUPER_ADMIN-only and creates the company, its first ADMIN, and the
+  `COMPANY_CREATED` audit row in one database transaction. The response is
+  `201 Created`, points `Location` at the company collection, and is
+  `Cache-Control: no-store` because it contains the generated initial password.
+  The password is returned once, is never written to the audit metadata, and
+  `must_change_password` forces the new admin to rotate it at first sign-in.
+  Company names are checked case-insensitively before insert and the unique
+  index race is translated to a validation response. Duplicate admin emails
+  return a generic `409` for both local accounts and Supabase `email_exists`
+  conflicts; the response does not identify the existing tenant.
+
+  The schema confirms `audit_log.company_id` is nullable and
+  `actor_user_id` has no foreign key, so global operator actions remain
+  attributable without requiring a tenant and survive actor deletion. A
+  Supabase identity is created before the database transaction can commit; if
+  the transaction rolls back, an after-rollback callback attempts to delete
+  that identity. Cleanup failure is logged at error level without the remote
+  error text or secrets; it cannot be made atomic with PostgreSQL.
+
+  `TwoCompanyIsolationTest` creates both companies through the real HTTP
+  endpoint and verifies tenant-scoped listings, cross-company `404` behavior,
+  direct-message privacy, SUPER_ADMIN listings and the ADMIN denial. The
+  production deployment gate below still applies before this endpoint is used
+  against production data.
 
 ## Forced password change (enforced)
 
@@ -173,6 +198,53 @@ remain valid until they expire — they are stateless JWTs, and there is nothing
 invalidate them against. Closing that needs a password-changed timestamp or token
 version on the account, checked per request. A Supabase-linked account has no
 such window: Supabase ends that account's sessions when its password changes.
+
+## Company suspension (enforced)
+
+`companies.status` was already `ACTIVE`/`SUSPENDED` in the schema (V18) but
+nothing read it: a suspended company's people could sign in and work as if
+nothing had happened. It is now a hard lockout, read from the row on every
+request and socket the same way `must_change_password` is — never from a token
+claim, so an operator suspending a workspace takes effect on its people's very
+next request rather than at token expiry.
+
+- **`NexusUserPrincipal`** carries `companySuspended`, read from the company row
+  (fetched with the account by `findByEmailWithCompany`) on every request.
+- **`SuspendedCompanyFilter`** (wired in `SecurityConfig` after the password
+  gate) refuses every request from a suspended company with
+  `403 {"code":"WORKSPACE_SUSPENDED"}`. Exactly one read passes — `GET
+  /api/users/me` — so the client can tell a suspended session from a dead one and
+  render the screen that says who can lift it; that read grants no workspace
+  data. CORS preflights pass so a sign-out is not reported as a network failure.
+- **`UserService.login` / `.refresh`** refuse a suspended company at the door.
+  These two endpoints run before any authentication exists, so there is no
+  principal for the filter to gate; they check the row themselves. A wrong
+  password is still reported as such even for a suspended company, so the door
+  does not disclose the suspension to someone who never got in.
+- **`SocketPrincipalResolver`** refuses a socket handshake for a suspended
+  company, on both the chat and whiteboard connections — a browser opens a socket
+  with a token in the query and no principal in scope, so the HTTP filter never
+  sees it and the rule has to be applied where the token is read.
+- **`CompanySuspensionService.suspend`** sets the row, writes a
+  `COMPANY_SUSPENDED` audit row in the same transaction, and ends the company's
+  live sockets via `CompanySocketCloser` (both the chat and the whiteboard
+  registry). Because that close is local to the instance that handled the
+  request, the same suspension is published on a Redis control channel
+  (`nexus:company:suspension`); `CompanySuspensionConfig` subscribes and closes
+  the company's sockets on every other instance. Redis is optional — with none,
+  a single-instance deployment needs no cross-instance control, and the handshake
+  still refuses new connections everywhere because every instance reads the same
+  row.
+- **`POST /api/admin/companies/{id}/suspend|resume`** (`CompanyAdminController`)
+  is SUPER_ADMIN-only and deliberately *not* tenant-scoped: a suspension targets
+  a company by id and locks its people out of every session, which is exactly the
+  kind of cross-company action the runbook says needs its own endpoint rather
+  than a tenant-scoped service method (which would refuse a SUPER_ADMIN, who has
+  no company).
+
+Enforcement does not depend on that endpoint: the filter, the login/refresh
+checks and the handshake all read the company row, so flipping it by any means
+locks the workspace out everywhere on the next request.
 
 ## Deployment gate (before any production deploy)
 
