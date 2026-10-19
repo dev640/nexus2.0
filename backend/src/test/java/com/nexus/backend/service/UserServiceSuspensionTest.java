@@ -11,6 +11,7 @@ import com.nexus.backend.domain.user.User;
 import com.nexus.backend.domain.user.UserRole;
 import com.nexus.backend.dto.LoginRequest;
 import com.nexus.backend.exception.CompanySuspendedException;
+import com.nexus.backend.exception.ValidationException;
 import com.nexus.backend.repository.UserRepository;
 import com.nexus.backend.security.JwtUtil;
 import com.nexus.backend.tenant.CurrentTenant;
@@ -66,6 +67,19 @@ class UserServiceSuspensionTest {
 
         assertThatThrownBy(() -> userService.refresh("rt"))
             .isInstanceOf(CompanySuspendedException.class);
+    }
+
+    @Test
+    void refreshIsRefusedWhenTheAccountVersionHasChanged() {
+        User user = account(Company.STATUS_ACTIVE);
+        user.setTokenVersion(1);
+        when(jwtUtil.isRefreshToken("rt")).thenReturn(true);
+        when(jwtUtil.extractUsername("rt")).thenReturn("ada@nexus.com");
+        when(userRepository.findByEmailWithCompany("ada@nexus.com")).thenReturn(Optional.of(user));
+
+        assertThatThrownBy(() -> userService.refresh("rt"))
+            .isInstanceOf(ValidationException.class)
+            .hasMessageContaining("Invalid or expired refresh token");
     }
 
     /** The correct password is still refused when the workspace is suspended. */

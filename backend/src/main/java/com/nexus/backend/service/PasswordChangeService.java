@@ -2,11 +2,14 @@ package com.nexus.backend.service;
 
 import com.nexus.backend.domain.audit.AuditAction;
 import com.nexus.backend.domain.user.User;
+import com.nexus.backend.dto.AuthResponse;
 import com.nexus.backend.dto.ChangePasswordRequest;
+import com.nexus.backend.dto.UserResponse;
 import com.nexus.backend.exception.ResourceNotFoundException;
 import com.nexus.backend.exception.ValidationException;
 import com.nexus.backend.repository.UserRepository;
 import com.nexus.backend.security.NexusUserPrincipal;
+import com.nexus.backend.security.JwtUtil;
 import com.nexus.backend.security.SupabaseAdminClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,12 +44,9 @@ import java.util.Map;
  * </ul>
  *
  * <p><b>Known limitation.</b> For a local account the change does not invalidate
- * access tokens already issued to that account — they are stateless JWTs and
- * remain valid until they expire. Someone who already held one keeps it for that
- * window, which cannot be closed without recording a token version or a
- * password-changed timestamp on the account and checking it per request. A
- * Supabase-linked account has no such window: Supabase ends that account's
- * sessions when its password changes.
+ * access tokens already issued to that account are invalidated by incrementing
+ * the persisted token version. Supabase-linked accounts are also revoked at
+ * Supabase, and their browser session signs out after the change.
  */
 @Service
 public class PasswordChangeService {
@@ -57,17 +57,20 @@ public class PasswordChangeService {
     private final PasswordEncoder passwordEncoder;
     private final SupabaseAdminClient supabaseAdminClient;
     private final AuditService auditService;
+    private final JwtUtil jwtUtil;
 
     public PasswordChangeService(
         UserRepository userRepository,
         PasswordEncoder passwordEncoder,
         SupabaseAdminClient supabaseAdminClient,
-        AuditService auditService
+        AuditService auditService,
+        JwtUtil jwtUtil
     ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.supabaseAdminClient = supabaseAdminClient;
         this.auditService = auditService;
+        this.jwtUtil = jwtUtil;
     }
 
     /**
@@ -83,7 +86,7 @@ public class PasswordChangeService {
      *         checked at all
      */
     @Transactional
-    public void changePassword(NexusUserPrincipal principal, ChangePasswordRequest request) {
+    public AuthResponse changePassword(NexusUserPrincipal principal, ChangePasswordRequest request) {
         User user = userRepository.findById(principal.getUserId())
             .orElseThrow(() -> new ResourceNotFoundException("User", "id", principal.getUserId()));
 
@@ -110,6 +113,7 @@ public class PasswordChangeService {
         // in the same transaction, so there is no window in which the password has
         // been changed and the account is still gated.
         user.setMustChangePassword(false);
+        user.setTokenVersion(user.getTokenVersion() + 1);
         userRepository.save(user);
 
         // Recorded without the password or anything derived from it: the trail
@@ -118,6 +122,17 @@ public class PasswordChangeService {
             Map.of("email", user.getEmail()));
 
         log.info("User {} changed their own password", user.getEmail());
+
+        if (user.getSupabaseId() != null) {
+            return null;
+        }
+        return new AuthResponse(
+            jwtUtil.generateToken(user.getEmail(), user.getTokenVersion()),
+            jwtUtil.generateRefreshToken(user.getEmail(), user.getTokenVersion()),
+            new UserResponse(
+                user.getId(), user.getName(), user.getEmail(), user.getRole(), null,
+                user.getEmployeeCode(), user.isMustChangePassword())
+        );
     }
 
     /** Message used for both kinds of reuse, since the caller cannot tell them apart. */

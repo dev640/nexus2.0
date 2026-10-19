@@ -79,8 +79,8 @@ public class UserService {
         auditService.record(AuditAction.USER_CREATED, "User", savedUser.getId(),
             Map.of("email", savedUser.getEmail(), "role", savedUser.getRole().name(), "via", "register"));
 
-        String token = jwtUtil.generateToken(savedUser.getEmail());
-        String refreshToken = jwtUtil.generateRefreshToken(savedUser.getEmail());
+        String token = jwtUtil.generateToken(savedUser.getEmail(), savedUser.getTokenVersion());
+        String refreshToken = jwtUtil.generateRefreshToken(savedUser.getEmail(), savedUser.getTokenVersion());
 
         return new AuthResponse(
             token,
@@ -110,8 +110,8 @@ public class UserService {
 
         refuseIfSuspended(user);
 
-        String token = jwtUtil.generateToken(user.getEmail());
-        String refreshToken = jwtUtil.generateRefreshToken(user.getEmail());
+        String token = jwtUtil.generateToken(user.getEmail(), user.getTokenVersion());
+        String refreshToken = jwtUtil.generateRefreshToken(user.getEmail(), user.getTokenVersion());
 
         return new AuthResponse(
             token,
@@ -129,13 +129,17 @@ public class UserService {
         User user = userRepository.findByEmailWithCompany(email)
             .orElseThrow(() -> new ValidationException("Invalid or expired refresh token"));
 
+        if (jwtUtil.extractTokenVersion(refreshToken) != user.getTokenVersion()) {
+            throw new ValidationException("Invalid or expired refresh token");
+        }
+
         // Refreshing a suspended workspace's token would extend the credential its
         // requests are refused with; refuse it here for the same reason as login.
         refuseIfSuspended(user);
 
         return new AuthResponse(
-            jwtUtil.generateToken(user.getEmail()),
-            jwtUtil.generateRefreshToken(user.getEmail()),
+            jwtUtil.generateToken(user.getEmail(), user.getTokenVersion()),
+            jwtUtil.generateRefreshToken(user.getEmail(), user.getTokenVersion()),
             mapToResponse(user)
         );
     }

@@ -5,6 +5,7 @@ import com.nexus.backend.domain.user.User;
 import com.nexus.backend.domain.user.UserAvatar;
 import com.nexus.backend.domain.user.UserRole;
 import com.nexus.backend.dto.ChangePasswordRequest;
+import com.nexus.backend.dto.AuthResponse;
 import com.nexus.backend.dto.CreateUserRequest;
 import com.nexus.backend.dto.CreatedUserResponse;
 import com.nexus.backend.dto.UserResponse;
@@ -126,13 +127,14 @@ public class UserController {
      * one an admin knows. The request carries no account id — the target is
      * whoever is authenticated — so there is nothing to point at somebody else.
      *
-     * <p>Returns no content: the caller's own profile is read back through
-     * {@code GET /api/users/me}, which is where the cleared flag is picked up.
+     * <p>Local accounts receive a new versioned session because the old bearer
+     * token has just been invalidated. Supabase accounts return no content and
+     * sign out because Supabase revokes their sessions on password change.
      */
     @PostMapping("/me/password")
-    public ResponseEntity<Void> changeOwnPassword(@Valid @RequestBody ChangePasswordRequest payload) {
-        passwordChangeService.changePassword(callerPrincipal(), payload);
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<AuthResponse> changeOwnPassword(@Valid @RequestBody ChangePasswordRequest payload) {
+        AuthResponse response = passwordChangeService.changePassword(callerPrincipal(), payload);
+        return response == null ? ResponseEntity.noContent().build() : ResponseEntity.ok(response);
     }
 
     /**

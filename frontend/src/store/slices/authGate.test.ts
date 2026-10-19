@@ -1,7 +1,7 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
 import type { AxiosResponse } from 'axios'
 import { useAppStore } from '../useAppStore'
-import { api, apiChangePassword, apiLogin, type ApiAuthResponse, type ApiUser } from '../../lib/api'
+import { api, apiChangePassword, apiLogin, getStoredToken, type ApiAuthResponse, type ApiUser } from '../../lib/api'
 
 vi.mock('../../lib/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../lib/api')>()
@@ -18,6 +18,11 @@ const gated: ApiUser = { id: 9, name: 'Ada', email: 'ada@nexus.com', role: 'MEMB
 const ungated: ApiUser = { ...gated, mustChangePassword: false }
 
 const loginResponse: ApiAuthResponse = { token: 't', refreshToken: 'r', user: gated }
+const changedResponse: ApiAuthResponse = {
+  token: 'fresh-token',
+  refreshToken: 'fresh-refresh',
+  user: ungated,
+}
 
 /** A profile response, minus the transport metadata nothing here reads. */
 function profileResponse(user: ApiUser): AxiosResponse<ApiUser> {
@@ -55,7 +60,7 @@ describe('gated session', () => {
   beforeEach(() => {
     loadWorkspace.mockClear()
     vi.mocked(apiLogin).mockReset().mockResolvedValue(loginResponse)
-    vi.mocked(apiChangePassword).mockReset().mockResolvedValue(undefined)
+    vi.mocked(apiChangePassword).mockReset().mockResolvedValue(changedResponse)
     useAppStore.setState({
       isAuthenticated: false,
       isBootstrapped: false,
@@ -80,11 +85,21 @@ describe('gated session', () => {
     expect(loadWorkspace).not.toHaveBeenCalled()
   })
 
+  it('signs a SUPER_ADMIN in without requesting tenant workspace data', async () => {
+    const operator: ApiUser = { ...gated, role: 'SUPER_ADMIN', mustChangePassword: false }
+    vi.mocked(apiLogin).mockResolvedValue({ ...loginResponse, user: operator })
+
+    const result = await useAppStore.getState().login('ada@nexus.com', 'operator-pass')
+
+    expect(result.ok).toBe(true)
+    expect(useAppStore.getState().currentUser?.role).toBe('SUPER_ADMIN')
+    expect(loadWorkspace).not.toHaveBeenCalled()
+  })
+
   it('loads the workspace once the password has been changed', async () => {
     await useAppStore.getState().login('ada@nexus.com', 'issued-pass')
     expect(loadWorkspace).not.toHaveBeenCalled()
 
-    serveUsersMe(ungated)
     const result = await useAppStore.getState().changePassword('issued-pass', 'brand-new-pass')
 
     expect(result.ok).toBe(true)
@@ -92,6 +107,8 @@ describe('gated session', () => {
     // The profile is read back rather than patched, so the flag the screen is
     // gated on is the flag the server just cleared.
     expect(useAppStore.getState().currentUser?.mustChangePassword).toBe(false)
+    expect(useAppStore.getState().currentUser?.email).toBe('ada@nexus.com')
+    expect(getStoredToken()).toBe('fresh-token')
     expect(loadWorkspace).toHaveBeenCalledTimes(1)
   })
 

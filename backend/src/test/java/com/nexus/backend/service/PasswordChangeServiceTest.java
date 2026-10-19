@@ -14,10 +14,12 @@ import static org.mockito.Mockito.when;
 import com.nexus.backend.domain.audit.AuditAction;
 import com.nexus.backend.domain.user.User;
 import com.nexus.backend.domain.user.UserRole;
+import com.nexus.backend.dto.AuthResponse;
 import com.nexus.backend.dto.ChangePasswordRequest;
 import com.nexus.backend.exception.ValidationException;
 import com.nexus.backend.repository.UserRepository;
 import com.nexus.backend.security.NexusUserPrincipal;
+import com.nexus.backend.security.JwtUtil;
 import com.nexus.backend.security.SupabaseAdminClient;
 import com.nexus.backend.security.SupabaseAdminClient.PasswordVerification;
 import java.util.Optional;
@@ -51,6 +53,7 @@ class PasswordChangeServiceTest {
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private SupabaseAdminClient supabaseAdminClient;
     @Mock private AuditService auditService;
+    @Mock private JwtUtil jwtUtil;
 
     @InjectMocks private PasswordChangeService service;
 
@@ -92,10 +95,17 @@ class PasswordChangeServiceTest {
         when(passwordEncoder.matches("chosen-pass", STORED_HASH)).thenReturn(false);
         when(passwordEncoder.encode("chosen-pass")).thenReturn("$2a$10$newhash");
 
-        service.changePassword(principal(), request("issued-pass", "chosen-pass"));
+        when(jwtUtil.generateToken(EMAIL, 1)).thenReturn("fresh-access");
+        when(jwtUtil.generateRefreshToken(EMAIL, 1)).thenReturn("fresh-refresh");
+
+        AuthResponse response = service.changePassword(principal(), request("issued-pass", "chosen-pass"));
 
         assertThat(user.getPassword()).isEqualTo("$2a$10$newhash");
         assertThat(user.isMustChangePassword()).isFalse();
+        assertThat(user.getTokenVersion()).isEqualTo(1);
+        assertThat(response.token()).isEqualTo("fresh-access");
+        assertThat(response.refreshToken()).isEqualTo("fresh-refresh");
+        assertThat(response.user().mustChangePassword()).isFalse();
         verify(userRepository).save(user);
     }
 

@@ -46,6 +46,8 @@ import java.io.IOException;
  * <p>The company is read from the account row (through the principal) rather
  * than from a token claim, so moving someone between companies takes effect on
  * their next request instead of when their token expires.
+ * The token's account version is checked against that same row, so a password
+ * change invalidates the credentials that predate it.
  */
 @Slf4j
 @Component
@@ -111,8 +113,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         // Route 1: our own access token (subject = email).
         try {
             String email = jwtUtil.extractUsername(token);
-            if (email != null && email.contains("@") && jwtUtil.validateToken(token, email)) {
-                return authenticated(userDetailsService.loadUserByUsername(email), request);
+            if (email != null && email.contains("@")) {
+                UserDetails userDetails = userDetailsService.loadUserByUsername(email);
+                if (userDetails instanceof NexusUserPrincipal principal
+                    && jwtUtil.validateToken(token, email, principal.getTokenVersion())) {
+                    return authenticated(userDetails, request);
+                }
             }
         } catch (Exception e) {
             // Not one of ours — fall through to the Supabase path.

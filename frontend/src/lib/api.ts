@@ -104,7 +104,7 @@ export type ApiTaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'
 export type ApiSprintStatus = 'PLANNED' | 'ACTIVE' | 'COMPLETED'
 export type ApiProjectStatus = 'PLANNING' | 'ACTIVE' | 'ON_HOLD' | 'COMPLETED' | 'ARCHIVED'
 export type ApiProjectHealth = 'ON_TRACK' | 'AT_RISK' | 'OFF_TRACK'
-export type ApiUserRole = 'ADMIN' | 'MEMBER' | 'VIEWER' | 'DEVELOPER' | 'MANAGER'
+export type ApiUserRole = 'ADMIN' | 'MEMBER' | 'VIEWER' | 'DEVELOPER' | 'MANAGER' | 'SUPER_ADMIN'
 
 export interface ApiUser {
   id: number
@@ -224,8 +224,15 @@ export async function apiUpdateMe(name: string): Promise<ApiUser> {
  * already signed in: an access token is a bearer credential, and without this a
  * stolen one could set a new password and take the account over.
  */
-export async function apiChangePassword(currentPassword: string, newPassword: string): Promise<void> {
-  await api.post('/users/me/password', { currentPassword, newPassword })
+export async function apiChangePassword(
+  currentPassword: string,
+  newPassword: string,
+): Promise<ApiAuthResponse | null> {
+  const { data, status } = await api.post<ApiAuthResponse | null>('/users/me/password', {
+    currentPassword,
+    newPassword,
+  })
+  return status === 204 ? null : data
 }
 
 export async function apiUpdateUserRole(id: number, role: ApiUserRole): Promise<ApiUser> {
@@ -311,6 +318,67 @@ export async function apiResolvePasswordReset(id: number): Promise<ApiCreatedUse
 
 export async function apiDismissPasswordReset(id: number): Promise<void> {
   await api.post(`/admin/password-resets/${id}/dismiss`)
+}
+
+export interface ApiAdminCompany {
+  id: number
+  name: string
+  status: 'ACTIVE' | 'SUSPENDED'
+  employeeCount: number
+  createdAt: string
+}
+
+export interface ApiAdminAccount {
+  id: number
+  name: string
+  email: string
+  role: ApiUserRole
+  employeeCode: string | null
+  mustChangePassword: boolean
+  companyId: number | null
+  companyName: string | null
+  companyStatus: 'ACTIVE' | 'SUSPENDED' | null
+}
+
+export interface ApiCreateCompanyInput {
+  name: string
+  adminName: string
+  adminEmail: string
+}
+
+export interface ApiCreatedCompany {
+  companyId: number
+  companyName: string
+  adminId: number
+  adminName: string
+  adminEmail: string
+  role: 'ADMIN'
+  generatedPassword: string
+}
+
+export async function apiListAdminCompanies(): Promise<ApiAdminCompany[]> {
+  const { data } = await api.get<ApiAdminCompany[]>('/admin/companies')
+  return data
+}
+
+export async function apiListAdminAccounts(companyId?: number): Promise<ApiAdminAccount[]> {
+  const { data } = await api.get<ApiAdminAccount[]>('/admin/accounts', {
+    params: companyId == null ? undefined : { companyId },
+  })
+  return data
+}
+
+export async function apiCreateCompany(input: ApiCreateCompanyInput): Promise<ApiCreatedCompany> {
+  const { data } = await api.post<ApiCreatedCompany>('/admin/companies', input)
+  return data
+}
+
+export async function apiSuspendCompany(id: number): Promise<void> {
+  await api.post(`/admin/companies/${id}/suspend`)
+}
+
+export async function apiResumeCompany(id: number): Promise<void> {
+  await api.post(`/admin/companies/${id}/resume`)
 }
 
 // ---------- Projects ----------

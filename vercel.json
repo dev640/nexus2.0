@@ -120,6 +120,14 @@
       "destination": "/index.html"
     },
     {
+      "source": "/platform-admin",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/platform-admin/",
+      "destination": "/index.html"
+    },
+    {
       "source": "/privacy",
       "destination": "/index.html"
     },

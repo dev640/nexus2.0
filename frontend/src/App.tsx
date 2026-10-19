@@ -34,6 +34,7 @@ const Team = lazy(() => import('./pages/Team').then((m) => ({ default: m.Team })
 const Settings = lazy(() => import('./pages/Settings').then((m) => ({ default: m.Settings })))
 const Help = lazy(() => import('./pages/Help').then((m) => ({ default: m.Help })))
 const Admin = lazy(() => import('./pages/Admin').then((m) => ({ default: m.Admin })))
+const SuperAdmin = lazy(() => import('./pages/SuperAdmin').then((m) => ({ default: m.SuperAdmin })))
 // Public, so they are reachable signed out as well as signed in — a policy
 // behind a login is not much of a policy. NotFound replaces a catch-all
 // redirect that silently sent mistyped links to the marketing page.
@@ -95,6 +96,19 @@ function App() {
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="*" element={<NotFound />} />
+        </Routes>
+      </Suspense>
+    )
+  }
+
+  // A SUPER_ADMIN has no tenant, so do not mount the workspace shell or its
+  // tenant-scoped pages. The operator has a separate cross-company surface.
+  if (userRole === 'SUPER_ADMIN') {
+    return (
+      <Suspense fallback={<RouteFallback />}>
+        <Routes>
+          <Route path="/platform-admin" element={<SuperAdmin />} />
+          <Route path="*" element={<Navigate to="/platform-admin" replace />} />
         </Routes>
       </Suspense>
     )

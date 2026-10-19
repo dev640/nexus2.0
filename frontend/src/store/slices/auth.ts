@@ -47,14 +47,12 @@ export const createAuthSlice: StateCreator<AppState, [], [], AuthSlice> = (set, 
    * Applies a profile the server just accepted as this session's, then fills the
    * workspace from it.
    *
-   * A gated account cannot reach a single workspace endpoint yet, so loading one
-   * would only produce a burst of refusals (and set syncError) on the very screen
-   * that is about to ask for a new password. Once the password has been changed
-   * the same path fills the workspace the workspace screens are about to need.
+   * A gated account cannot reach workspace endpoints, and a SUPER_ADMIN has no
+   * tenant scope. Neither should trigger tenant workspace requests on sign-in.
    */
   const enterWorkspace = async (user: ApiUser): Promise<void> => {
     get().applyCurrentUser(user)
-    if (user.mustChangePassword === true) return
+    if (user.mustChangePassword === true || user.role === 'SUPER_ADMIN') return
     await get().loadWorkspace()
   }
 
@@ -107,16 +105,16 @@ export const createAuthSlice: StateCreator<AppState, [], [], AuthSlice> = (set, 
      */
     changePassword: async (currentPassword, newPassword) => {
       try {
-        await apiChangePassword(currentPassword, newPassword)
+        const changed = await apiChangePassword(currentPassword, newPassword)
         if (supabaseEnabled && supabase) {
           get().logout()
           return { ok: true }
         }
-        const { data } = await api.get<ApiUser>('/users/me')
-        // The flag is now false, so this loads the workspace as well as applying
-        // the profile: the forced-change screen unmounts and the app opens into
-        // pages whose data has to be there.
-        await enterWorkspace(data)
+        if (!changed) throw new Error('The server did not return a renewed session')
+        storeToken(changed.token)
+        // The response carries the new token and cleared profile because the old
+        // token was invalidated in the same transaction as the password change.
+        await enterWorkspace(changed.user)
         return { ok: true }
       } catch (err) {
         return { ok: false, error: apiErrorMessage(err, 'Could not change your password') }
@@ -176,6 +174,7 @@ export const createAuthSlice: StateCreator<AppState, [], [], AuthSlice> = (set, 
       // A gated account reloads straight onto the forced-change screen: every
       // workspace endpoint would refuse it, so the workspace is not asked for.
       let gated = false
+      let superAdmin = false
       try {
         // Restore the session profile on reload — loadWorkspace only fills the
         // workspace collections, leaving currentUser null (used by the sidebar,
@@ -183,10 +182,11 @@ export const createAuthSlice: StateCreator<AppState, [], [], AuthSlice> = (set, 
         const me = await api.get<ApiUser>('/users/me')
         get().applyCurrentUser(me.data)
         gated = me.data.mustChangePassword === true
+        superAdmin = me.data.role === 'SUPER_ADMIN'
       } catch {
         // Stale/invalid token: loadWorkspace below surfaces the failure as usual.
       }
-      if (!gated) await get().loadWorkspace()
+      if (!gated && !superAdmin) await get().loadWorkspace()
     },
   }
 }

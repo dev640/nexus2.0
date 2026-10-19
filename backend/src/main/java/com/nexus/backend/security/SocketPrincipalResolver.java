@@ -33,9 +33,10 @@ public class SocketPrincipalResolver {
      * Who is on the other end of a socket.
      *
      * @param userId   the account, which is what a targeted send addresses
-     * @param companyId the account's company, which is what a broadcast filters on
+    * @param companyId the account's company, which is what a broadcast filters on
+    * @param tokenVersion the current credential version from the account row
      */
-    public record Identity(Long userId, Long companyId, String email) {}
+    public record Identity(Long userId, Long companyId, String email, int tokenVersion) {}
 
     private final UserRepository userRepository;
 
@@ -55,7 +56,8 @@ public class SocketPrincipalResolver {
             // here closes the handshake path; the servlet filter refuses HTTP, and
             // CompanySocketCloser drops the sessions already open.
             .filter(user -> !isSuspended(user))
-            .map(user -> new Identity(user.getId(), user.getCompanyId(), user.getEmail()))
+            .map(user -> new Identity(
+                user.getId(), user.getCompanyId(), user.getEmail(), user.getTokenVersion()))
             // A company is required, not merely preferred: see the class note.
             .filter(identity -> identity.companyId() != null);
     }

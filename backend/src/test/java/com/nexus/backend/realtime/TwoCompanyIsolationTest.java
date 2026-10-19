@@ -187,11 +187,12 @@ class TwoCompanyIsolationTest {
         HttpResponse<String> changed = post("/api/users/me/password", temporaryToken, Map.of(
             "currentPassword", generatedPassword,
             "newPassword", NEW_ADMIN_PASSWORD));
-        assertThat(changed.statusCode()).isEqualTo(204);
-
-        JsonNode secondLogin = login(email, NEW_ADMIN_PASSWORD);
-        assertThat(secondLogin.path("user").path("mustChangePassword").asBoolean()).isFalse();
-        return new AdminSession(secondLogin.path("token").asText(), created.path("adminId").asLong());
+        assertThat(changed.statusCode()).isEqualTo(200);
+        JsonNode renewed = json(changed.body());
+        assertThat(renewed.path("user").path("mustChangePassword").asBoolean()).isFalse();
+        assertThat(get("/api/users/me", temporaryToken).statusCode()).isEqualTo(401);
+        assertThat(get("/api/users/me", renewed.path("token").asText()).statusCode()).isEqualTo(200);
+        return new AdminSession(renewed.path("token").asText(), created.path("adminId").asLong());
     }
 
     private long createProject(String token, String name) throws Exception {

@@ -119,7 +119,7 @@ public class WhiteboardSocketConfig implements WebSocketConfigurer {
                         return false;
                     }
                     attributes.put("email", email);
-                    return stampIdentity(email, attributes);
+                    return stampIdentity(email, token, attributes);
                 }
             } catch (Exception e) {
                 log.debug("Not a Nexus token on whiteboard handshake: {}", e.getMessage());
@@ -155,10 +155,14 @@ public class WhiteboardSocketConfig implements WebSocketConfigurer {
          * database does not know. A socket that cannot be attributed would have
          * to be left out of every broadcast - so the connection is not opened.
          */
-        private boolean stampIdentity(String email, Map<String, Object> attributes) {
+        private boolean stampIdentity(String email, String token, Map<String, Object> attributes) {
             Optional<SocketPrincipalResolver.Identity> identity = principalResolver.resolve(email);
             if (identity.isEmpty()) {
                 log.debug("Whiteboard handshake refused: no company for {}", email);
+                return false;
+            }
+            if (!jwtUtil.validateToken(token, email, identity.get().tokenVersion())) {
+                log.debug("Whiteboard handshake refused: stale account token version for {}", email);
                 return false;
             }
             return stampCompany(identity.get().companyId(), identity.get().userId(), attributes);

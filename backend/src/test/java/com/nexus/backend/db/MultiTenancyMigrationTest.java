@@ -22,7 +22,7 @@ import org.junit.jupiter.api.TestMethodOrder;
 import org.testcontainers.containers.PostgreSQLContainer;
 
 /**
- * Proves the multi-tenancy migrations (V18-V21) on a real Postgres.
+ * Proves the multi-tenancy migrations on a real Postgres.
  *
  * <p>The flow mirrors what the real database will go through: migrate the
  * pre-tenancy schema to V17, put a row into EVERY tenant table (several of
@@ -222,6 +222,47 @@ class MultiTenancyMigrationTest {
                     + "= 'public'::regnamespace", fk);
             assertThat(found).as("original FK " + fk).isEqualTo(1L);
         }
+    }
+
+    @Test
+    @Order(4)
+    void documentedSchemaExceptionsKeepTheirIntentionalShape() throws Exception {
+        assertThat(queryLong(conn,
+            "SELECT COUNT(*) FROM information_schema.columns "
+                + "WHERE table_schema = 'public' AND table_name = 'task_labels' "
+                + "AND column_name = 'company_id'"))
+            .as("task_labels inherits tenancy from tasks")
+            .isZero();
+        assertThat(foreignKeyCount("task_labels", "task_id"))
+            .as("task_labels keeps only its parent relationship")
+            .isEqualTo(1);
+
+        for (String[] column : new String[][] {
+            {"whiteboard_notes", "author"},
+            {"wiki_pages", "author"},
+            {"chat_channels", "created_by"},
+            {"audit_log", "actor_user_id"}
+        }) {
+            assertThat(foreignKeyCount(column[0], column[1]))
+                .as("documented non-FK %s.%s", column[0], column[1])
+                .isZero();
+        }
+
+        assertThat(foreignKeyCount("knowledge_chunks", "owner_id"))
+            .as("knowledge chunk ownership remains application-enforced")
+            .isZero();
+        assertThat(foreignKeyCount("password_reset_requests", "resolved_by"))
+            .as("resolved_by retains its single-column FK, without a company twin")
+            .isEqualTo(1);
+    }
+
+    private static long foreignKeyCount(String table, String column) throws Exception {
+        return queryLong(conn,
+            "SELECT COUNT(*) FROM pg_constraint c "
+                + "JOIN pg_class t ON t.oid = c.conrelid "
+                + "JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = ANY(c.conkey) "
+                + "WHERE c.contype = 'f' AND t.relname = ? AND a.attname = ?",
+            table, column);
     }
 
     // ------------------------------------------------------- phase 2: second company

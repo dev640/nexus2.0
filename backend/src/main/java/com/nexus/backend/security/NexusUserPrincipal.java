@@ -57,8 +57,15 @@ public class NexusUserPrincipal implements UserDetails {
      */
     private final boolean companySuspended;
 
+    private final int tokenVersion;
+
     public NexusUserPrincipal(Long userId, String email, String password, UserRole role, Long companyId,
                               boolean mustChangePassword, boolean companySuspended) {
+        this(userId, email, password, role, companyId, mustChangePassword, companySuspended, 0);
+    }
+
+    public NexusUserPrincipal(Long userId, String email, String password, UserRole role, Long companyId,
+                              boolean mustChangePassword, boolean companySuspended, int tokenVersion) {
         this.userId = userId;
         this.email = email;
         this.password = password;
@@ -66,6 +73,7 @@ public class NexusUserPrincipal implements UserDetails {
         this.companyId = companyId;
         this.mustChangePassword = mustChangePassword;
         this.companySuspended = companySuspended;
+        this.tokenVersion = tokenVersion;
     }
 
     public static NexusUserPrincipal from(User user) {
@@ -80,7 +88,8 @@ public class NexusUserPrincipal implements UserDetails {
             user.getRole(),
             user.getCompanyId(),
             user.isMustChangePassword(),
-            company != null && company.isSuspended()
+            company != null && company.isSuspended(),
+            user.getTokenVersion()
         );
     }
 
@@ -93,6 +102,8 @@ public class NexusUserPrincipal implements UserDetails {
     public boolean isMustChangePassword() { return mustChangePassword; }
 
     public boolean isCompanySuspended() { return companySuspended; }
+
+    public int getTokenVersion() { return tokenVersion; }
 
     /** True for the one role that is not a member of any company. */
     public boolean isSuperAdmin() { return role == UserRole.SUPER_ADMIN; }
@@ -125,6 +136,6 @@ public class NexusUserPrincipal implements UserDetails {
     public String toString() {
         return "NexusUserPrincipal[userId=" + userId + ", email=" + email + ", role=" + role
             + ", companyId=" + companyId + ", mustChangePassword=" + mustChangePassword
-            + ", companySuspended=" + companySuspended + "]";
+            + ", companySuspended=" + companySuspended + ", tokenVersion=" + tokenVersion + "]";
     }
 }

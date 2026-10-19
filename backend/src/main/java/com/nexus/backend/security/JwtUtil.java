@@ -76,17 +76,34 @@ public class JwtUtil {
     private static final String CLAIM_TYPE = "type";
     private static final String TYPE_ACCESS = "access";
     private static final String TYPE_REFRESH = "refresh";
+    private static final String CLAIM_TOKEN_VERSION = "tokenVersion";
 
     public String generateToken(String username) {
+        return generateToken(username, 0);
+    }
+
+    public String generateToken(String username, int tokenVersion) {
         Map<String, Object> claims = new HashMap<>();
         claims.put(CLAIM_TYPE, TYPE_ACCESS);
+        claims.put(CLAIM_TOKEN_VERSION, tokenVersion);
         return createToken(claims, username, expiration);
     }
 
     public String generateRefreshToken(String username) {
+        return generateRefreshToken(username, 0);
+    }
+
+    public String generateRefreshToken(String username, int tokenVersion) {
         Map<String, Object> claims = new HashMap<>();
         claims.put(CLAIM_TYPE, TYPE_REFRESH);
+        claims.put(CLAIM_TOKEN_VERSION, tokenVersion);
         return createToken(claims, username, refreshExpiration);
+    }
+
+    /** Returns the signed account version; older tokens belong to initial version 0. */
+    public int extractTokenVersion(String token) {
+        Integer version = extractClaim(token, claims -> claims.get(CLAIM_TOKEN_VERSION, Integer.class));
+        return version == null ? 0 : version;
     }
 
     private String createToken(Map<String, Object> claims, String subject, Long expirationTime) {
@@ -111,6 +128,11 @@ public class JwtUtil {
         String type = extractClaim(token, claims -> claims.get(CLAIM_TYPE, String.class));
         // Tokens issued before the type claim existed are treated as access tokens.
         return type == null || TYPE_ACCESS.equals(type);
+    }
+
+    /** Also rejects a signed token minted before the account's latest credential change. */
+    public boolean validateToken(String token, String username, int expectedTokenVersion) {
+        return validateToken(token, username) && extractTokenVersion(token) == expectedTokenVersion;
     }
 
     /** True when the token is a well-formed, unexpired refresh token. */

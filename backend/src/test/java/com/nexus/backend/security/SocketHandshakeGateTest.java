@@ -118,6 +118,28 @@ class SocketHandshakeGateTest {
             .containsEntry(WhiteboardSocketConfig.COMPANY_ATTRIBUTE, 3L);
     }
 
+    @Test
+    void chatRefusesATokenFromBeforeThePasswordChange() throws Exception {
+        HandshakeInterceptor chat = chatInterceptor();
+        nexusToken("tok", "ada@nexus.com");
+        when(guard.mustChangePassword("ada@nexus.com")).thenReturn(false);
+        identity("ada@nexus.com", 1);
+        when(jwtUtil.validateToken("tok", "ada@nexus.com", 1)).thenReturn(false);
+
+        assertThat(chat(chat, "/ws/chat", "tok").allowed()).isFalse();
+    }
+
+    @Test
+    void whiteboardRefusesATokenFromBeforeThePasswordChange() throws Exception {
+        HandshakeInterceptor whiteboard = whiteboardInterceptor();
+        nexusToken("tok", "ada@nexus.com");
+        when(guard.mustChangePassword("ada@nexus.com")).thenReturn(false);
+        identity("ada@nexus.com", 1);
+        when(jwtUtil.validateToken("tok", "ada@nexus.com", 1)).thenReturn(false);
+
+        assertThat(chat(whiteboard, "/ws/whiteboard", "tok").allowed()).isFalse();
+    }
+
     /**
      * An operator account belongs to no company, so there is no company's traffic
      * to subscribe it to: the socket is refused rather than left unattributed.
@@ -149,12 +171,17 @@ class SocketHandshakeGateTest {
     private void nexusToken(String token, String email) {
         when(jwtUtil.extractUsername(token)).thenReturn(email);
         when(jwtUtil.validateToken(token, email)).thenReturn(true);
+        when(jwtUtil.validateToken(token, email, 0)).thenReturn(true);
     }
 
     /** The account the resolver finds, in company 3. */
     private void identity(String email) {
+        identity(email, 0);
+        }
+
+        private void identity(String email, int tokenVersion) {
         when(principalResolver.resolve(email)).thenReturn(java.util.Optional.of(
-            new SocketPrincipalResolver.Identity(9L, 3L, email)));
+            new SocketPrincipalResolver.Identity(9L, 3L, email, tokenVersion)));
     }
 
     private static User account(boolean mustChangePassword) {

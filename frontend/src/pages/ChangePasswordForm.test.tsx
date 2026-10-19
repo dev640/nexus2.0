@@ -5,7 +5,7 @@ import type { AxiosResponse } from 'axios'
 import { ChangePasswordForm } from '../components/auth/ChangePasswordForm'
 import { useAppStore } from '../store/useAppStore'
 import { api, apiChangePassword } from '../lib/api'
-import type { ApiUser } from '../lib/api'
+import type { ApiAuthResponse, ApiUser } from '../lib/api'
 
 vi.mock('../lib/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../lib/api')>()
@@ -17,6 +17,11 @@ vi.mock('../lib/api', async (importOriginal) => {
 
 const gated: ApiUser = { id: 9, name: 'Ada', email: 'ada@nexus.com', role: 'MEMBER', mustChangePassword: true }
 const ungated: ApiUser = { ...gated, mustChangePassword: false }
+const changedSession: ApiAuthResponse = {
+  token: 'new-access-token',
+  refreshToken: 'new-refresh-token',
+  user: ungated,
+}
 
 /**
  * An axios-shaped refusal carrying a server message, which is exactly what the
@@ -38,7 +43,7 @@ describe('ChangePasswordForm', () => {
   beforeEach(() => {
     onDone.mockReset()
     loadWorkspace.mockClear()
-    vi.mocked(apiChangePassword).mockReset().mockResolvedValue(undefined)
+    vi.mocked(apiChangePassword).mockReset().mockResolvedValue(changedSession)
     vi.spyOn(api, 'get').mockResolvedValue({ data: ungated } as unknown as AxiosResponse)
     useAppStore.setState({
       isAuthenticated: true,

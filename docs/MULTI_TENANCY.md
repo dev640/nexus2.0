@@ -4,6 +4,8 @@ Phase 1 of the multi-tenancy rollout (migrations V18–V21) puts every piece of
 tenant data under exactly one company. This page records the decisions that
 are not obvious from the migrations themselves, and the **explicit exceptions**
 the Phase 4 ArchUnit / integration tests must allow.
+V22 adds a per-account token-version column without changing the company-ownership
+model.
 
 ## Model
 
@@ -24,6 +26,8 @@ the Phase 4 ArchUnit / integration tests must allow.
 - `users.email` remains globally unique; `ux_users_email_lower` additionally
   enforces case-insensitive uniqueness so `Devendra@nexus.com` cannot shadow
   `devendra@nexus.com`.
+- `users.token_version` (V22) is included in Nexus access and refresh JWTs and
+  incremented after password changes and admin-issued resets.
 - `audit_log` (V20) records admin/security actions. It intentionally has **no**
   FK on `actor_user_id`: audit rows must survive user deletion.
 
@@ -64,6 +68,16 @@ the Phase 4 ArchUnit / integration tests must allow.
    A chunk that took its company from the caller would be filed under the wrong
    one, silently.
 
+Coverage is split across focused tests: `EntitySchemaConformanceTest` enforces
+the mapped-entity boundary; `MultiTenancyMigrationTest.documentedSchemaExceptionsKeepTheirIntentionalShape`
+checks the `task_labels`, free-text author, `resolved_by`, `knowledge_chunks.owner_id`,
+and `audit_log.actor_user_id` shapes; `identityRulesHoldPerCompany` proves a
+companyless SUPER_ADMIN can resolve a reset; `AdminAccountServiceTest` covers the
+public reset assignment; `SupabaseIdentityTest` and auth tests exercise global
+sign-in lookup; and `KnowledgeIndexServiceTest` covers reconcile scoping. The
+free-text authors are intentionally not user references, so no-FK assertions are
+the applicable coverage for that exception.
+
 ## Phase 2: what the application layer enforces today
 
 Schema (phase 1) made cross-company rows impossible to *insert*. Phase 2 makes
@@ -99,7 +113,7 @@ the application agree with it. Landed:
   then links to it.
 - **`EntitySchemaConformanceTest`** boots the application against a
   migration-built database, so `ddl-auto=validate` proves the model matches
-  V18–V21, and pins that every entity is either `TenantAware` or on the
+  V18–V22, and pins that every entity is either `TenantAware` or on the
   exception list above.
 
 ### Scope audit (phase 2 complete)
@@ -121,7 +135,7 @@ memory), and `KnowledgeIndexService.reindex` re-filters the feed defensively so
 a mis-scoped query still cannot index another company's content
 (`KnowledgeIndexServiceTest`).
 
-### Still open (phase 3)
+### SUPER_ADMIN operator console (phase 3 complete)
 
 - ~~SUPER_ADMIN cross-company tooling does not exist~~ — **done**:
   `SuperAdminService` + `SuperAdminController` (`/api/admin/companies`,
@@ -159,6 +173,13 @@ a mis-scoped query still cannot index another company's content
   production deployment gate below still applies before this endpoint is used
   against production data.
 
+- **Frontend operator console — done.** `/platform-admin` is rendered only for
+  `SUPER_ADMIN`, outside the tenant workspace shell. It lists companies and
+  accounts, filters accounts by company, creates a company and first admin,
+  shows the generated password only until dismissed, and confirms suspend and
+  resume actions. `SuperAdmin.test.tsx` covers the view, company filter,
+  lifecycle calls, and tenant ADMIN denial.
+
 ## Forced password change (enforced)
 
 `must_change_password` is set wherever an admin chooses the password — account
@@ -193,11 +214,16 @@ enforced end to end rather than only recorded:
   (`App.tsx`), driven by the flag on the profile, and `lib/api.ts` reacts to the
   marker so a stale client recovers instead of seeing every request fail.
 
-Known limitation: for a local account, access tokens issued before the change
-remain valid until they expire — they are stateless JWTs, and there is nothing to
-invalidate them against. Closing that needs a password-changed timestamp or token
-version on the account, checked per request. A Supabase-linked account has no
-such window: Supabase ends that account's sessions when its password changes.
+- **Local token invalidation (V22) — done.** `users.token_version` starts at 0
+  and is included in Nexus access and refresh JWTs. The HTTP filter, refresh
+  exchange, chat handshake, and whiteboard handshake compare the signed version
+  with the current account row. Self-service password changes and admin-issued
+  resets increment it, so previously issued local tokens stop working.
+  Local password change returns a replacement token and profile in the same
+  response; the client switches to it without making a request with the revoked
+  token. Legacy JWTs without the claim are treated as version 0 until the first
+  password change. Supabase sessions continue to be revoked by Supabase and the
+  client signs out after the no-content response.
 
 ## Company suspension (enforced)
 
@@ -255,7 +281,7 @@ Nothing from this rollout ships to production until all three hold:
 2. Verified on the real database: no `@supabase.local` users exist, and every
    `role` value is one of `ADMIN, MEMBER, VIEWER, DEVELOPER, MANAGER,
    SUPER_ADMIN`.
-3. A `pg_dump` backup exists and V18–V21 have been dry-run against a restored
+3. A `pg_dump` backup exists and V18–V22 have been dry-run against a restored
    copy of it.
 4. ~~Every read path listed above is company-scoped~~ — **done**: all read
    paths are company-scoped or ownership-checked (see "Scope audit"), pinned by
@@ -266,6 +292,6 @@ Nothing from this rollout ships to production until all three hold:
 ## Rollback
 
 Reverse scripts live in `docs/rollback/`, one per migration. Apply them in
-reverse order: V21 → V20 → V19 → V18. V21's reverse recreates structure only —
+reverse order: V22 → V21 → V20 → V19 → V18. V21's reverse recreates structure only —
 the V2 seed row and any organization_id values come back only from a pg_dump
 backup. The reverses restore the V17 *shape*, never the data they discarded.

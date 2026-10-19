@@ -314,6 +314,7 @@ class AdminAccountServiceTest {
         service.resolveRequest(5L, new User("Dev", "devendra@nexus.com", null, UserRole.ADMIN));
 
         assertThat(user.isMustChangePassword()).isTrue();
+        assertThat(user.getTokenVersion()).isEqualTo(1);
         verify(userRepository).save(user);
     }
 

@@ -305,6 +305,7 @@ public class AdminAccountService {
         // this, the one flow that most needs a forced change — a password an
         // admin chose and read out — would be the one flow that skips it.
         user.setMustChangePassword(true);
+        user.setTokenVersion(user.getTokenVersion() + 1);
         userRepository.save(user);
         request.setStatus(ResetRequestStatus.RESOLVED);
         request.setResolvedAt(java.time.LocalDateTime.now());
