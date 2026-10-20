@@ -1,0 +1,5 @@
+# Shell scripts must be checked out with LF, whatever core.autocrlf says: a
+# CRLF line ending makes bash fail on the shebang and on the first command
+# ("set: invalid option"), and scripts/verify-deploy-gate.sh runs on operator
+# machines rather than only in CI.
+*.sh text eol=lf

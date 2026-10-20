@@ -4,11 +4,10 @@ WORKDIR /app
 COPY pom.xml .
 RUN mvn -B dependency:go-offline
 
-# ---- test: compile and run unit tests (no external services needed) ----
-FROM deps AS test
-WORKDIR /app
-COPY src ./src
-RUN mvn -B test
+# Tests are not a build stage on purpose. The migration, schema and two-company
+# tests start Postgres through Testcontainers, which needs a Docker daemon this
+# build cannot reach; CI runs `mvn test` on the runner instead and keeps the
+# image build below as the packaging check.
 
 # ---- build: package the runnable jar ----
 FROM deps AS build

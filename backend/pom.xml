@@ -209,4 +209,43 @@
 		</plugins>
 	</build>
 
+	<profiles>
+		<!--
+			Used only by scripts/verify-deploy-gate.sh, which restores a pg_dump
+			into a scratch database and migrates it to V22 to prove the rollout is
+			deployable.
+
+			A profile rather than a default plugin on purpose: Flyway here is an
+			operator tool invoked deliberately against a restored copy, and nothing
+			in `./mvnw package`, the test run or CI should download or run it. No
+			location is configured, because the gate has to pass one: it uses a
+			path relative to this module, since a JVM cannot resolve a Git Bash
+			/c/... path.
+		-->
+		<profile>
+			<id>deploy-gate</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.flywaydb</groupId>
+						<artifactId>flyway-maven-plugin</artifactId>
+						<version>${flyway.version}</version>
+						<dependencies>
+							<dependency>
+								<groupId>org.flywaydb</groupId>
+								<artifactId>flyway-database-postgresql</artifactId>
+								<version>${flyway.version}</version>
+							</dependency>
+							<dependency>
+								<groupId>org.postgresql</groupId>
+								<artifactId>postgresql</artifactId>
+								<version>${postgresql.version}</version>
+							</dependency>
+						</dependencies>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
+
 </project>

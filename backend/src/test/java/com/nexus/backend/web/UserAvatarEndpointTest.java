@@ -227,15 +227,14 @@ class UserAvatarEndpointTest {
 
     @Test
     void avatarUploadRequiresAuthentication() throws Exception {
-        // 403 rather than the 401 a JSON API would normally return: SecurityConfig
-        // registers no authentication entry point, so Spring Security falls back to
-        // its default Http403ForbiddenEntryPoint. Asserted as-is here; that
-        // app-wide wart is not introduced by avatars and is not fixed in this phase.
+        // 401: ApiAuthenticationEntryPoint is wired in SecurityConfig, so an
+        // unauthenticated call is told to sign in rather than being told it is
+        // forbidden. A signed-in caller without the right role still gets 403.
         mockMvc.perform(multipart("/api/users/me/avatar").file(pngUpload(200, 200)))
-            .andExpect(status().isForbidden());
+            .andExpect(status().isUnauthorized());
 
         mockMvc.perform(get("/api/users/{id}/avatar", ID))
-            .andExpect(status().isForbidden());
+            .andExpect(status().isUnauthorized());
     }
 
     /**

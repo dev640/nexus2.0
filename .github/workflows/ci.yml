@@ -30,15 +30,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      - name: Build test image (compiles + runs unit tests)
-        uses: docker/build-push-action@v6
+      - uses: actions/setup-java@v4
         with:
-          context: backend
-          target: test
-          push: false
-          load: true
-          tags: nexus-backend-test:ci
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: backend/pom.xml
+      # On the runner rather than inside `docker build`: the migration, schema and
+      # two-company tests start Postgres through Testcontainers, which needs a
+      # Docker daemon this process can reach. A build container has no
+      # /var/run/docker.sock, so running the suite there failed on every one of
+      # those tests before it ran a single assertion.
+      - name: Backend tests
+        working-directory: backend
+        run: bash mvnw -B test
       - name: Backend image builds cleanly
         run: docker build -t nexus-backend:ci ./backend

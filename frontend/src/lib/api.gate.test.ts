@@ -1,7 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { InternalAxiosRequestConfig } from 'axios'
 import {
   api,
   registerPasswordChangeRequiredHandler,
+  registerUnauthenticatedHandler,
+  storeToken,
   PASSWORD_CHANGE_REQUIRED,
 } from './api'
 
@@ -69,5 +72,72 @@ describe('password-change gate dispatch', () => {
     refuseWith(refusal(403, { status: 403, code: PASSWORD_CHANGE_REQUIRED }))
 
     await expect(api.get('/tasks')).rejects.toBeDefined()
+  })
+})
+
+/**
+ * A 401 is a statement about the credential, not about the caller's role.
+ *
+ * It became reachable when ApiAuthenticationEntryPoint replaced Spring
+ * Security's 403 fallback: a token invalidated by a password change (V22 bumps
+ * the account's token version) is now answered 401, and this client has to stop
+ * pretending it has a session. A 401 with no token attached is a different
+ * thing — a failed sign-in — and must not sign anybody out.
+ */
+describe('invalidated-session dispatch', () => {
+  const handler = vi.fn()
+
+  afterEach(() => {
+    registerUnauthenticatedHandler(null)
+    storeToken(null)
+    api.defaults.adapter = ['xhr', 'http', 'fetch']
+    vi.clearAllMocks()
+  })
+
+  /** Rejects with the config the request actually carried, header included. */
+  function refuseWithStatus(status: number) {
+    api.defaults.adapter = async (config: InternalAxiosRequestConfig) => {
+      throw Object.assign(new Error(`HTTP ${status}`), {
+        isAxiosError: true,
+        config,
+        response: { status, data: {} },
+      })
+    }
+  }
+
+  it('drops the session when a token-carrying request is answered 401', async () => {
+    registerUnauthenticatedHandler(handler)
+    storeToken('stale-token')
+    refuseWithStatus(401)
+
+    await expect(api.get('/users/me')).rejects.toBeDefined()
+
+    expect(handler).toHaveBeenCalledTimes(1)
+  })
+
+  it('leaves a 401 alone when the request carried no token', async () => {
+    registerUnauthenticatedHandler(handler)
+    refuseWithStatus(401)
+
+    await expect(api.get('/auth/login')).rejects.toBeDefined()
+
+    expect(handler).not.toHaveBeenCalled()
+  })
+
+  it('leaves a 403 alone, which is authorization rather than a dead session', async () => {
+    registerUnauthenticatedHandler(handler)
+    storeToken('live-token')
+    refuseWithStatus(403)
+
+    await expect(api.get('/users/me')).rejects.toBeDefined()
+
+    expect(handler).not.toHaveBeenCalled()
+  })
+
+  it('does nothing at all when no handler is registered', async () => {
+    storeToken('stale-token')
+    refuseWithStatus(401)
+
+    await expect(api.get('/users/me')).rejects.toBeDefined()
   })
 })
