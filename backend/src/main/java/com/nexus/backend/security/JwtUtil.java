@@ -78,19 +78,16 @@ public class JwtUtil {
     private static final String TYPE_REFRESH = "refresh";
     private static final String CLAIM_TOKEN_VERSION = "tokenVersion";
 
-    public String generateToken(String username) {
-        return generateToken(username, 0);
-    }
-
+    /**
+     * The account version is a required argument rather than defaulted to 0: a
+     * token minted against a fixed version would survive every password change,
+     * and the default made it easy to sign one by accident.
+     */
     public String generateToken(String username, int tokenVersion) {
         Map<String, Object> claims = new HashMap<>();
         claims.put(CLAIM_TYPE, TYPE_ACCESS);
         claims.put(CLAIM_TOKEN_VERSION, tokenVersion);
         return createToken(claims, username, expiration);
-    }
-
-    public String generateRefreshToken(String username) {
-        return generateRefreshToken(username, 0);
     }
 
     public String generateRefreshToken(String username, int tokenVersion) {

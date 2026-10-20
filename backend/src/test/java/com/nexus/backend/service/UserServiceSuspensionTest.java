@@ -1,14 +1,14 @@
 package com.nexus.backend.service;
 
-import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.nexus.backend.domain.company.Company;
 import com.nexus.backend.domain.user.User;
 import com.nexus.backend.domain.user.UserRole;
+import com.nexus.backend.dto.AuthResponse;
 import com.nexus.backend.dto.LoginRequest;
 import com.nexus.backend.exception.CompanySuspendedException;
 import com.nexus.backend.exception.ValidationException;
@@ -95,15 +95,30 @@ class UserServiceSuspensionTest {
             .isNotInstanceOf(CompanySuspendedException.class);
     }
 
+    /**
+     * An active company's correct password returns a session signed at the
+     * account's own version — 4 here, not the initial 0.
+     *
+     * <p>The version is asserted because a token minted at a constant would pass
+     * a test that only checked "no exception": the session would authenticate
+     * forever and no later password change could end it. This is also the test
+     * that had been stubbing the unversioned factory, which the service stopped
+     * calling when V22 landed, so both tokens came back null and nothing noticed.
+     */
     @Test
-    void loginSucceedsForAnActiveCompany() {
-        when(userRepository.findByEmailWithCompany("ada@nexus.com"))
-            .thenReturn(Optional.of(account(Company.STATUS_ACTIVE)));
+    void loginMintsTokensAtTheAccountsOwnVersionForAnActiveCompany() {
+        User user = account(Company.STATUS_ACTIVE);
+        user.setTokenVersion(4);
+        when(userRepository.findByEmailWithCompany("ada@nexus.com")).thenReturn(Optional.of(user));
         when(passwordEncoder.matches("pw", "hash")).thenReturn(true);
-        when(jwtUtil.generateToken("ada@nexus.com")).thenReturn("access");
-        when(jwtUtil.generateRefreshToken("ada@nexus.com")).thenReturn("refresh");
+        when(jwtUtil.generateToken("ada@nexus.com", 4)).thenReturn("access");
+        when(jwtUtil.generateRefreshToken("ada@nexus.com", 4)).thenReturn("refresh");
 
-        assertThatCode(() -> userService.login(new LoginRequest("ada@nexus.com", "pw")))
-            .doesNotThrowAnyException();
+        AuthResponse response = userService.login(new LoginRequest("ada@nexus.com", "pw"));
+
+        // Both assertions fail if the service signs at a version other than the
+        // row's: the matching stub would go unused and the token would be null.
+        assertThat(response.token()).isEqualTo("access");
+        assertThat(response.refreshToken()).isEqualTo("refresh");
     }
 }
