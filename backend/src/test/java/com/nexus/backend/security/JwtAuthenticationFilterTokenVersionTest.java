@@ -66,8 +66,18 @@ class JwtAuthenticationFilterTokenVersionTest {
 
         filter(jwtUtil, userDetailsService).doFilter(request(), new MockHttpServletResponse(), chain);
 
-        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+        // The tenant is what this filter puts on the thread, so the tenant is what
+        // it has to take off again: the request thread goes back to Tomcat's pool
+        // and must not carry this request's company into the next one.
         assertThat(TenantContext.getTenantId()).isNull();
+        // The security context is deliberately still populated here. Clearing it
+        // after the request belongs to SecurityContextHolderFilter, which wraps
+        // this filter in the real chain and runs its own finally outside this
+        // one; this unit test drives the filter alone. Asserting it away asserted
+        // a behaviour the filter does not own — which is why this failed the
+        // first time it ran against a fresh compile.
+        assertThat(SecurityContextHolder.getContext().getAuthentication().getPrincipal())
+            .isSameAs(principal);
     }
 
     private static JwtAuthenticationFilter filter(JwtUtil jwtUtil, UserDetailsService detailsService) {

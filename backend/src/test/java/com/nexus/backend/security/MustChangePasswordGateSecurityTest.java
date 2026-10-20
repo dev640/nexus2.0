@@ -147,17 +147,18 @@ class MustChangePasswordGateSecurityTest {
 
     /**
      * An unauthenticated caller is refused by the security chain rather than by
-     * this gate. The answer is 403 here because no authentication entry point is
-     * configured — this API issues bearer tokens, so there is no login redirect
-     * to send an anonymous caller to; what matters is that nothing reached the
-     * service.
+     * this gate. The answer is 401 from {@code ApiAuthenticationEntryPoint}:
+     * this API issues bearer tokens, so there is no login redirect to send an
+     * anonymous caller to, but the caller is still told to sign in — which is a
+     * different answer from the 403 a signed-in caller without the right role
+     * receives. What matters here is that nothing reached the service.
      */
     @Test
     void doesNotRunForAnUnauthenticatedRequest() throws Exception {
         mockMvc.perform(post("/api/users/me/password")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"currentPassword\":\"issued-pass\",\"newPassword\":\"chosen-pass\"}"))
-            .andExpect(status().isForbidden());
+            .andExpect(status().isUnauthorized());
 
         verify(passwordChangeService, never()).changePassword(any(), any());
     }

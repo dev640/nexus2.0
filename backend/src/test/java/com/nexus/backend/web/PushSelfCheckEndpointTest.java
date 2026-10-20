@@ -98,14 +98,13 @@ class PushSelfCheckEndpointTest {
      * The report describes this deployment's key state and the caller's own devices,
      * so it stays behind authentication like the rest of {@code /api}.
      *
-     * <p>403 rather than the 401 a JSON API would normally answer: SecurityConfig
-     * registers no authentication entry point, so Spring Security falls back to its
-     * default Http403ForbiddenEntryPoint. Asserted as-is — that is app-wide behaviour
-     * and not something this endpoint changes.
+     * <p>401 rather than 403: {@code ApiAuthenticationEntryPoint} is wired in
+     * SecurityConfig, so an anonymous caller is told to sign in. A signed-in
+     * caller whose role is refused still gets 403 from the access-denied handler.
      */
     @Test
     void refusesAnonymousCallers() throws Exception {
         mockMvc.perform(get("/api/push/self-check"))
-            .andExpect(status().isForbidden());
+            .andExpect(status().isUnauthorized());
     }
 }

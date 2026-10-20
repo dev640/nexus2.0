@@ -6,6 +6,7 @@ import {
   apiLogin,
   getStoredToken,
   registerPasswordChangeRequiredHandler,
+  registerUnauthenticatedHandler,
   storeToken,
   type ApiUser,
 } from '../../lib/api'
@@ -41,6 +42,15 @@ export const createAuthSlice: StateCreator<AppState, [], [], AuthSlice> = (set, 
       .then(({ data }) => get().applyCurrentUser(data))
       // Nothing to do on failure: the request that hit the gate already failed.
       .catch(() => undefined)
+  })
+
+  // A 401 on a request that carried our token means the credential itself is no
+  // longer accepted — expired, or invalidated by the password change that bumped
+  // the account's token version (V22). There is nothing left to send, so the
+  // session is dropped: the login screen is the only honest next step, and every
+  // workspace page would otherwise keep failing with no explanation.
+  registerUnauthenticatedHandler(() => {
+    if (get().isAuthenticated) get().logout()
   })
 
   /**

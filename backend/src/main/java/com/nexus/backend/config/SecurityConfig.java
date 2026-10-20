@@ -1,5 +1,6 @@
 package com.nexus.backend.config;
 
+import com.nexus.backend.security.ApiAuthenticationEntryPoint;
 import com.nexus.backend.security.JwtAuthenticationFilter;
 import com.nexus.backend.security.MustChangePasswordFilter;
 import com.nexus.backend.security.SuspendedCompanyFilter;
@@ -62,6 +63,12 @@ public class SecurityConfig {
                     .requestMatchers("/api/auth/**", "/api/health", "/actuator/**", "/ws/**").permitAll()
                     .anyRequest().authenticated()
                 )
+                // 401 for an unauthenticated caller, instead of the 403 Spring
+                // Security falls back to with no entry point. Authorization
+                // refusals are unaffected: they still come from the access-denied
+                // handler as 403, and the two account gates below keep writing
+                // their own 403 markers because those are authenticated states.
+                .exceptionHandling(ex -> ex.authenticationEntryPoint(new ApiAuthenticationEntryPoint()))
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 // After the JWT filter, because it decides on the principal that

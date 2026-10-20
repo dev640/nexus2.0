@@ -116,6 +116,37 @@ the application agree with it. Landed:
   V18–V22, and pins that every entity is either `TenantAware` or on the
   exception list above.
 
+### Token invalidation and the 401 contract (phase 2 complete)
+
+A password change has to end the sessions the old password bought. V22 adds
+`users.token_version`; `JwtUtil` signs it into both the access and the refresh
+token, `JwtAuthenticationFilter` compares it against the account row on every
+request, and `PasswordChangeService` bumps it in the same transaction that
+replaces the hash. Every token minted before the change therefore stops being
+accepted at once, on every instance, without a revocation list.
+
+The refusal is `401`, not the `403` Spring Security falls back to when no entry
+point is configured. `ApiAuthenticationEntryPoint` writes
+`{"status":401,"code":"UNAUTHENTICATED","message":…}` with
+`WWW-Authenticate: Bearer`, and deliberately does not repeat the exception's
+message: that message can name a token, an expiry or a signature problem, which
+would tell an attacker which half of a forged credential to fix. The body is a
+fixed string, so nothing about why the credential failed is disclosed.
+
+The distinction only applies to an absent or invalid credential. An
+authenticated caller who lacks a role still gets `403` from the access-denied
+handler, and the two account gates keep writing their own `403` markers
+(`PASSWORD_CHANGE_REQUIRED`, `WORKSPACE_SUSPENDED`) — those are states of a live
+session, not a missing one.
+
+Client side, `api.ts` dispatches the 401 to the auth store only when the failed
+request actually carried a Bearer token: a `401` from a failed sign-in says
+nothing about the session this browser holds, and signing out on one would log
+somebody out for typing the wrong password. On a genuine refusal the store logs
+out, so the login screen takes over instead of every workspace page failing with
+no explanation. `api.gate.test.ts` pins both halves and that a `403` is left
+alone.
+
 ### Scope audit (phase 2 complete)
 
 Every resource service now resolves its rows through a company-predicated
@@ -274,20 +305,51 @@ locks the workspace out everywhere on the next request.
 
 ## Deployment gate (before any production deploy)
 
-Nothing from this rollout ships to production until all three hold:
+The gate is executable: `scripts/verify-deploy-gate.sh`. Run it from the
+repository root, on a machine that can reach the database and has `psql`,
+`pg_dump` and `pg_restore` on `PATH` (or point `PG_BIN` at the directory that
+holds them):
 
-1. The four V2 seed accounts (known password `password123`) are changed or
-   deleted.
-2. Verified on the real database: no `@supabase.local` users exist, and every
-   `role` value is one of `ADMIN, MEMBER, VIEWER, DEVELOPER, MANAGER,
-   SUPER_ADMIN`.
-3. A `pg_dump` backup exists and V18–V22 have been dry-run against a restored
-   copy of it.
-4. ~~Every read path listed above is company-scoped~~ — **done**: all read
-   paths are company-scoped or ownership-checked (see "Scope audit"), pinned by
-   `KnowledgeIndexServiceTest`, `EntitySchemaConformanceTest` and the per-service
-   tests. A second company exists only after that, and only alongside the
-   SUPER_ADMIN tooling above.
+```bash
+DATABASE_URL=postgresql://user:password@host:5432/database \
+  bash scripts/verify-deploy-gate.sh
+```
+
+It prints one row per check, a `PASS`/`FAIL` table naming the dump, its SHA-256,
+the restore target and the migration outcome, and exits non-zero unless every
+check passes. The table is what goes into the release record.
+
+The three checks it performs:
+
+1. **Seed accounts.** Each of the four V2 accounts (`devendra@`, `achal@`,
+   `vidhi@`, `palak@nexus.com`, all seeded with `password123`) is deleted, no
+   longer has a local password (the credential moved to Supabase), or its stored
+   hash no longer verifies `password123`. The hash is tested rather than counted
+   because V4 re-hashed each row with its own salt, and because V22 backfills
+   `token_version` to 0 — so neither a fixed hash nor the version proves a
+   password changed.
+2. **Role and identity hygiene.** No `@supabase.local` users, and every `role`
+   value is one of `ADMIN, MEMBER, VIEWER, DEVELOPER, MANAGER, SUPER_ADMIN`.
+3. **Backup and migration dry run.** `pg_dump --format=custom` the source,
+   `pg_restore` it into a scratch database, then run Flyway V18–V22 against
+   **that restored copy only**, through the `deploy-gate` Maven profile (kept out
+   of the default build). Running the migrations with `psql -f` instead would
+   leave `flyway_schema_history` at V17 and break the next application boot. The
+   restored schema is then asserted: head at V22, `users.token_version` and
+   `companies` present, and both `chk_users_role_valid` and
+   `chk_users_company_by_role` in place — the role CHECKs can only be asserted
+   here, because the source database is still at V17 when the gate runs. The
+   scratch database is dropped on exit; the source is only ever read.
+
+**A green run is the only thing that closes this gate.** Nothing from this
+rollout ships to production until an operator has pasted a `PASS` table from the
+real database into the release record. Until then this phase stays open.
+
+The scope audit that preceded the gate is **done**: every read path is
+company-scoped or ownership-checked (see "Scope audit"), pinned by
+`KnowledgeIndexServiceTest`, `EntitySchemaConformanceTest` and the per-service
+tests. A second company exists only after that, and only alongside the
+SUPER_ADMIN tooling above.
 
 ## Rollback
 

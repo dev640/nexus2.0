@@ -107,8 +107,11 @@ class UserSprintServiceTest {
             u.setId(10L);
             return u;
         });
-        when(jwtUtil.generateToken("test@nexus.dev")).thenReturn("access-token");
-        when(jwtUtil.generateRefreshToken("test@nexus.dev")).thenReturn("refresh-token");
+        // V22 signs the account version into both tokens, so the service calls the
+        // two-argument overload; stubbing the unversioned one would leave the token
+        // null and the assertion below would pass for the wrong reason.
+        when(jwtUtil.generateToken("test@nexus.dev", 0)).thenReturn("access-token");
+        when(jwtUtil.generateRefreshToken("test@nexus.dev", 0)).thenReturn("refresh-token");
 
         var response = userService.register(registerRequest());
 
@@ -116,6 +119,8 @@ class UserSprintServiceTest {
         assertThat(response.refreshToken()).isEqualTo("refresh-token");
         assertThat(response.user().email()).isEqualTo("test@nexus.dev");
         verify(passwordEncoder).encode("password123");
+        // A brand-new account starts at version 0, and that is what the token carries.
+        verify(jwtUtil).generateToken("test@nexus.dev", 0);
     }
 
     /**
@@ -134,8 +139,8 @@ class UserSprintServiceTest {
             u.setId(10L);
             return u;
         });
-        when(jwtUtil.generateToken("test@nexus.dev")).thenReturn("access-token");
-        when(jwtUtil.generateRefreshToken("test@nexus.dev")).thenReturn("refresh-token");
+        when(jwtUtil.generateToken("test@nexus.dev", 0)).thenReturn("access-token");
+        when(jwtUtil.generateRefreshToken("test@nexus.dev", 0)).thenReturn("refresh-token");
 
         userService.register(registerRequest());
 
@@ -167,13 +172,14 @@ class UserSprintServiceTest {
         user.setPassword("$2a$10$hashed");
         when(userRepository.findByEmailWithCompany("devendra@nexus.com")).thenReturn(Optional.of(user));
         when(passwordEncoder.matches("password123", "$2a$10$hashed")).thenReturn(true);
-        when(jwtUtil.generateToken("devendra@nexus.com")).thenReturn("access-token");
-        when(jwtUtil.generateRefreshToken("devendra@nexus.com")).thenReturn("refresh-token");
+        when(jwtUtil.generateToken("devendra@nexus.com", 0)).thenReturn("access-token");
+        when(jwtUtil.generateRefreshToken("devendra@nexus.com", 0)).thenReturn("refresh-token");
 
         var response = userService.login(new LoginRequest("devendra@nexus.com", "password123"));
 
         assertThat(response.token()).isEqualTo("access-token");
         assertThat(response.user().role()).isEqualTo(UserRole.ADMIN);
+        verify(jwtUtil).generateToken("devendra@nexus.com", 0);
     }
 
     @Test

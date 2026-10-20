@@ -80,10 +80,50 @@ function isPasswordChangeRequired(error: unknown): boolean {
   return (error.response.data as { code?: string } | undefined)?.code === PASSWORD_CHANGE_REQUIRED
 }
 
+/**
+ * Called when a request that carried a token came back 401.
+ *
+ * Registered by the store rather than imported, for the same cycle-avoidance
+ * reason as the password gate handler above. There is nothing to retry with: the
+ * credential itself is refused, so the recovery is to drop it and let the login
+ * screen take over.
+ */
+let onUnauthenticated: (() => void) | null = null
+
+export function registerUnauthenticatedHandler(handler: (() => void) | null): void {
+  onUnauthenticated = handler
+}
+
+/** The Authorization value the failed request actually sent, if any. */
+function authorizationHeader(error: unknown): string | null {
+  if (!axios.isAxiosError(error)) return null
+  const headers = error.config?.headers
+  if (!headers) return null
+  const value: unknown = typeof headers.get === 'function'
+    ? headers.get('Authorization')
+    : (headers as Record<string, unknown>).Authorization
+  if (typeof value === 'string') return value
+  if (Array.isArray(value) && value.length > 0) return String(value[0])
+  return null
+}
+
+/**
+ * True for a 401 on a request that carried our bearer token.
+ *
+ * The token check matters: a 401 with no credential attached is a statement
+ * about the request, not about a session this client holds, and signing out on
+ * one would log somebody out for a failed login.
+ */
+function isUnauthenticated(error: unknown): boolean {
+  if (!axios.isAxiosError(error) || error.response?.status !== 401) return false
+  return authorizationHeader(error)?.startsWith('Bearer ') === true
+}
+
 // One refusal per burst: a page that fires six requests at once would otherwise
 // ask for the profile six times over. The handler is synchronous — it kicks off
 // a refetch and returns — so the flag only has to cover the current turn.
 let notifyingPasswordChangeRequired = false
+let notifyingUnauthenticated = false
 
 api.interceptors.response.use(undefined, (error: unknown) => {
   if (isPasswordChangeRequired(error) && onPasswordChangeRequired && !notifyingPasswordChangeRequired) {
@@ -92,6 +132,14 @@ api.interceptors.response.use(undefined, (error: unknown) => {
       onPasswordChangeRequired()
     } finally {
       notifyingPasswordChangeRequired = false
+    }
+  }
+  if (isUnauthenticated(error) && onUnauthenticated && !notifyingUnauthenticated) {
+    notifyingUnauthenticated = true
+    try {
+      onUnauthenticated()
+    } finally {
+      notifyingUnauthenticated = false
     }
   }
   return Promise.reject(error)
