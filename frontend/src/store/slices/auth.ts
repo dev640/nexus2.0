@@ -4,9 +4,11 @@ import {
   apiChangePassword,
   apiErrorMessage,
   apiLogin,
+  clearStoredTokens,
   getStoredToken,
   registerPasswordChangeRequiredHandler,
   registerUnauthenticatedHandler,
+  storeRefreshToken,
   storeToken,
   type ApiUser,
 } from '../../lib/api'
@@ -95,6 +97,10 @@ export const createAuthSlice: StateCreator<AppState, [], [], AuthSlice> = (set, 
         }
         const auth = await apiLogin(email, password)
         storeToken(auth.token)
+        // Pair the access token with its refresh token from the first moment: a
+        // session that only stored the access half would end at the first expiry
+        // even though the server issued a week-long refresh token for it.
+        storeRefreshToken(auth.refreshToken)
         await enterWorkspace(auth.user)
         return { ok: true }
       } catch (err) {
@@ -122,6 +128,9 @@ export const createAuthSlice: StateCreator<AppState, [], [], AuthSlice> = (set, 
         }
         if (!changed) throw new Error('The server did not return a renewed session')
         storeToken(changed.token)
+        // The old refresh token died with the old token version (V22), so the
+        // replacement pair has to be adopted together.
+        storeRefreshToken(changed.refreshToken)
         // The response carries the new token and cleared profile because the old
         // token was invalidated in the same transaction as the password change.
         await enterWorkspace(changed.user)
@@ -133,7 +142,7 @@ export const createAuthSlice: StateCreator<AppState, [], [], AuthSlice> = (set, 
 
     logout: () => {
       void supabaseSignOut()
-      storeToken(null)
+      clearStoredTokens()
       // Avatar bytes are held as object URLs in a module-level cache; leaving them
       // behind would keep the previous user's picture on screen after sign-in.
       clearAvatarCache()

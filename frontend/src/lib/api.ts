@@ -1,7 +1,8 @@
-import axios from 'axios'
+import axios, { type InternalAxiosRequestConfig } from 'axios'
 import { supabase, supabaseEnabled } from './supabase'
 
 const TOKEN_KEY = 'nexus-auth-token'
+const REFRESH_KEY = 'nexus-auth-refresh-token'
 
 export function getStoredToken(): string | null {
   return localStorage.getItem(TOKEN_KEY)
@@ -13,6 +14,31 @@ export function storeToken(token: string | null) {
   } else {
     localStorage.removeItem(TOKEN_KEY)
   }
+}
+
+export function getStoredRefreshToken(): string | null {
+  return localStorage.getItem(REFRESH_KEY)
+}
+
+/**
+ * Persists the refresh token.
+ *
+ * The server rotates it on every exchange, so the value from the most recent
+ * refresh is the only one that still works. Storing it is what keeps a session
+ * alive across an access-token expiry; losing it just costs a sign-in.
+ */
+export function storeRefreshToken(token: string | null) {
+  if (token) {
+    localStorage.setItem(REFRESH_KEY, token)
+  } else {
+    localStorage.removeItem(REFRESH_KEY)
+  }
+}
+
+/** Drops both halves of the session. */
+export function clearStoredTokens() {
+  localStorage.removeItem(TOKEN_KEY)
+  localStorage.removeItem(REFRESH_KEY)
 }
 
 /**
@@ -51,6 +77,60 @@ api.interceptors.request.use(async (config) => {
   }
   return config
 })
+
+/**
+ * A bare instance with no interceptors, used only to exchange a refresh token.
+ *
+ * Routing that call through `api` would send it through the 401 handling below,
+ * so a rejected refresh would try to refresh itself.
+ *
+ * Exported for tests: they replace its adapter to answer the exchange without a
+ * network, exactly as they do for `api`.
+ */
+export const authClient = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || '/api',
+})
+
+/** Marker so a replayed request is never refreshed a second time. */
+type RetriableConfig = InternalAxiosRequestConfig & { _retried?: boolean }
+
+let refreshInFlight: Promise<string | null> | null = null
+
+async function requestRefreshedToken(): Promise<string | null> {
+  const refreshToken = getStoredRefreshToken()
+  if (!refreshToken) return null
+
+  const { data } = await authClient.post<ApiAuthResponse>('/auth/refresh', { refreshToken })
+  storeToken(data.token)
+  storeRefreshToken(data.refreshToken)
+  return data.token
+}
+
+/**
+ * One refresh at a time.
+ *
+ * A page fires its own requests in parallel, so several can hit their 401 at the
+ * same moment. Without this they would each spend the refresh token; because the
+ * server rotates it, only the first would win and the rest would fail on a token
+ * that had already been replaced.
+ */
+function refreshOnce(): Promise<string | null> {
+  if (!refreshInFlight) {
+    refreshInFlight = requestRefreshedToken()
+      // A refused refresh is an answer, not an application error: null means the
+      // session is over and the interceptor below decides what to do about it.
+      .catch(() => null)
+      .finally(() => {
+        refreshInFlight = null
+      })
+  }
+  return refreshInFlight
+}
+
+/** Auth endpoints answer their own 401; refreshing on them cannot help. */
+function isAuthEndpoint(url: string | undefined): boolean {
+  return typeof url === 'string' && url.includes('/auth/')
+}
 
 /**
  * The marker the server puts on its refusal of a gated account. Mirrors
@@ -125,7 +205,21 @@ function isUnauthenticated(error: unknown): boolean {
 let notifyingPasswordChangeRequired = false
 let notifyingUnauthenticated = false
 
-api.interceptors.response.use(undefined, (error: unknown) => {
+/**
+ * Recovers an expired access token, and only then gives up on the session.
+ *
+ * Access tokens live 24 h, so a tab left open overnight used to fail with 401
+ * until the user signed in again even though the 7-day refresh token was still
+ * valid. On a 401 answered to a request that carried our bearer token this
+ * exchanges that refresh token once and replays the original request. If the
+ * exchange fails — expired, revoked by a password change that bumped the
+ * account's token version (V22), or absent — the pair is dropped and the login
+ * screen takes over.
+ *
+ * Supabase sessions are left alone: its client refreshes before expiry and has
+ * its own idea of when a session ends.
+ */
+api.interceptors.response.use(undefined, async (error: unknown) => {
   if (isPasswordChangeRequired(error) && onPasswordChangeRequired && !notifyingPasswordChangeRequired) {
     notifyingPasswordChangeRequired = true
     try {
@@ -134,7 +228,29 @@ api.interceptors.response.use(undefined, (error: unknown) => {
       notifyingPasswordChangeRequired = false
     }
   }
-  if (isUnauthenticated(error) && onUnauthenticated && !notifyingUnauthenticated) {
+
+  if (!isUnauthenticated(error)) return Promise.reject(error)
+
+  const config = (error as { config?: RetriableConfig }).config
+  const canRefresh = config !== undefined
+    && config._retried !== true
+    && !isAuthEndpoint(config.url)
+    && !(supabaseEnabled && supabase)
+
+  if (canRefresh && config) {
+    config._retried = true
+    const token = await refreshOnce()
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
+      return api.request(config)
+    }
+  }
+
+  // The credential is spent and cannot be replaced. Drop it here as well as
+  // notifying the app: keeping a dead access token would make every later
+  // request replay the same doomed refresh, one round trip per call.
+  clearStoredTokens()
+  if (onUnauthenticated && !notifyingUnauthenticated) {
     notifyingUnauthenticated = true
     try {
       onUnauthenticated()
