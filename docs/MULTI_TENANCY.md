@@ -3,7 +3,9 @@
 Phase 1 of the multi-tenancy rollout (migrations V18–V21) puts every piece of
 tenant data under exactly one company. This page records the decisions that
 are not obvious from the migrations themselves, and the **explicit exceptions**
-the Phase 4 ArchUnit / integration tests must allow.
+the conformance tests must allow. Those tests now exist: the entity boundary is
+`EntitySchemaConformanceTest`, and the phase-4 architecture rules are
+`TenantArchitectureTest` (see "Phase 4" below).
 V22 adds a per-account token-version column without changing the company-ownership
 model.
 
@@ -31,7 +33,7 @@ model.
 - `audit_log` (V20) records admin/security actions. It intentionally has **no**
   FK on `actor_user_id`: audit rows must survive user deletion.
 
-## Explicit exceptions (Phase 4 ArchUnit allowlist)
+## Explicit exceptions (the allowlist the conformance tests encode)
 
 1. **`task_labels`** — an `@ElementCollection` join table with no entity and no
    `company_id` of its own. Reachable only through its tenant-scoped parent
@@ -77,6 +79,46 @@ public reset assignment; `SupabaseIdentityTest` and auth tests exercise global
 sign-in lookup; and `KnowledgeIndexServiceTest` covers reconcile scoping. The
 free-text authors are intentionally not user references, so no-FK assertions are
 the applicable coverage for that exception.
+
+## Phase 4: the architecture rules, in `TenantArchitectureTest`
+
+Four of the rollout's invariants held only because every author so far knew
+them. `TenantArchitectureTest` turns them into failures. It deliberately does
+**not** repeat the entity boundary — reflection in `EntitySchemaConformanceTest`
+already proves every mapped entity is `TenantAware` or on the exception list
+above, and a second copy of that rule would be one more thing to keep in sync.
+
+- **Every write endpoint declares who may call it.** A method mapped to
+  `POST`/`PUT`/`PATCH`/`DELETE` in `com.nexus.backend.web` must carry
+  `@PreAuthorize`, inherit it from its controller, or reach it through a composed
+  annotation (`@WorkspaceWrite`, `@WorkspaceManage`). Reads are exempt on
+  purpose: most are open to any authenticated member and scoped in the service,
+  so a role requirement there would encode a rule nobody intends. This is the
+  risk `SECURITY_AUDIT.md` names — the annotated endpoints are fine, and the
+  danger is the next one added without an annotation.
+  Writes that are personal state — own profile, inbox, read receipts, device
+  subscriptions, internal mail to colleagues — are listed in the test with the
+  reason for each, which is the point: a new write endpoint fails until somebody
+  either annotates it or writes down why every authenticated account may call it.
+  Mapping a write longhand as a bare `@RequestMapping` also fails, so it cannot
+  be used to step around the rule.
+- **Nothing lists every company.** Only `SuperAdminService` may call a repository
+  `findAll()`; every other read is company-predicated or ownership-checked. A
+  global operator listing is therefore reachable only from its
+  `hasRole('SUPER_ADMIN')` endpoint.
+- **Only the operator controller reaches the cross-company services.** No other
+  class in `com.nexus.backend.web` may depend on `SuperAdminService` or
+  `CompanySuspensionService`.
+- **Only authentication establishes the tenant.** Outside `security` and
+  `tenant`, nothing may call `TenantContext.setTenantId` or `TenantContext.clear`:
+  the tenant is read once from the account row in `JwtAuthenticationFilter` and
+  cleared in its `finally`, and a service that set it would be choosing its own
+  company instead of reading the caller's.
+
+Each rule was checked against a planted violation before it was trusted — an
+unannotated `DELETE`, a `findAll()` in `ProjectService`, a controller field of
+type `SuperAdminService`, and a `TenantContext.setTenantId` in `TaskService` —
+and each failed with the offending class named.
 
 ## Phase 2: what the application layer enforces today
 

@@ -158,6 +158,19 @@
 			<version>1.21.3</version>
 			<scope>test</scope>
 		</dependency>
+		<!--
+			The architecture test asserts the tenant and authorization rules that
+			are otherwise only conventions: an unguarded write endpoint, an unscoped
+			listing, or a tenant controller reaching into the cross-company operator
+			service. Those are the failures a reviewer has to notice by hand today,
+			and the ones docs/MULTI_TENANCY.md has promised since phase 1.
+		-->
+		<dependency>
+			<groupId>com.tngtech.archunit</groupId>
+			<artifactId>archunit-junit5</artifactId>
+			<version>1.4.1</version>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<build>
