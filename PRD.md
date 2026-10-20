@@ -208,7 +208,7 @@ Legend — **✅ Built** (implemented + verified against the running stack) · *
 - **NFR-3 Data integrity** — Flyway owns the schema (`ddl-auto=validate`); migrations are
   append-only and never edited after being applied; orphaned columns were migrated, not dropped.
 - **NFR-4 Reliability** — The full stack starts from a clean checkout with one command
-(`docker compose up -d --build`) and migrates `V1 → V13` on boot.
+(`docker compose up -d --build`) and migrates `V1 → V22` on boot.
 - **NFR-5 Quality gates** — CI runs frontend lint + component/store tests (Vitest) + production
   build and the backend unit test suite, plus a clean image build, on every push/PR to `main`.
 - **NFR-6 Portability** — The backend is a plain Docker image that honours the platform-provided
@@ -320,6 +320,15 @@ tables are deliberately prefixed `ai_`: they coexist with the team chat of `V9`
 | `V11` | Employee identity columns |
 | `V12` | `tasks.blocked` flag |
 | `V13` | `knowledge_chunks` (FTS vector + embeddings) · `ai_conversations` · `ai_messages` |
+| `V14` | `messages` — person-to-person mail with an independent soft delete per side |
+| `V15` | `messages.is_broadcast` — one letter written to the whole workspace |
+| `V16` | `notifications.link` — app-relative path so an alert is clickable |
+| `V17` | `push_subscriptions` — one row per browser endpoint that agreed to receive push |
+| `V18` | `companies` (the tenant), `company_id` on every tenant table, role vocabulary and `must_change_password` |
+| `V19` | Composite `(company_id, id)` keys and paired foreign keys; employee codes unique per company |
+| `V20` | `audit_log` — admin/security actions, company nullable, no FK on the actor |
+| `V21` | Drops the dead `organizations` demo seed and its two dangling columns |
+| `V22` | `users.token_version` — a password change invalidates every token issued before it |
 
 ### 5.3 Configuration
 
@@ -434,7 +443,7 @@ cd frontend && npx tsc -b && npm run lint && npm test && npm run build
 ```
 
 ### Verified end to end
-- Clean database volume → Flyway applies `V1 → V12` with seed data.
+- Clean database volume → Flyway applies `V1 → V22` with seed data.
 - Login, refresh-token exchange, and rejection of an access token used as a refresh token.
 - Anonymous `/api/*` → **403**; authenticated access to all eight domains → **200**.
 - Task creation, board status change and whiteboard note create/delete persist to Postgres.

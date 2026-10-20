@@ -18,7 +18,8 @@ reversed, which variable lives on which platform, and what to check when somethi
 | Postgres | Railway `Postgres` plugin (`DATABASE_URL`) | private network |
 | Redis | Railway `Redis` plugin (`REDIS_URL`) — whiteboard fan-out | private network |
 | Auth (optional) | Supabase project `ktvjotwmpynbjgnqjitg` | https://ktvjotwmpynbjgnqjitg.supabase.co |
-| LLM (optional) | Google AI Studio or any OpenAI-compatible `/chat/completions` API | see §6 |
+| LLM Copilot (optional) | Google AI Studio or any OpenAI-compatible `/chat/completions` API | see §6 |
+| Nexus AI (optional) | OpenAI, or any OpenAI-compatible chat + embeddings API | see §6 |
 
 **The local `.vercel` link points at a different project than the one serving this site.** It is
 pinned to `lexus` (projectId `prj_WrBf9MlErirqk4I3JXtzFKqbux2T`, serving `lexus-xi.vercel.app`), while
@@ -126,6 +127,9 @@ Then confirm by hand, because no probe covers these:
   increments and clears on read.
 - **Copilot** — asks a question and the reply names its mode. `reason: "Copilot is not configured"`
   means the backend has no LLM key/model yet (see §6), which is expected, not a fault.
+- **Nexus AI** (`/ai`) — asks a workspace question and the answer streams in with citations. A
+  `Context mode` badge, or `configured: false` from `GET /api/ai/knowledge/status`, means the
+  backend has no `OPENAI_API_KEY` yet (see §6) — retrieval still works, generation does not.
 
 ---
 
@@ -137,8 +141,8 @@ Then confirm by hand, because no probe covers these:
 | Backend | Railway → service → Deploy → redeploy an earlier successful build | Never force-push a schema revert to fix this |
 | Database | Nothing to revert — migrations are forward-only | See §5 |
 
-**Schema rule: an applied Flyway migration is immutable.** If `V13` breaks production, the fix is a
-new `V14__…` migration, not an edit to `V13`. Editing an applied migration makes Flyway fail its
+**Schema rule: an applied Flyway migration is immutable.** If `V22` breaks production, the fix is a
+new `V23__…` migration, not an edit to `V22`. Editing an applied migration makes Flyway fail its
 checksum validation on the next boot, which takes the service down rather than rolling it back —
 a much worse outcome than a bad column.
 
@@ -147,7 +151,7 @@ a much worse outcome than a bad column.
 ## 5. Database, migrations and backups
 
 - **Flyway** runs on every boot (`spring.flyway.enabled=true`, `baseline-on-migrate=true`,
-  `out-of-order=false`) from `backend/src/main/resources/db/migration/`. Current head: **V12**.
+  `out-of-order=false`) from `backend/src/main/resources/db/migration/`. Current head: **V22**.
 - **Adding one:** create `V<n+1>__Add_something.sql`, never renumber or edit an existing file. It
   applies on the next deploy of the backend.
 - **What a fresh database contains** (from `V2__Insert_seed_data.sql` and later migrations):
@@ -198,6 +202,50 @@ Until **both** the key and the model are set, the Copilot stays grounded and rep
 `"Copilot is not configured"`. Check your provider's current model list — `gemini-2.5-flash` and
 `gpt-4o-mini` are starting points, not guarantees.
 
+### Nexus AI (generated answers at `/ai`)
+
+The `/ai` page is a **second, independent engine**, not a second view of the Copilot. It answers
+from the workspace knowledge index with an OpenAI-compatible chat + embeddings API (the
+`nexus.ai.*` keys in `application.properties`), so a Google AI Studio key that powers the Copilot is
+not usable here.
+
+Set on **Railway** (backend), then redeploy:
+
+| Variable | Value |
+|----------|-------|
+| `OPENAI_API_KEY` | **Required for written answers.** Server-only; never on Vercel. Left empty, the page runs in **context-only mode** — it still retrieves and cites Nexus records, but the reply restates that context instead of composing an answer |
+| `OPENAI_MODEL` | Optional. Default `gpt-4o-mini` |
+| `OPENAI_EMBEDDING_MODEL` | Optional. Default `text-embedding-3-small`. Changing it invalidates every stored embedding — rebuild the index below afterwards |
+| `OPENAI_BASE_URL` | Optional. Default `https://api.openai.com/v1` |
+| `NEXUS_AI_TIMEOUT_SECONDS` | Optional. Seconds allowed for one provider call. Default 90 |
+| `NEXUS_AI_RATE_LIMIT` | Optional. Questions per user per 60 s. Default 20; over the limit returns 429 |
+| `NEXUS_AI_FTS_CANDIDATES`, `NEXUS_AI_KEYWORD_CANDIDATES`, `NEXUS_AI_MAX_CONTEXT_CHUNKS` | Optional retrieval tuning. Defaults 80 / 60 / 6 |
+
+**Leave the `OPENAI_*` overrides unset, not blank.** Each is read through a fallback chain
+(`OPENAI_MODEL` → `NEXUS_LLM_MODEL` → `gpt-4o-mini`), and an *empty* value wins over the default: with
+`OPENAI_MODEL=` set, the model becomes the empty string and every call fails over to context-only.
+That is also why `docker-compose.yml` comments these out instead of forwarding an empty value.
+
+**Mind the fallback direction.** `OPENAI_*` falls back to `NEXUS_LLM_*` so one key can serve both
+features, but if `NEXUS_LLM_*` holds a **Gemini** key it is then sent to `api.openai.com` and every
+request fails. When both features should work, set `OPENAI_API_KEY` explicitly.
+
+**Build the index once, by hand.** Migrations create the tables, not the embeddings, and the
+5-minute background job (`nexus.ai.retrieval.refresh-ms=300000`) only **reloads** embeddings into
+memory — it never creates them. Records embed when they change (a task, project, sprint, wiki page
+or whiteboard note is saved) or when an admin reconciles the index:
+
+```bash
+# $TOKEN and $API from §3; the account must be ADMIN
+curl -fsS -X POST "$API/api/ai/knowledge/reindex" -H "Authorization: Bearer $TOKEN"
+curl -fsS "$API/api/ai/knowledge/status"          -H "Authorization: Bearer $TOKEN"
+# configured: true, embeddedChunks > 0, vectors > 0
+```
+
+`reindex` reconciles only stale or orphaned records; add `?full=true` to drop the index and rebuild
+it. So on a deployment that already has data and only now gets a key, expect context-only answers
+until this call runs — there is no reindex button in the UI, which only displays the counts.
+
 ---
 
 ## 7. Configuration map
@@ -214,7 +262,11 @@ runtime (Railway, server-only).
 | `NEXUS_JWT_SECRET` | Railway | **yes** | ≥32 bytes for HS256 (`openssl rand -hex 32`). Rotating it invalidates every issued token, i.e. signs everyone out |
 | `NEXUS_CORS_ALLOWED_ORIGINS` | Railway | no | Comma-separated browser origins; must include the deployed frontend origin |
 | `NEXUS_AUTH_RATE_LIMIT` | Railway | no | Requests per 60 s per IP on `/api/auth/**`. Default 20 |
-| `NEXUS_LLM_*` | Railway | key only | §6 |
+| `NEXUS_LLM_*` | Railway | key only | Copilot. §6 |
+| `OPENAI_API_KEY` | Railway | **yes** | Nexus AI (`/ai`). Without it answers stay context-only. Never set on Vercel |
+| `OPENAI_MODEL`, `OPENAI_EMBEDDING_MODEL`, `OPENAI_BASE_URL` | Railway | no | Optional; default `gpt-4o-mini` / `text-embedding-3-small` / `api.openai.com/v1`. An **empty** value overrides the default, so leave them unset rather than blank |
+| `NEXUS_AI_TIMEOUT_SECONDS`, `NEXUS_AI_RATE_LIMIT` | Railway | no | Provider-call timeout (90 s) and per-user questions per 60 s (20) for Nexus AI |
+| `NEXUS_AI_FTS_CANDIDATES`, `NEXUS_AI_KEYWORD_CANDIDATES`, `NEXUS_AI_MAX_CONTEXT_CHUNKS` | Railway | no | Nexus AI retrieval tuning; defaults 80 / 60 / 6 |
 | `NEXUS_SUPABASE_SERVICE_ROLE_KEY` | Railway | **yes** | Full-access admin credential; accepts a legacy `service_role` JWT or an `sb_secret_…` key. Server-only; never in a `VITE_` variable, never committed. Rotation: §12 |
 | `NEXUS_PUSH_VAPID_PUBLIC_KEY` | Railway | no | VAPID public half (base64url, 65 bytes). Served to browsers at `GET /api/push/public-key`. §13 |
 | `NEXUS_PUSH_VAPID_PRIVATE_KEY` | Railway | **yes** | VAPID private half (base64url, 32 bytes). Signs every push as this application; anyone holding it can notify your users |
@@ -240,6 +292,8 @@ runtime (Railway, server-only).
 | Admin → Create an account, or a password reset, returns 401 from Supabase | The key's generation does not match the headers sent, or the legacy keys were disabled before the new key was set | §12: a legacy `service_role` JWT needs `apikey` **and** `Authorization: Bearer`; an `sb_secret_…` key needs `apikey` alone |
 | `Supabase admin API is not configured` after a rotation | `NEXUS_SUPABASE_SERVICE_ROLE_KEY` is empty or was set on the wrong service/environment | Re-set it on the Railway backend service, then redeploy — the value is read at startup |
 | Copilot answers look generic | No LLM key/model, or the provider call is failing | §6; the Copilot names the reason next to the answer |
+| Nexus AI shows `Context mode` and only restates retrieved records | No `OPENAI_API_KEY`, or the provider call is failing | §6; the page names the reason above the composer |
+| Nexus AI is configured but cites nothing | The knowledge index is empty (fresh deploy, no record saved since) | Run `POST /api/ai/knowledge/reindex` as ADMIN, then check `/api/ai/knowledge/status` (§6) |
 | Notifications appear in the Inbox but never as a popup | The browser never granted notification permission, or nothing has asked for it with a user gesture | Settings → Device Alerts → **Enable notifications** (a click is required on Android and Safari) |
 | Popups work on the laptop but nothing arrives on the phone | No push subscription for that device, or iOS without the home-screen install | §13; the phone must be subscribed separately from the laptop, and iPhone/iPad require *Add to Home Screen* |
 | "Send a test notification" reports 0 devices | This browser has not subscribed, or the server has no key pair | Settings → Device Alerts; then confirm both `NEXUS_PUSH_VAPID_*` variables are set on Railway — a half-configured pair leaves push off |

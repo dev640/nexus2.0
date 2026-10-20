@@ -43,6 +43,21 @@ services:
       # Accepts either the legacy service_role JWT or a newer sb_secret_ key; see
       # OPERATIONS.md §12 for how to rotate one that has been exposed.
       NEXUS_SUPABASE_SERVICE_ROLE_KEY: ${NEXUS_SUPABASE_SERVICE_ROLE_KEY:-}
+      # Optional AI providers. Export them in your shell (or a .env file sitting
+      # next to this one) and Compose forwards them. Left unset, the Copilot
+      # stays on grounded answers and Nexus AI answers in context-only mode.
+      NEXUS_LLM_PROVIDER: ${NEXUS_LLM_PROVIDER:-}
+      NEXUS_LLM_API_KEY: ${NEXUS_LLM_API_KEY:-}
+      NEXUS_LLM_MODEL: ${NEXUS_LLM_MODEL:-}
+      NEXUS_LLM_BASE_URL: ${NEXUS_LLM_BASE_URL:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      # Nexus AI overrides are listed but commented out on purpose: each has a
+      # built-in default, and an empty value replaces the default rather than
+      # selecting it. Uncomment one to pin a different model or endpoint.
+      # OPENAI_BASE_URL: https://api.openai.com/v1
+      # OPENAI_MODEL: gpt-4o-mini
+      # OPENAI_EMBEDDING_MODEL: text-embedding-3-small
+      # NEXUS_AI_RATE_LIMIT: 20
     depends_on:
       - postgres
       - redis

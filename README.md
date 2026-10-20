@@ -55,7 +55,7 @@ applies; an admin issues passwords from **Admin → Create an account** or
 **Admin → Password requests**. Linking an account to Supabase also clears its local
 password hash, so the two credentials never both work.
 
-Flyway applies `V1 → V12` on first boot, including the seed data above. A fresh database has no chat
+Flyway applies `V1 → V22` on first boot, including the seed data above. A fresh database has no chat
 channels — create one from the Chat page.
 
 ---
@@ -108,8 +108,8 @@ the WebSocket whiteboard work in production.
    | `REDIS_URL` | `${{Redis.REDIS_URL}}` — the app derives host/port/password from it |
    | `NEXUS_SUPABASE_URL` | Optional — enables Supabase Auth (see below) |
    | `NEXUS_LLM_API_KEY` | Optional — leave empty for grounded (data-only) Copilot answers |
-| `NEXUS_LLM_MODEL` | Required once a key is set; there is no default on purpose ([why](OPERATIONS.md#6-turning-on-the-llm-copilot)) |
-   | `OPENAI_API_KEY` | Optional — enables Nexus AI generated answers (RAG chat at `/ai`); without it answers run in context-only mode. `OPENAI_MODEL` (default `gpt-4o-mini`) and `OPENAI_EMBEDDING_MODEL` (default `text-embedding-3-small`) are also read. |
+   | `NEXUS_LLM_MODEL` | Required once a key is set; there is no default on purpose ([why](OPERATIONS.md#6-turning-on-the-llm-copilot)) |
+   | `OPENAI_API_KEY` | Optional — enables Nexus AI generated answers (RAG chat at `/ai`); without it answers run in context-only mode. `OPENAI_MODEL` (default `gpt-4o-mini`) and `OPENAI_EMBEDDING_MODEL` (default `text-embedding-3-small`) are also read, and the knowledge index must be built once with `POST /api/ai/knowledge/reindex` ([why](OPERATIONS.md#nexus-ai-generated-answers-at-ai)) |
 
    `PORT` is injected by the platform automatically, and the app derives its datasource from
    `DATABASE_URL` (or the discrete `PGHOST`/`PGPORT`/`PGUSER`/`PGPASSWORD`/`PGDATABASE` form) and
@@ -194,7 +194,7 @@ backend/             Spring Boot API
   src/main/java/com/nexus/backend/chat/      chat WebSocket + per-user delivery
   src/main/java/com/nexus/backend/whiteboard/ WebSocket + Redis fan-out
   src/main/java/com/nexus/backend/security/   JWT filter + optional Supabase token verifier
-  src/main/resources/db/migration/           Flyway migrations V1–V12
+  src/main/resources/db/migration/           Flyway migrations V1–V22
   src/test/java/                             service unit tests
 docker-compose.yml   Postgres + Redis + backend
 (no Railway config file — see "Backend → Railway" below)
