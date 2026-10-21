@@ -1,0 +1,2534 @@
+{
+  "backend/mvnw": {
+    "mtime": 1788707737.8195505,
+    "seen": 1791538066.9010334,
+    "ast_hash": "ab50dd89da7da2346b28003352eeeeeb",
+    "semantic_hash": "ab50dd89da7da2346b28003352eeeeeb"
+  },
+  "backend/pom.xml": {
+    "mtime": 1792400384.9456396,
+    "seen": 1792517398.3912601,
+    "ast_hash": "365d346156ea0f0a8b6289bfe45cf434",
+    "semantic_hash": "365d346156ea0f0a8b6289bfe45cf434"
+  },
+  "backend/src/main/java/com/nexus/backend/BackendApplication.java": {
+    "mtime": 1791917293.8477898,
+    "seen": 1792517398.3912656,
+    "ast_hash": "804f111ed5ebaec66ef7b5f68e70c8a6",
+    "semantic_hash": "804f111ed5ebaec66ef7b5f68e70c8a6"
+  },
+  "backend/src/main/java/com/nexus/backend/chat/ChatBroadcaster.java": {
+    "mtime": 1790874327.7007601,
+    "seen": 1791538066.901053,
+    "ast_hash": "b062ff014aa048e1ca386b1c63edd764",
+    "semantic_hash": "b062ff014aa048e1ca386b1c63edd764"
+  },
+  "backend/src/main/java/com/nexus/backend/chat/ChatSocketConfig.java": {
+    "mtime": 1792412184.003816,
+    "seen": 1792517398.3916833,
+    "ast_hash": "f672be314a51f1d76e260573e6b62f61",
+    "semantic_hash": "f672be314a51f1d76e260573e6b62f61"
+  },
+  "backend/src/main/java/com/nexus/backend/chat/ChatSocketHandler.java": {
+    "mtime": 1792400384.9526367,
+    "seen": 1792517398.3916857,
+    "ast_hash": "713c17b30e44adc9c22d964fa70c8112",
+    "semantic_hash": "713c17b30e44adc9c22d964fa70c8112"
+  },
+  "backend/src/main/java/com/nexus/backend/config/AiRateLimitFilter.java": {
+    "mtime": 1791382799.971704,
+    "seen": 1791538066.9010642,
+    "ast_hash": "786ea0c911134148122556209e51c344",
+    "semantic_hash": "786ea0c911134148122556209e51c344"
+  },
+  "backend/src/main/java/com/nexus/backend/config/ApiBodySizeFilter.java": {
+    "mtime": 1791535488.8845603,
+    "seen": 1791538066.9010665,
+    "ast_hash": "e4e399a2115973a4f6b4e49903caaf94",
+    "semantic_hash": "e4e399a2115973a4f6b4e49903caaf94"
+  },
+  "backend/src/main/java/com/nexus/backend/config/AuthRateLimitFilter.java": {
+    "mtime": 1790108669.3321784,
+    "seen": 1791538066.9010687,
+    "ast_hash": "dc73fdd624d5a770e1a1c798d6d3cfe1",
+    "semantic_hash": "dc73fdd624d5a770e1a1c798d6d3cfe1"
+  },
+  "backend/src/main/java/com/nexus/backend/config/GlobalRateLimitFilter.java": {
+    "mtime": 1791535488.8689308,
+    "seen": 1791538066.9010708,
+    "ast_hash": "126c377d30cdb2eb6bf27382a7bfa639",
+    "semantic_hash": "126c377d30cdb2eb6bf27382a7bfa639"
+  },
+  "backend/src/main/java/com/nexus/backend/config/JpaAuditingConfig.java": {
+    "mtime": 1791027979.380357,
+    "seen": 1791538066.901073,
+    "ast_hash": "005a9e85be8665ad4664879eb19b41a9",
+    "semantic_hash": "005a9e85be8665ad4664879eb19b41a9"
+  },
+  "backend/src/main/java/com/nexus/backend/config/PlatformEnvironment.java": {
+    "mtime": 1790110755.374153,
+    "seen": 1791538066.9010766,
+    "ast_hash": "77b4b6dcbd832a49e2627bb85e4a3106",
+    "semantic_hash": "77b4b6dcbd832a49e2627bb85e4a3106"
+  },
+  "backend/src/main/java/com/nexus/backend/config/SecurityConfig.java": {
+    "mtime": 1792400384.9576426,
+    "seen": 1792517398.39409,
+    "ast_hash": "0183c20aa77a8af721bc66b6b316b582",
+    "semantic_hash": "0183c20aa77a8af721bc66b6b316b582"
+  },
+  "backend/src/main/java/com/nexus/backend/config/SecurityHeadersFilter.java": {
+    "mtime": 1791535454.9682932,
+    "seen": 1791538066.901081,
+    "ast_hash": "85080cc8cbfd2fdf1344ee7245fa8bbe",
+    "semantic_hash": "85080cc8cbfd2fdf1344ee7245fa8bbe"
+  },
+  "backend/src/main/java/com/nexus/backend/config/SupabaseProperties.java": {
+    "mtime": 1790925808.2827737,
+    "seen": 1791538066.9010837,
+    "ast_hash": "b516053733dae25ae7f3ad11da6ad28b",
+    "semantic_hash": "b516053733dae25ae7f3ad11da6ad28b"
+  },
+  "backend/src/main/java/com/nexus/backend/domain/BaseEntity.java": {
+    "mtime": 1788707737.8219862,
+    "seen": 1791538066.9010859,
+    "ast_hash": "620f936069823d72ec85ba8b58443a1c",
+    "semantic_hash": "620f936069823d72ec85ba8b58443a1c"
+  },
+  "backend/src/main/java/com/nexus/backend/domain/ai/AiConversation.java": {
+    "mtime": 1792400384.9686346,
+    "seen": 1792517398.3951797,
+    "ast_hash": "54d10fe97a94182904c9382d52a4332f",
+    "semantic_hash": "54d10fe97a94182904c9382d52a4332f"
+  },
+  "backend/src/main/java/com/nexus/backend/domain/ai/AiMessage.java": {
+    "mtime": 1792400384.9716392,
+    "seen": 1792517398.3951821,
+    "ast_hash": "ad08ba951a2f3cb1b9b53ab6bb916c68",
+    "semantic_hash": "ad08ba951a2f3cb1b9b53ab6bb916c68"
+  },
+  "backend/src/main/java/com/nexus/backend/domain/ai/AiRole.java": {
+    "mtime": 1791382799.9750218,
+    "seen": 1791538066.9010937,
+    "ast_hash": "f036a92ebf92a1196260b498e4efba54",
+    "semantic_hash": "f036a92ebf92a1196260b498e4efba54"
+  },
+  "backend/src/main/java/com/nexus/backend/domain/chat/ChatChannel.java": {
+    "mtime": 1792400384.9776366,
+    "seen": 1792517398.3955898,
+    "ast_hash": "6d20ffe52139dcb69fe2ed48d46e8795",
+    "semantic_hash": "6d20ffe52139dcb69fe2ed48d46e8795"
+  },
+  "backend/src/main/java/com/nexus/backend/domain/chat/ChatChannelMember.java": {
+    "mtime": 1792400384.9796348,
+    "seen": 1792517398.3955922,
+    "ast_hash": "e9bde9e994f946763b88dad65d842421",
+    "semantic_hash": "e9bde9e994f946763b88dad65d842421"
+  },
+  "backend/src/main/java/com/nexus/backend/domain/chat/ChatMessage.java": {
+    "mtime": 1792400384.9826448,
+    "seen": 1792517398.395594,
+    "ast_hash": "98c2858f1cf63c6ffaafc4c8cfe0714c",
+    "semantic_hash": "98c2858f1cf63c6ffaafc4c8cfe0714c"
+  },
+  "backend/src/main/java/com/nexus/backend/domain/knowledge/AccessScope.java": {
+    "mtime": 1791382799.9770386,
+    "seen": 1791538066.9011037,
+    "ast_hash": "acbf48d89f6239ab719cca8b9357e085",
+    "semantic_hash": "acbf48d89f6239ab719cca8b9357e085"
+  },
+  "backend/src/main/java/com/nexus/backend/domain/knowledge/KnowledgeChunk.java": {
+    "mtime": 1792400384.9886482,
+    "seen": 1792517398.3961506,
+    "ast_hash": "aecd563eee8b756f04d65c4bdc68034f",
+    "semantic_hash": "aecd563eee8b756f04d65c4bdc68034f"
+  },
+  "backend/src/main/java/com/nexus/backend/domain/knowledge/KnowledgeSourceType.java": {
+    "mtime": 1791382799.9800165,
+    "seen": 1791538066.9011085,
+    "ast_hash": "18cebd207326e4418a6e310183dc998c",
+    "semantic_hash": "18cebd207326e4418a6e310183dc998c"
+  },
+  "backend/src/main/java/com/nexus/backend/domain/message/Message.java": {
+    "mtime": 1792400384.9916394,
+    "seen": 1792517398.3965821,
+    "ast_hash": "424670a2b89cd2b9044efa8b3f922cd1",
+    "semantic_hash": "424670a2b89cd2b9044efa8b3f922cd1"
+  },
+  "backend/src/main/java/com/nexus/backend/domain/notification/Notification.java": {
+    "mtime": 1792400384.9936428,
+    "seen": 1792517398.3965847,
+    "ast_hash": "a6bfb42689ef0f8a2ebd0f453ca12585",
+    "semantic_hash": "a6bfb42689ef0f8a2ebd0f453ca12585"
+  },
+  "backend/src/main/java/com/nexus/backend/domain/project/Project.java": {
+    "mtime": 1792400384.99564,
+    "seen": 1792517398.3965864,
+    "ast_hash": "c73122facd578b399f18dbbfd94cee4f",
+    "semantic_hash": "c73122facd578b399f18dbbfd94cee4f"
+  },
+  "backend/src/main/java/com/nexus/backend/domain/project/ProjectHealth.java": {
+    "mtime": 1790063289.2316947,
+    "seen": 1791538066.9011197,
+    "ast_hash": "d94a9dcc76ad832d226eabb97ddbdb49",
+    "semantic_hash": "d94a9dcc76ad832d226eabb97ddbdb49"
+  },
+  "backend/src/main/java/com/nexus/backend/domain/project/ProjectStatus.java": {
+    "mtime": 1790063281.5023327,
+    "seen": 1791538066.901122,
+    "ast_hash": "c6625d939263e084097c73e2a77df144",
+    "semantic_hash": "c6625d939263e084097c73e2a77df144"
+  },
+  "backend/src/main/java/com/nexus/backend/domain/sprint/Sprint.java": {
+    "mtime": 1792400385.000647,
+    "seen": 1792517398.3973525,
+    "ast_hash": "ab4bd87003920c5c3e96e82e687861d2",
+    "semantic_hash": "ab4bd87003920c5c3e96e82e687861d2"
+  },
+  "backend/src/main/java/com/nexus/backend/domain/sprint/SprintStatus.java": {
+    "mtime": 1790102711.4475727,
+    "seen": 1791538066.9011269,
+    "ast_hash": "81c67c4558d6d84d859d51b18a2a2362",
+    "semantic_hash": "81c67c4558d6d84d859d51b18a2a2362"
+  },
+  "backend/src/main/java/com/nexus/backend/domain/task/Task.java": {
+    "mtime": 1792400385.0036492,
+    "seen": 1792517398.3976784,
+    "ast_hash": "42138ecfc3598a19817c837cfb3de952",
+    "semantic_hash": "42138ecfc3598a19817c837cfb3de952"
+  },
+  "backend/src/main/java/com/nexus/backend/domain/task/TaskPriority.java": {
+    "mtime": 1790063306.5473087,
+    "seen": 1791538066.9011319,
+    "ast_hash": "e5381b04a672e5b481cce6b1828914e0",
+    "semantic_hash": "e5381b04a672e5b481cce6b1828914e0"
+  },
+  "backend/src/main/java/com/nexus/backend/domain/task/TaskStatus.java": {
+    "mtime": 1790064007.4512017,
+    "seen": 1791538066.901134,
+    "ast_hash": "f59803078145a5ad0fc910fa7aeff373",
+    "semantic_hash": "f59803078145a5ad0fc910fa7aeff373"
+  },
+  "backend/src/main/java/com/nexus/backend/domain/task/TaskType.java": {
+    "mtime": 1788707737.8291824,
+    "seen": 1791538066.9011364,
+    "ast_hash": "0058b1fc639cea191b82fe48f1dd587f",
+    "semantic_hash": "0058b1fc639cea191b82fe48f1dd587f"
+  },
+  "backend/src/main/java/com/nexus/backend/domain/user/PasswordResetRequest.java": {
+    "mtime": 1792400385.0056376,
+    "seen": 1792517398.401868,
+    "ast_hash": "0647c039aa5c0a5294dfc05ee4088fdf",
+    "semantic_hash": "0647c039aa5c0a5294dfc05ee4088fdf"
+  },
+  "backend/src/main/java/com/nexus/backend/domain/user/ResetRequestStatus.java": {
+    "mtime": 1790925746.6447875,
+    "seen": 1791538066.9011402,
+    "ast_hash": "769bc89e1c77f55bcd5f54e73a640d7c",
+    "semantic_hash": "769bc89e1c77f55bcd5f54e73a640d7c"
+  },
+  "backend/src/main/java/com/nexus/backend/domain/user/User.java": {
+    "mtime": 1792412183.9858155,
+    "seen": 1792517398.4025164,
+    "ast_hash": "15c3d5b1629ad5985435c1a0ce567534",
+    "semantic_hash": "15c3d5b1629ad5985435c1a0ce567534"
+  },
+  "backend/src/main/java/com/nexus/backend/domain/user/UserAvatar.java": {
+    "mtime": 1792400385.010639,
+    "seen": 1792517398.4025211,
+    "ast_hash": "465ea86f8b21a85995832ac6d78db73b",
+    "semantic_hash": "465ea86f8b21a85995832ac6d78db73b"
+  },
+  "backend/src/main/java/com/nexus/backend/domain/user/UserRole.java": {
+    "mtime": 1792400385.012638,
+    "seen": 1792517398.4025247,
+    "ast_hash": "78316b958dab3cf326475e35bfc96da0",
+    "semantic_hash": "78316b958dab3cf326475e35bfc96da0"
+  },
+  "backend/src/main/java/com/nexus/backend/domain/whiteboard/WhiteboardNote.java": {
+    "mtime": 1792400385.0166564,
+    "seen": 1792517398.4025283,
+    "ast_hash": "48519aada1da14b464865d0b2da3be4b",
+    "semantic_hash": "48519aada1da14b464865d0b2da3be4b"
+  },
+  "backend/src/main/java/com/nexus/backend/domain/wiki/WikiPage.java": {
+    "mtime": 1792400385.019639,
+    "seen": 1792517398.4025314,
+    "ast_hash": "9c13bc5a897ec5060ffb4c4ef4d70576",
+    "semantic_hash": "9c13bc5a897ec5060ffb4c4ef4d70576"
+  },
+  "backend/src/main/java/com/nexus/backend/domain/workspace/Workspace.java": {
+    "mtime": 1792400385.0226345,
+    "seen": 1792517398.4025345,
+    "ast_hash": "771f6d9bcada18502863613314948ec0",
+    "semantic_hash": "771f6d9bcada18502863613314948ec0"
+  },
+  "backend/src/main/java/com/nexus/backend/dto/AiAskRequest.java": {
+    "mtime": 1791382799.9810178,
+    "seen": 1791538066.9011545,
+    "ast_hash": "fd001bc0b1b8bb29c15e14074762ff24",
+    "semantic_hash": "fd001bc0b1b8bb29c15e14074762ff24"
+  },
+  "backend/src/main/java/com/nexus/backend/dto/AiConversationDetailResponse.java": {
+    "mtime": 1791382799.982015,
+    "seen": 1791538066.9011564,
+    "ast_hash": "3d62920e7dd0aa4bd91303f708d652fb",
+    "semantic_hash": "3d62920e7dd0aa4bd91303f708d652fb"
+  },
+  "backend/src/main/java/com/nexus/backend/dto/AiConversationResponse.java": {
+    "mtime": 1791382799.9839807,
+    "seen": 1791538066.9011583,
+    "ast_hash": "98feceeb5f67f17c3564ba6655f325f1",
+    "semantic_hash": "98feceeb5f67f17c3564ba6655f325f1"
+  },
+  "backend/src/main/java/com/nexus/backend/dto/AiKnowledgeStatusResponse.java": {
+    "mtime": 1791382799.985001,
+    "seen": 1791538066.9011602,
+    "ast_hash": "25e6dc64cf282931f8c02ab460be2ca6",
+    "semantic_hash": "25e6dc64cf282931f8c02ab460be2ca6"
+  },
+  "backend/src/main/java/com/nexus/backend/dto/AiMessageResponse.java": {
+    "mtime": 1791382799.9859927,
+    "seen": 1791538066.9011621,
+    "ast_hash": "556b5c4d98b56bebd315c5d3c5fc1db8",
+    "semantic_hash": "556b5c4d98b56bebd315c5d3c5fc1db8"
+  },
+  "backend/src/main/java/com/nexus/backend/dto/AiReindexResponse.java": {
+    "mtime": 1791382799.9869921,
+    "seen": 1791538066.9011638,
+    "ast_hash": "50c84fa9d0b3651f1a6844a11440d703",
+    "semantic_hash": "50c84fa9d0b3651f1a6844a11440d703"
+  },
+  "backend/src/main/java/com/nexus/backend/dto/AiSourceResponse.java": {
+    "mtime": 1791382799.9879882,
+    "seen": 1791538066.9011652,
+    "ast_hash": "0275aa50a9f0fe658c61b3a00c594f47",
+    "semantic_hash": "0275aa50a9f0fe658c61b3a00c594f47"
+  },
+  "backend/src/main/java/com/nexus/backend/dto/AnalyticsResponse.java": {
+    "mtime": 1790107265.8817763,
+    "seen": 1791538066.901167,
+    "ast_hash": "d5d5263aefdfe7ea042a0b5f4c2fbabc",
+    "semantic_hash": "d5d5263aefdfe7ea042a0b5f4c2fbabc"
+  },
+  "backend/src/main/java/com/nexus/backend/dto/AuthResponse.java": {
+    "mtime": 1790102711.4475727,
+    "seen": 1791538066.9011688,
+    "ast_hash": "8cd2c409e79fee847914369800738005",
+    "semantic_hash": "8cd2c409e79fee847914369800738005"
+  },
+  "backend/src/main/java/com/nexus/backend/dto/ChatChannelRequest.java": {
+    "mtime": 1790873694.335534,
+    "seen": 1791538066.9011707,
+    "ast_hash": "d289048db75af3751b6342bc50f52c72",
+    "semantic_hash": "d289048db75af3751b6342bc50f52c72"
+  },
+  "backend/src/main/java/com/nexus/backend/dto/ChatChannelResponse.java": {
+    "mtime": 1791047427.3520615,
+    "seen": 1791538066.9011729,
+    "ast_hash": "41553e4248a01f8fcd4d9b066f61b65c",
+    "semantic_hash": "41553e4248a01f8fcd4d9b066f61b65c"
+  },
+  "backend/src/main/java/com/nexus/backend/dto/ChatEvent.java": {
+    "mtime": 1791490952.5731037,
+    "seen": 1791538066.9011748,
+    "ast_hash": "b4ef5d95ef401808a7f8bed9da396e33",
+    "semantic_hash": "b4ef5d95ef401808a7f8bed9da396e33"
+  },
+  "backend/src/main/java/com/nexus/backend/dto/ChatMessageRequest.java": {
+    "mtime": 1790873694.3460298,
+    "seen": 1791538066.901177,
+    "ast_hash": "aeb63e5e12221db132865f6a480736e1",
+    "semantic_hash": "aeb63e5e12221db132865f6a480736e1"
+  },
+  "backend/src/main/java/com/nexus/backend/dto/ChatMessageResponse.java": {
+    "mtime": 1790873694.305312,
+    "seen": 1791538066.901179,
+    "ast_hash": "d56db896ac04a3f1d8c661824f991d4c",
+    "semantic_hash": "d56db896ac04a3f1d8c661824f991d4c"
+  },
+  "backend/src/main/java/com/nexus/backend/dto/ChatReactionRequest.java": {
+    "mtime": 1790874445.488415,
+    "seen": 1791538066.9011815,
+    "ast_hash": "313e96163fc4f436a6966f435ec64eb6",
+    "semantic_hash": "313e96163fc4f436a6966f435ec64eb6"
+  },
+  "backend/src/main/java/com/nexus/backend/dto/ChatUnreadResponse.java": {
+    "mtime": 1790873694.3687317,
+    "seen": 1791538066.9011836,
+    "ast_hash": "0768008c221c43070bd524406037c5fe",
+    "semantic_hash": "0768008c221c43070bd524406037c5fe"
+  },
+  "backend/src/main/java/com/nexus/backend/dto/CopilotAnswerResponse.java": {
+    "mtime": 1791044468.6487982,
+    "seen": 1791538066.9011853,
+    "ast_hash": "10b7d17fc1ead54d6a104f1ef08c22dc",
+    "semantic_hash": "10b7d17fc1ead54d6a104f1ef08c22dc"
+  },
+  "backend/src/main/java/com/nexus/backend/dto/CopilotAskRequest.java": {
+    "mtime": 1790108416.2671442,
+    "seen": 1791538066.9011867,
+    "ast_hash": "775c0471e296880ebe34e9c39c0e60df",
+    "semantic_hash": "775c0471e296880ebe34e9c39c0e60df"
+  },
+  "backend/src/main/java/com/nexus/backend/dto/CreateUserRequest.java": {
+    "mtime": 1790925923.994793,
+    "seen": 1791538066.901189,
+    "ast_hash": "43a20a03dc5d41d82e75d8901e44e5db",
+    "semantic_hash": "43a20a03dc5d41d82e75d8901e44e5db"
+  },
+  "backend/src/main/java/com/nexus/backend/dto/CreatedUserResponse.java": {
+    "mtime": 1790925941.7181816,
+    "seen": 1791538066.901191,
+    "ast_hash": "c1f607ed8733519717117dd1574453e2",
+    "semantic_hash": "c1f607ed8733519717117dd1574453e2"
+  },
+  "backend/src/main/java/com/nexus/backend/dto/LoginRequest.java": {
+    "mtime": 1790102711.460643,
+    "seen": 1791538066.901193,
+    "ast_hash": "5353e9aa765e12374794aa3278059f27",
+    "semantic_hash": "5353e9aa765e12374794aa3278059f27"
+  },
+  "backend/src/main/java/com/nexus/backend/dto/MessageBroadcastRequest.java": {
+    "mtime": 1791521920.4264162,
+    "seen": 1791538066.901195,
+    "ast_hash": "72c7ba2ad8597e5dc16d0239103ec6c0",
+    "semantic_hash": "72c7ba2ad8597e5dc16d0239103ec6c0"
+  },
+  "backend/src/main/java/com/nexus/backend/dto/MessageRequest.java": {
+    "mtime": 1791434578.0795832,
+    "seen": 1791538066.9011967,
+    "ast_hash": "123e5147d0303a25e08dd42588596b8d",
+    "semantic_hash": "123e5147d0303a25e08dd42588596b8d"
+  },
+  "backend/src/main/java/com/nexus/backend/dto/MessageResponse.java": {
+    "mtime": 1791488845.8856218,
+    "seen": 1791538066.9011986,
+    "ast_hash": "e48afc3f17167ce3bca78990df12d04e",
+    "semantic_hash": "e48afc3f17167ce3bca78990df12d04e"
+  },
+  "backend/src/main/java/com/nexus/backend/dto/NotificationResponse.java": {
+    "mtime": 1791516182.0292091,
+    "seen": 1791538066.9012003,
+    "ast_hash": "af0464ed9489d30185ab9d117e89be9d",
+    "semantic_hash": "af0464ed9489d30185ab9d117e89be9d"
+  },
+  "backend/src/main/java/com/nexus/backend/dto/PasswordResetResponse.java": {
+    "mtime": 1790925954.769439,
+    "seen": 1791538066.9012027,
+    "ast_hash": "9edd92301be1abed0bf9b808992d7b8c",
+    "semantic_hash": "9edd92301be1abed0bf9b808992d7b8c"
+  },
+  "backend/src/main/java/com/nexus/backend/dto/ProjectRequest.java": {
+    "mtime": 1792400385.0332708,
+    "seen": 1792517398.417985,
+    "ast_hash": "623873b70f8a0b4e1e073b6c26db70f5",
+    "semantic_hash": "623873b70f8a0b4e1e073b6c26db70f5"
+  },
+  "backend/src/main/java/com/nexus/backend/dto/ProjectResponse.java": {
+    "mtime": 1790102711.4616494,
+    "seen": 1791538066.9012055,
+    "ast_hash": "bd2d27e9b6c03365957bdea44c472601",
+    "semantic_hash": "bd2d27e9b6c03365957bdea44c472601"
+  },
+  "backend/src/main/java/com/nexus/backend/dto/RegisterRequest.java": {
+    "mtime": 1790102711.464321,
+    "seen": 1791538066.9012065,
+    "ast_hash": "02fe01897a16496641bf391f07fc2bbe",
+    "semantic_hash": "02fe01897a16496641bf391f07fc2bbe"
+  },
+  "backend/src/main/java/com/nexus/backend/dto/SprintRequest.java": {
+    "mtime": 1790102711.464321,
+    "seen": 1791538066.9012082,
+    "ast_hash": "51805af185e77ea782cd40980bb3d505",
+    "semantic_hash": "51805af185e77ea782cd40980bb3d505"
+  },
+  "backend/src/main/java/com/nexus/backend/dto/SprintResponse.java": {
+    "mtime": 1790102711.464321,
+    "seen": 1791538066.901209,
+    "ast_hash": "81ea01736d52546e93ecbc660aa2d9f6",
+    "semantic_hash": "81ea01736d52546e93ecbc660aa2d9f6"
+  },
+  "backend/src/main/java/com/nexus/backend/dto/SprintStatusRequest.java": {
+    "mtime": 1790930345.8620198,
+    "seen": 1791538066.9012105,
+    "ast_hash": "44f93f87da5cb7b80c2d9a086257b9ea",
+    "semantic_hash": "44f93f87da5cb7b80c2d9a086257b9ea"
+  },
+  "backend/src/main/java/com/nexus/backend/dto/TaskRequest.java": {
+    "mtime": 1791045606.2727485,
+    "seen": 1791538066.9012117,
+    "ast_hash": "58fc4c9a50b634542ffbcd4f37766b91",
+    "semantic_hash": "58fc4c9a50b634542ffbcd4f37766b91"
+  },
+  "backend/src/main/java/com/nexus/backend/dto/TaskResponse.java": {
+    "mtime": 1791045595.9938066,
+    "seen": 1791538066.9012127,
+    "ast_hash": "21505acb17d61299ca6f425efd661faf",
+    "semantic_hash": "21505acb17d61299ca6f425efd661faf"
+  },
+  "backend/src/main/java/com/nexus/backend/dto/TaskStatusRequest.java": {
+    "mtime": 1790930345.843409,
+    "seen": 1791538066.901214,
+    "ast_hash": "87e1b82752da822720d7aa8649eca0a7",
+    "semantic_hash": "87e1b82752da822720d7aa8649eca0a7"
+  },
+  "backend/src/main/java/com/nexus/backend/dto/UserResponse.java": {
+    "mtime": 1792400385.0382507,
+    "seen": 1792517398.4211898,
+    "ast_hash": "68f2a1d9dd7ef0819e80665b38ccf303",
+    "semantic_hash": "68f2a1d9dd7ef0819e80665b38ccf303"
+  },
+  "backend/src/main/java/com/nexus/backend/dto/WhiteboardEvent.java": {
+    "mtime": 1792400385.0402496,
+    "seen": 1792517398.421193,
+    "ast_hash": "f3146adff9bc57d46bf45d414fde65b5",
+    "semantic_hash": "f3146adff9bc57d46bf45d414fde65b5"
+  },
+  "backend/src/main/java/com/nexus/backend/dto/WhiteboardNoteRequest.java": {
+    "mtime": 1790107750.2735043,
+    "seen": 1791538066.9012175,
+    "ast_hash": "21b020ab8e9069aad52f5d9e42a42e44",
+    "semantic_hash": "21b020ab8e9069aad52f5d9e42a42e44"
+  },
+  "backend/src/main/java/com/nexus/backend/dto/WhiteboardNoteResponse.java": {
+    "mtime": 1790107750.2981246,
+    "seen": 1791538066.9012187,
+    "ast_hash": "4b87ae43aedf59fd368cff0d026fdfdd",
+    "semantic_hash": "4b87ae43aedf59fd368cff0d026fdfdd"
+  },
+  "backend/src/main/java/com/nexus/backend/dto/WhiteboardNoteUpdateRequest.java": {
+    "mtime": 1790107750.2777922,
+    "seen": 1791538066.9012196,
+    "ast_hash": "cd87e92545271e6a1599d8c83c12e6d2",
+    "semantic_hash": "cd87e92545271e6a1599d8c83c12e6d2"
+  },
+  "backend/src/main/java/com/nexus/backend/dto/WikiPageRequest.java": {
+    "mtime": 1790931358.0731127,
+    "seen": 1791538066.9012206,
+    "ast_hash": "0cbbc923f2abe98056cec09016b3b975",
+    "semantic_hash": "0cbbc923f2abe98056cec09016b3b975"
+  },
+  "backend/src/main/java/com/nexus/backend/dto/WikiPageResponse.java": {
+    "mtime": 1790106778.4172237,
+    "seen": 1791538066.9012237,
+    "ast_hash": "c37a5e37d132299b7d6104a5cd35498b",
+    "semantic_hash": "c37a5e37d132299b7d6104a5cd35498b"
+  },
+  "backend/src/main/java/com/nexus/backend/exception/GlobalExceptionHandler.java": {
+    "mtime": 1792400385.0507936,
+    "seen": 1792517398.4232273,
+    "ast_hash": "e2e3982542e47392ad67dbd022af76c9",
+    "semantic_hash": "e2e3982542e47392ad67dbd022af76c9"
+  },
+  "backend/src/main/java/com/nexus/backend/exception/ResourceNotFoundException.java": {
+    "mtime": 1790102711.464321,
+    "seen": 1791538066.9012258,
+    "ast_hash": "5ec16bf2ac265138a71047a89863a2e0",
+    "semantic_hash": "5ec16bf2ac265138a71047a89863a2e0"
+  },
+  "backend/src/main/java/com/nexus/backend/exception/ValidationException.java": {
+    "mtime": 1790102711.4771984,
+    "seen": 1791538066.901227,
+    "ast_hash": "b476559d37fb7f5dad10abfceda7ed80",
+    "semantic_hash": "b476559d37fb7f5dad10abfceda7ed80"
+  },
+  "backend/src/main/java/com/nexus/backend/repository/AiConversationRepository.java": {
+    "mtime": 1791382799.9909892,
+    "seen": 1791538066.901228,
+    "ast_hash": "9ed84bc2a40f20bad9d1ecf3a73edd8e",
+    "semantic_hash": "9ed84bc2a40f20bad9d1ecf3a73edd8e"
+  },
+  "backend/src/main/java/com/nexus/backend/repository/AiMessageRepository.java": {
+    "mtime": 1791382799.9925265,
+    "seen": 1791538066.9012291,
+    "ast_hash": "30f7081ec215bba6640a63dbe1e67e4f",
+    "semantic_hash": "30f7081ec215bba6640a63dbe1e67e4f"
+  },
+  "backend/src/main/java/com/nexus/backend/repository/ChatChannelMemberRepository.java": {
+    "mtime": 1791048796.3444736,
+    "seen": 1791538066.90123,
+    "ast_hash": "c0afdb3ad0c783c4066ce5feaa135ef7",
+    "semantic_hash": "c0afdb3ad0c783c4066ce5feaa135ef7"
+  },
+  "backend/src/main/java/com/nexus/backend/repository/ChatChannelRepository.java": {
+    "mtime": 1792400385.054795,
+    "seen": 1792517398.42501,
+    "ast_hash": "b12cc8b6f542e1d3d5adfef01b4d9daa",
+    "semantic_hash": "b12cc8b6f542e1d3d5adfef01b4d9daa"
+  },
+  "backend/src/main/java/com/nexus/backend/repository/ChatMessageRepository.java": {
+    "mtime": 1791048783.92558,
+    "seen": 1791538066.9012325,
+    "ast_hash": "1f2423aa9ad3df24df8c1fed9e6ce0e7",
+    "semantic_hash": "1f2423aa9ad3df24df8c1fed9e6ce0e7"
+  },
+  "backend/src/main/java/com/nexus/backend/repository/KnowledgeChunkRepository.java": {
+    "mtime": 1792400385.0587957,
+    "seen": 1792517398.4253051,
+    "ast_hash": "561098deb39c4009e9f49c5a3b3889b2",
+    "semantic_hash": "561098deb39c4009e9f49c5a3b3889b2"
+  },
+  "backend/src/main/java/com/nexus/backend/repository/MessageRepository.java": {
+    "mtime": 1791439118.0568216,
+    "seen": 1791538066.9012346,
+    "ast_hash": "2cb6b5efb8388b990217bb9e60a68330",
+    "semantic_hash": "2cb6b5efb8388b990217bb9e60a68330"
+  },
+  "backend/src/main/java/com/nexus/backend/repository/NotificationRepository.java": {
+    "mtime": 1790874128.0433726,
+    "seen": 1791538066.9012358,
+    "ast_hash": "35e7380f4069f8da26f1a73a4673b907",
+    "semantic_hash": "35e7380f4069f8da26f1a73a4673b907"
+  },
+  "backend/src/main/java/com/nexus/backend/repository/PasswordResetRequestRepository.java": {
+    "mtime": 1792400385.0607972,
+    "seen": 1792517398.425914,
+    "ast_hash": "745950ef3e959115306e09aee2b47678",
+    "semantic_hash": "745950ef3e959115306e09aee2b47678"
+  },
+  "backend/src/main/java/com/nexus/backend/repository/ProjectRepository.java": {
+    "mtime": 1792400385.0617988,
+    "seen": 1792517398.4259162,
+    "ast_hash": "bc14c52d869e844b93700b30fcb6574f",
+    "semantic_hash": "bc14c52d869e844b93700b30fcb6574f"
+  },
+  "backend/src/main/java/com/nexus/backend/repository/SprintRepository.java": {
+    "mtime": 1792400385.0667942,
+    "seen": 1792517398.4259214,
+    "ast_hash": "41e43cd6536e5d2ee11430d3ac502277",
+    "semantic_hash": "41e43cd6536e5d2ee11430d3ac502277"
+  },
+  "backend/src/main/java/com/nexus/backend/repository/TaskRepository.java": {
+    "mtime": 1792400385.0687976,
+    "seen": 1792517398.4259236,
+    "ast_hash": "91c14ccc2b13b312c059e96b4a40cc73",
+    "semantic_hash": "91c14ccc2b13b312c059e96b4a40cc73"
+  },
+  "backend/src/main/java/com/nexus/backend/repository/UserAvatarRepository.java": {
+    "mtime": 1792400385.0697951,
+    "seen": 1792517398.4259262,
+    "ast_hash": "197bb56f588a16276e7e920c951bc22e",
+    "semantic_hash": "197bb56f588a16276e7e920c951bc22e"
+  },
+  "backend/src/main/java/com/nexus/backend/repository/UserRepository.java": {
+    "mtime": 1792400385.0723202,
+    "seen": 1792517398.4259279,
+    "ast_hash": "6ffc74aac37042651946d5742e721d1d",
+    "semantic_hash": "6ffc74aac37042651946d5742e721d1d"
+  },
+  "backend/src/main/java/com/nexus/backend/repository/WhiteboardNoteRepository.java": {
+    "mtime": 1792400385.073334,
+    "seen": 1792517398.42593,
+    "ast_hash": "f1223783f2530c0b3a30623fa6f90226",
+    "semantic_hash": "f1223783f2530c0b3a30623fa6f90226"
+  },
+  "backend/src/main/java/com/nexus/backend/repository/WikiPageRepository.java": {
+    "mtime": 1792400385.0788746,
+    "seen": 1792517398.425932,
+    "ast_hash": "a382fcfe74eaef3d00171372402baa24",
+    "semantic_hash": "a382fcfe74eaef3d00171372402baa24"
+  },
+  "backend/src/main/java/com/nexus/backend/repository/WorkspaceRepository.java": {
+    "mtime": 1792400385.0818946,
+    "seen": 1792517398.4259338,
+    "ast_hash": "5f763f6b152e108d2b19b67fa0f21d6c",
+    "semantic_hash": "5f763f6b152e108d2b19b67fa0f21d6c"
+  },
+  "backend/src/main/java/com/nexus/backend/security/CustomUserDetailsService.java": {
+    "mtime": 1792400385.0848744,
+    "seen": 1792517398.4259355,
+    "ast_hash": "fb78ffd1d64335ec491d45511859c09b",
+    "semantic_hash": "fb78ffd1d64335ec491d45511859c09b"
+  },
+  "backend/src/main/java/com/nexus/backend/security/JwtAuthenticationFilter.java": {
+    "mtime": 1792412577.3334641,
+    "seen": 1792517398.425937,
+    "ast_hash": "dc162aecf6b27a7f4e0f5a28aff23ee0",
+    "semantic_hash": "dc162aecf6b27a7f4e0f5a28aff23ee0"
+  },
+  "backend/src/main/java/com/nexus/backend/security/JwtUtil.java": {
+    "mtime": 1792412183.995817,
+    "seen": 1792517398.425939,
+    "ast_hash": "01a00ef0e106068c12250192fa712d47",
+    "semantic_hash": "01a00ef0e106068c12250192fa712d47"
+  },
+  "backend/src/main/java/com/nexus/backend/security/RolePolicy.java": {
+    "mtime": 1791433111.4579742,
+    "seen": 1791538066.9012516,
+    "ast_hash": "8bb7507f051e2689ae0dbe80a73503a8",
+    "semantic_hash": "8bb7507f051e2689ae0dbe80a73503a8"
+  },
+  "backend/src/main/java/com/nexus/backend/security/SupabaseAdminClient.java": {
+    "mtime": 1792400385.0992987,
+    "seen": 1792517398.426249,
+    "ast_hash": "8a8a93b6bee22aa7f76a51f402699b69",
+    "semantic_hash": "8a8a93b6bee22aa7f76a51f402699b69"
+  },
+  "backend/src/main/java/com/nexus/backend/security/SupabaseTokenVerifier.java": {
+    "mtime": 1790658162.2370534,
+    "seen": 1791538066.901254,
+    "ast_hash": "b64e99ba9bb56d6c812fe9883a9bce3f",
+    "semantic_hash": "b64e99ba9bb56d6c812fe9883a9bce3f"
+  },
+  "backend/src/main/java/com/nexus/backend/security/WorkspaceManage.java": {
+    "mtime": 1791433107.0100105,
+    "seen": 1791538066.9012551,
+    "ast_hash": "b96ae6bffe24416e70cd5e58a889eea3",
+    "semantic_hash": "b96ae6bffe24416e70cd5e58a889eea3"
+  },
+  "backend/src/main/java/com/nexus/backend/security/WorkspaceWrite.java": {
+    "mtime": 1791026648.5812984,
+    "seen": 1791538066.901256,
+    "ast_hash": "2ad7efcf0c25742f1d5188f8eebf0edc",
+    "semantic_hash": "2ad7efcf0c25742f1d5188f8eebf0edc"
+  },
+  "backend/src/main/java/com/nexus/backend/service/AdminAccountService.java": {
+    "mtime": 1792412184.0088155,
+    "seen": 1792517398.4271872,
+    "ast_hash": "4928f396e1bafdcb1c5647bc30c4c62b",
+    "semantic_hash": "4928f396e1bafdcb1c5647bc30c4c62b"
+  },
+  "backend/src/main/java/com/nexus/backend/service/AnalyticsService.java": {
+    "mtime": 1792400385.1044917,
+    "seen": 1792517398.4271894,
+    "ast_hash": "a26d4d5d836e52456c2a0dd2d1f027bb",
+    "semantic_hash": "a26d4d5d836e52456c2a0dd2d1f027bb"
+  },
+  "backend/src/main/java/com/nexus/backend/service/AvatarService.java": {
+    "mtime": 1792400385.1084943,
+    "seen": 1792517398.4271934,
+    "ast_hash": "f74d12ccbb55cf34d7a493e270602ba5",
+    "semantic_hash": "f74d12ccbb55cf34d7a493e270602ba5"
+  },
+  "backend/src/main/java/com/nexus/backend/service/ChatService.java": {
+    "mtime": 1792400385.1124887,
+    "seen": 1792517398.4271953,
+    "ast_hash": "c6fee93bb49f58843de2b1add2787b71",
+    "semantic_hash": "c6fee93bb49f58843de2b1add2787b71"
+  },
+  "backend/src/main/java/com/nexus/backend/service/ChatSocketFacade.java": {
+    "mtime": 1792400385.1144905,
+    "seen": 1792517398.4271977,
+    "ast_hash": "310197f1e5a9a18e818a16159dafc237",
+    "semantic_hash": "310197f1e5a9a18e818a16159dafc237"
+  },
+  "backend/src/main/java/com/nexus/backend/service/CopilotService.java": {
+    "mtime": 1791044494.602448,
+    "seen": 1791538066.9012637,
+    "ast_hash": "1f9f826784186da7dcbf652df1e76a83",
+    "semantic_hash": "1f9f826784186da7dcbf652df1e76a83"
+  },
+  "backend/src/main/java/com/nexus/backend/service/LlmClient.java": {
+    "mtime": 1791044456.2366462,
+    "seen": 1791538066.9012647,
+    "ast_hash": "6030693e70ac0fc23a32c2e1411d0684",
+    "semantic_hash": "6030693e70ac0fc23a32c2e1411d0684"
+  },
+  "backend/src/main/java/com/nexus/backend/service/LlmFailure.java": {
+    "mtime": 1791044423.7810616,
+    "seen": 1791538066.9012656,
+    "ast_hash": "396ce23ebcad692f2bb8f067448e3785",
+    "semantic_hash": "396ce23ebcad692f2bb8f067448e3785"
+  },
+  "backend/src/main/java/com/nexus/backend/service/LlmProvider.java": {
+    "mtime": 1791044405.661584,
+    "seen": 1791538066.901267,
+    "ast_hash": "24b2b1072d237a5ad1291932d9211792",
+    "semantic_hash": "24b2b1072d237a5ad1291932d9211792"
+  },
+  "backend/src/main/java/com/nexus/backend/service/LlmResult.java": {
+    "mtime": 1791044434.69275,
+    "seen": 1791538066.901268,
+    "ast_hash": "5378f0ad0bdd4b055630ac15cf08f6b7",
+    "semantic_hash": "5378f0ad0bdd4b055630ac15cf08f6b7"
+  },
+  "backend/src/main/java/com/nexus/backend/service/MessageService.java": {
+    "mtime": 1792400385.1214929,
+    "seen": 1792517398.4286919,
+    "ast_hash": "feb916f09abefaa541237901223a0e9c",
+    "semantic_hash": "feb916f09abefaa541237901223a0e9c"
+  },
+  "backend/src/main/java/com/nexus/backend/service/NotificationService.java": {
+    "mtime": 1792400385.1224935,
+    "seen": 1792517398.428694,
+    "ast_hash": "21c2cc597c16121fc091cfbf8bcf84b0",
+    "semantic_hash": "21c2cc597c16121fc091cfbf8bcf84b0"
+  },
+  "backend/src/main/java/com/nexus/backend/service/ProjectService.java": {
+    "mtime": 1792400385.1254902,
+    "seen": 1792517398.4286978,
+    "ast_hash": "056d91fbf83d938ae73018e5c4ba72d6",
+    "semantic_hash": "056d91fbf83d938ae73018e5c4ba72d6"
+  },
+  "backend/src/main/java/com/nexus/backend/service/SprintService.java": {
+    "mtime": 1792400385.1284935,
+    "seen": 1792517398.4287,
+    "ast_hash": "339c18322cbbb5e5bddb85d43ba1c1a0",
+    "semantic_hash": "339c18322cbbb5e5bddb85d43ba1c1a0"
+  },
+  "backend/src/main/java/com/nexus/backend/service/SupabaseUserService.java": {
+    "mtime": 1792400385.1314993,
+    "seen": 1792517398.428702,
+    "ast_hash": "0205b23d4dc80d31f41b2c768bfceb70",
+    "semantic_hash": "0205b23d4dc80d31f41b2c768bfceb70"
+  },
+  "backend/src/main/java/com/nexus/backend/service/TaskService.java": {
+    "mtime": 1792400385.135492,
+    "seen": 1792517398.4287055,
+    "ast_hash": "89b9d6bdf95f68dde437a5802d4d1ace",
+    "semantic_hash": "89b9d6bdf95f68dde437a5802d4d1ace"
+  },
+  "backend/src/main/java/com/nexus/backend/service/UserService.java": {
+    "mtime": 1792412184.0058248,
+    "seen": 1792517398.4287071,
+    "ast_hash": "fe2c5b74e59a3a0d190dcf2e88f6545e",
+    "semantic_hash": "fe2c5b74e59a3a0d190dcf2e88f6545e"
+  },
+  "backend/src/main/java/com/nexus/backend/service/WhiteboardService.java": {
+    "mtime": 1792400385.1405344,
+    "seen": 1792517398.4287086,
+    "ast_hash": "8e020e8ebfe172903f79bc1977f4a8d9",
+    "semantic_hash": "8e020e8ebfe172903f79bc1977f4a8d9"
+  },
+  "backend/src/main/java/com/nexus/backend/service/WikiPageService.java": {
+    "mtime": 1792400385.1444905,
+    "seen": 1792517398.4287102,
+    "ast_hash": "04da877a40a50cf4c643f964a19d1da8",
+    "semantic_hash": "04da877a40a50cf4c643f964a19d1da8"
+  },
+  "backend/src/main/java/com/nexus/backend/service/activity/ActivityEvents.java": {
+    "mtime": 1791521920.4264557,
+    "seen": 1791538066.9012797,
+    "ast_hash": "0f33dfc2c495687585afde8ef5a7d430",
+    "semantic_hash": "0f33dfc2c495687585afde8ef5a7d430"
+  },
+  "backend/src/main/java/com/nexus/backend/service/activity/WorkspaceActivity.java": {
+    "mtime": 1791521920.4264557,
+    "seen": 1791538066.901281,
+    "ast_hash": "7d3e044d1b313f810dc9358e587d283f",
+    "semantic_hash": "7d3e044d1b313f810dc9358e587d283f"
+  },
+  "backend/src/main/java/com/nexus/backend/service/activity/WorkspaceActivityListener.java": {
+    "mtime": 1792400385.1484916,
+    "seen": 1792517398.429355,
+    "ast_hash": "1d3a42bbfa511fb3bf60ac0745ab569f",
+    "semantic_hash": "1d3a42bbfa511fb3bf60ac0745ab569f"
+  },
+  "backend/src/main/java/com/nexus/backend/service/ai/AiEngine.java": {
+    "mtime": 1791382800.0040617,
+    "seen": 1791538066.9012835,
+    "ast_hash": "58f6d3cb6311e9aaf34d8217558b35d3",
+    "semantic_hash": "58f6d3cb6311e9aaf34d8217558b35d3"
+  },
+  "backend/src/main/java/com/nexus/backend/service/ai/AiEngineException.java": {
+    "mtime": 1791382800.005062,
+    "seen": 1791538066.901285,
+    "ast_hash": "c1aac855f80358737582153380bda9cf",
+    "semantic_hash": "c1aac855f80358737582153380bda9cf"
+  },
+  "backend/src/main/java/com/nexus/backend/service/ai/AiService.java": {
+    "mtime": 1791382800.00707,
+    "seen": 1791538066.9012861,
+    "ast_hash": "fdb6a14811fdb4ffc48f0306b62307cd",
+    "semantic_hash": "fdb6a14811fdb4ffc48f0306b62307cd"
+  },
+  "backend/src/main/java/com/nexus/backend/service/ai/ConversationService.java": {
+    "mtime": 1791382800.0080667,
+    "seen": 1791538066.9012873,
+    "ast_hash": "89560ffa90f9b1c387abea69cfb64bc3",
+    "semantic_hash": "89560ffa90f9b1c387abea69cfb64bc3"
+  },
+  "backend/src/main/java/com/nexus/backend/service/ai/OpenAiEngine.java": {
+    "mtime": 1791382800.0090764,
+    "seen": 1791538066.9012885,
+    "ast_hash": "d3ddabc808032aa6c8b4e42c48acba54",
+    "semantic_hash": "d3ddabc808032aa6c8b4e42c48acba54"
+  },
+  "backend/src/main/java/com/nexus/backend/service/ai/PermissionService.java": {
+    "mtime": 1791382800.0100622,
+    "seen": 1791538066.9012897,
+    "ast_hash": "7907a3749cd844e6b75dd40006f9373a",
+    "semantic_hash": "7907a3749cd844e6b75dd40006f9373a"
+  },
+  "backend/src/main/java/com/nexus/backend/service/ai/PromptBuilder.java": {
+    "mtime": 1791382800.0110638,
+    "seen": 1791538066.901291,
+    "ast_hash": "782e1ae1480a0f6edff11c10041ceaa1",
+    "semantic_hash": "782e1ae1480a0f6edff11c10041ceaa1"
+  },
+  "backend/src/main/java/com/nexus/backend/service/ai/RetrievalService.java": {
+    "mtime": 1792400385.1525,
+    "seen": 1792517398.434611,
+    "ast_hash": "73b812df2f18b189902e5c9b81d66960",
+    "semantic_hash": "73b812df2f18b189902e5c9b81d66960"
+  },
+  "backend/src/main/java/com/nexus/backend/service/ai/RetrievedContext.java": {
+    "mtime": 1791382800.0136905,
+    "seen": 1791538066.9012957,
+    "ast_hash": "730849dce748e2df186ec18b44e69728",
+    "semantic_hash": "730849dce748e2df186ec18b44e69728"
+  },
+  "backend/src/main/java/com/nexus/backend/service/ai/VectorIndex.java": {
+    "mtime": 1792400385.1544971,
+    "seen": 1792517398.4351833,
+    "ast_hash": "033ba6fed32efa91d75b11c6adec53b3",
+    "semantic_hash": "033ba6fed32efa91d75b11c6adec53b3"
+  },
+  "backend/src/main/java/com/nexus/backend/service/knowledge/Chunker.java": {
+    "mtime": 1791382800.01589,
+    "seen": 1791538066.9012978,
+    "ast_hash": "a227c63a51fc809b17ef2c314c43652d",
+    "semantic_hash": "a227c63a51fc809b17ef2c314c43652d"
+  },
+  "backend/src/main/java/com/nexus/backend/service/knowledge/KnowledgeChangeEvent.java": {
+    "mtime": 1791382800.016889,
+    "seen": 1791538066.9012992,
+    "ast_hash": "fe2316b90c0c87fb0e55dcb849292bd9",
+    "semantic_hash": "fe2316b90c0c87fb0e55dcb849292bd9"
+  },
+  "backend/src/main/java/com/nexus/backend/service/knowledge/KnowledgeEvents.java": {
+    "mtime": 1791382800.01889,
+    "seen": 1791538066.9013002,
+    "ast_hash": "e5d7e153d0d490754ef02f3c57325f57",
+    "semantic_hash": "e5d7e153d0d490754ef02f3c57325f57"
+  },
+  "backend/src/main/java/com/nexus/backend/service/knowledge/KnowledgeIndexService.java": {
+    "mtime": 1792400385.1564925,
+    "seen": 1792517398.4370682,
+    "ast_hash": "c55ff3683781e9dc3f320d28aeea7412",
+    "semantic_hash": "c55ff3683781e9dc3f320d28aeea7412"
+  },
+  "backend/src/main/java/com/nexus/backend/service/knowledge/KnowledgeRemoveEvent.java": {
+    "mtime": 1791382800.0198889,
+    "seen": 1791538066.901303,
+    "ast_hash": "085cc2dac8732a812cd0aabccbec08be",
+    "semantic_hash": "085cc2dac8732a812cd0aabccbec08be"
+  },
+  "backend/src/main/java/com/nexus/backend/service/knowledge/KnowledgeSyncListener.java": {
+    "mtime": 1791382800.020888,
+    "seen": 1791538066.9013045,
+    "ast_hash": "942532cae54f1648f8c98dd8ac217ece",
+    "semantic_hash": "942532cae54f1648f8c98dd8ac217ece"
+  },
+  "backend/src/main/java/com/nexus/backend/service/knowledge/SourceDocument.java": {
+    "mtime": 1792400385.1584911,
+    "seen": 1792517398.438077,
+    "ast_hash": "23ae755104ae0c04b91abdb22c6427d6",
+    "semantic_hash": "23ae755104ae0c04b91abdb22c6427d6"
+  },
+  "backend/src/main/java/com/nexus/backend/service/knowledge/SourceDocuments.java": {
+    "mtime": 1792400385.1605148,
+    "seen": 1792517398.4380798,
+    "ast_hash": "2a7947866dc258403209130032e44284",
+    "semantic_hash": "2a7947866dc258403209130032e44284"
+  },
+  "backend/src/main/java/com/nexus/backend/web/AdminPasswordResetController.java": {
+    "mtime": 1792400385.1830213,
+    "seen": 1792517398.4380975,
+    "ast_hash": "f68614e538bce584c12dd51090cbb433",
+    "semantic_hash": "f68614e538bce584c12dd51090cbb433"
+  },
+  "backend/src/main/java/com/nexus/backend/web/AiController.java": {
+    "mtime": 1792400385.185021,
+    "seen": 1792517398.4380994,
+    "ast_hash": "fd7f27641d0e758d73778b7a37a4e1db",
+    "semantic_hash": "fd7f27641d0e758d73778b7a37a4e1db"
+  },
+  "backend/src/main/java/com/nexus/backend/web/AnalyticsController.java": {
+    "mtime": 1790107302.7749188,
+    "seen": 1791538066.9013135,
+    "ast_hash": "ea45dee2b24a6a702f8591215d0f1b97",
+    "semantic_hash": "ea45dee2b24a6a702f8591215d0f1b97"
+  },
+  "backend/src/main/java/com/nexus/backend/web/AuthController.java": {
+    "mtime": 1792400385.187022,
+    "seen": 1792517398.4386034,
+    "ast_hash": "80886c1ba5a2f3720c3f9adf8a9311bd",
+    "semantic_hash": "80886c1ba5a2f3720c3f9adf8a9311bd"
+  },
+  "backend/src/main/java/com/nexus/backend/web/ChatController.java": {
+    "mtime": 1792400385.189021,
+    "seen": 1792517398.4386103,
+    "ast_hash": "95db10ffd206b7fd3d337c75295b1c34",
+    "semantic_hash": "95db10ffd206b7fd3d337c75295b1c34"
+  },
+  "backend/src/main/java/com/nexus/backend/web/CopilotController.java": {
+    "mtime": 1790108416.3086746,
+    "seen": 1791538066.9013193,
+    "ast_hash": "b19737410dbf22bc8ff7a10e71af86da",
+    "semantic_hash": "b19737410dbf22bc8ff7a10e71af86da"
+  },
+  "backend/src/main/java/com/nexus/backend/web/HealthController.java": {
+    "mtime": 1788707737.839522,
+    "seen": 1791538066.9013207,
+    "ast_hash": "c6788578cd2832350b8035254294d147",
+    "semantic_hash": "c6788578cd2832350b8035254294d147"
+  },
+  "backend/src/main/java/com/nexus/backend/web/MessageController.java": {
+    "mtime": 1791488877.7426445,
+    "seen": 1791538066.9013226,
+    "ast_hash": "ed153e81e61493efdafe587d74769ee9",
+    "semantic_hash": "ed153e81e61493efdafe587d74769ee9"
+  },
+  "backend/src/main/java/com/nexus/backend/web/NotificationController.java": {
+    "mtime": 1792400385.1920285,
+    "seen": 1792517398.439971,
+    "ast_hash": "457ecf9fd95ea82ef5c2146b588afb89",
+    "semantic_hash": "457ecf9fd95ea82ef5c2146b588afb89"
+  },
+  "backend/src/main/java/com/nexus/backend/web/ProjectController.java": {
+    "mtime": 1791433111.4982026,
+    "seen": 1791538066.9013262,
+    "ast_hash": "76010e29e61b77187c1fb4ffb9bb59c5",
+    "semantic_hash": "76010e29e61b77187c1fb4ffb9bb59c5"
+  },
+  "backend/src/main/java/com/nexus/backend/web/SprintController.java": {
+    "mtime": 1791045159.1288736,
+    "seen": 1791538066.9013278,
+    "ast_hash": "f2248b01b83513fa0ff714e3c74d6306",
+    "semantic_hash": "f2248b01b83513fa0ff714e3c74d6306"
+  },
+  "backend/src/main/java/com/nexus/backend/web/TaskController.java": {
+    "mtime": 1792400385.1990206,
+    "seen": 1792517398.4406655,
+    "ast_hash": "6359594bf2453ab9c7d3a9035108ea80",
+    "semantic_hash": "6359594bf2453ab9c7d3a9035108ea80"
+  },
+  "backend/src/main/java/com/nexus/backend/web/UserController.java": {
+    "mtime": 1792412184.0098155,
+    "seen": 1792517398.4406674,
+    "ast_hash": "e9e9bf6f855b8fd5527cb6a0a3d1f1f5",
+    "semantic_hash": "e9e9bf6f855b8fd5527cb6a0a3d1f1f5"
+  },
+  "backend/src/main/java/com/nexus/backend/web/WhiteboardController.java": {
+    "mtime": 1791026805.35377,
+    "seen": 1791538066.9013345,
+    "ast_hash": "6374922fd7924b553af7e58597def452",
+    "semantic_hash": "6374922fd7924b553af7e58597def452"
+  },
+  "backend/src/main/java/com/nexus/backend/web/WikiPageController.java": {
+    "mtime": 1791026758.8456168,
+    "seen": 1791538066.9013357,
+    "ast_hash": "2a543efd7aa9e7fda8f8cfed75e99179",
+    "semantic_hash": "2a543efd7aa9e7fda8f8cfed75e99179"
+  },
+  "backend/src/main/java/com/nexus/backend/whiteboard/WhiteboardBroadcaster.java": {
+    "mtime": 1792400385.2032433,
+    "seen": 1792517398.4412787,
+    "ast_hash": "e87e31f4ae8427cda181bb97a62b9c09",
+    "semantic_hash": "e87e31f4ae8427cda181bb97a62b9c09"
+  },
+  "backend/src/main/java/com/nexus/backend/whiteboard/WhiteboardSocketConfig.java": {
+    "mtime": 1792412184.0048158,
+    "seen": 1792517398.4412813,
+    "ast_hash": "9a83dc4eeb1eacc5c52b251ffb71f598",
+    "semantic_hash": "9a83dc4eeb1eacc5c52b251ffb71f598"
+  },
+  "backend/src/main/java/com/nexus/backend/whiteboard/WhiteboardSocketHandler.java": {
+    "mtime": 1792400385.2092416,
+    "seen": 1792517398.441283,
+    "ast_hash": "9ee182f8f4293e1d3a3987f9e56e3a87",
+    "semantic_hash": "9ee182f8f4293e1d3a3987f9e56e3a87"
+  },
+  "backend/src/main/resources/db/migration/V10__Create_password_reset_requests.sql": {
+    "mtime": 1790925732.7086346,
+    "seen": 1791538066.9013438,
+    "ast_hash": "9666e74d8821b08b5f15e5b5f08e9a8b",
+    "semantic_hash": "9666e74d8821b08b5f15e5b5f08e9a8b"
+  },
+  "backend/src/main/resources/db/migration/V11__Add_employee_identity.sql": {
+    "mtime": 1791042840.8674743,
+    "seen": 1791538066.901345,
+    "ast_hash": "a8f171f6edf776fe44cca60810ac9816",
+    "semantic_hash": "a8f171f6edf776fe44cca60810ac9816"
+  },
+  "backend/src/main/resources/db/migration/V12__Add_task_blocked_flag.sql": {
+    "mtime": 1791045530.2826712,
+    "seen": 1791538066.901346,
+    "ast_hash": "d98c289375ee13fc435146f6a6a30f9c",
+    "semantic_hash": "d98c289375ee13fc435146f6a6a30f9c"
+  },
+  "backend/src/main/resources/db/migration/V13__Create_knowledge_and_ai_chat.sql": {
+    "mtime": 1791382800.0291717,
+    "seen": 1791538066.9013474,
+    "ast_hash": "be72fc16c504c8f7317b308927d42f0b",
+    "semantic_hash": "be72fc16c504c8f7317b308927d42f0b"
+  },
+  "backend/src/main/resources/db/migration/V14__Create_messages.sql": {
+    "mtime": 1791439106.5303538,
+    "seen": 1791538066.9013486,
+    "ast_hash": "35ba039aaa4f8d85124f1840890d34b9",
+    "semantic_hash": "35ba039aaa4f8d85124f1840890d34b9"
+  },
+  "backend/src/main/resources/db/migration/V15__Add_message_broadcast_flag.sql": {
+    "mtime": 1791521920.429047,
+    "seen": 1791538066.9013498,
+    "ast_hash": "9c2b93841e2794349f7f23475aa8f450",
+    "semantic_hash": "9c2b93841e2794349f7f23475aa8f450"
+  },
+  "backend/src/main/resources/db/migration/V16__Add_notification_link.sql": {
+    "mtime": 1791521920.429047,
+    "seen": 1791538066.901351,
+    "ast_hash": "166127a83f9cf04280f8c427d01f95dc",
+    "semantic_hash": "166127a83f9cf04280f8c427d01f95dc"
+  },
+  "backend/src/main/resources/db/migration/V1__Create_initial_schema.sql": {
+    "mtime": 1790102711.50368,
+    "seen": 1791538066.901352,
+    "ast_hash": "7a89764acb19a00e8c7adc993ed1ee05",
+    "semantic_hash": "7a89764acb19a00e8c7adc993ed1ee05"
+  },
+  "backend/src/main/resources/db/migration/V2__Insert_seed_data.sql": {
+    "mtime": 1790102711.50368,
+    "seen": 1791538066.9013531,
+    "ast_hash": "fe7ec6f53460d3de692780ff883182ae",
+    "semantic_hash": "fe7ec6f53460d3de692780ff883182ae"
+  },
+  "backend/src/main/resources/db/migration/V3__Task_labels_table.sql": {
+    "mtime": 1790102711.50368,
+    "seen": 1791538066.9013546,
+    "ast_hash": "d45bbcfe14145eecf1642cdc777ef436",
+    "semantic_hash": "d45bbcfe14145eecf1642cdc777ef436"
+  },
+  "backend/src/main/resources/db/migration/V4__Fix_seed_user_passwords.sql": {
+    "mtime": 1790102711.50368,
+    "seen": 1791538066.9013557,
+    "ast_hash": "05c2e877af58f39a717a35097ad2f129",
+    "semantic_hash": "05c2e877af58f39a717a35097ad2f129"
+  },
+  "backend/src/main/resources/db/migration/V5__Create_wiki_pages.sql": {
+    "mtime": 1790106346.7904022,
+    "seen": 1791538066.9013567,
+    "ast_hash": "a62890803e3705366fb4036b098e12b6",
+    "semantic_hash": "a62890803e3705366fb4036b098e12b6"
+  },
+  "backend/src/main/resources/db/migration/V6__Create_notifications.sql": {
+    "mtime": 1790106925.8749323,
+    "seen": 1791538066.9013581,
+    "ast_hash": "4b59a21b9aad0459fcf3cf3646d82275",
+    "semantic_hash": "4b59a21b9aad0459fcf3cf3646d82275"
+  },
+  "backend/src/main/resources/db/migration/V7__Create_whiteboard_notes.sql": {
+    "mtime": 1790107742.0939112,
+    "seen": 1791538066.9013593,
+    "ast_hash": "a51c689284b12ac1b0a335b7db6e52c3",
+    "semantic_hash": "a51c689284b12ac1b0a335b7db6e52c3"
+  },
+  "backend/src/main/resources/db/migration/V8__Add_supabase_identity.sql": {
+    "mtime": 1790444373.137202,
+    "seen": 1791538066.9013603,
+    "ast_hash": "7f3802559a8d5fa1698131bc74b7a088",
+    "semantic_hash": "7f3802559a8d5fa1698131bc74b7a088"
+  },
+  "backend/src/main/resources/db/migration/V9__Create_chat.sql": {
+    "mtime": 1790873567.8475134,
+    "seen": 1791538066.9013617,
+    "ast_hash": "299d652507ba16f0517b1558634795aa",
+    "semantic_hash": "299d652507ba16f0517b1558634795aa"
+  },
+  "backend/src/test/java/com/nexus/backend/chat/ChatSocketRateLimitTest.java": {
+    "mtime": 1792400385.2277923,
+    "seen": 1792517398.4461198,
+    "ast_hash": "27ce46d1dbe1950b83484ff70ae513dc",
+    "semantic_hash": "27ce46d1dbe1950b83484ff70ae513dc"
+  },
+  "backend/src/test/java/com/nexus/backend/config/ApiBodySizeFilterTest.java": {
+    "mtime": 1791535836.5609322,
+    "seen": 1791538066.9013638,
+    "ast_hash": "670a473916940e8a4e2ead9c24c7bc2e",
+    "semantic_hash": "670a473916940e8a4e2ead9c24c7bc2e"
+  },
+  "backend/src/test/java/com/nexus/backend/config/ApplicationPropertiesTest.java": {
+    "mtime": 1791536706.709227,
+    "seen": 1791538066.901365,
+    "ast_hash": "c3d62818b09b120284f0058eb0da8846",
+    "semantic_hash": "c3d62818b09b120284f0058eb0da8846"
+  },
+  "backend/src/test/java/com/nexus/backend/config/GlobalRateLimitFilterTest.java": {
+    "mtime": 1791535654.180454,
+    "seen": 1791538066.9013662,
+    "ast_hash": "68ffc6b7217639815abcc56b14728a66",
+    "semantic_hash": "68ffc6b7217639815abcc56b14728a66"
+  },
+  "backend/src/test/java/com/nexus/backend/config/SecurityHeadersFilterTest.java": {
+    "mtime": 1791535654.1649332,
+    "seen": 1791538066.9013672,
+    "ast_hash": "5ab0983c256af077075b9c013cc506a1",
+    "semantic_hash": "5ab0983c256af077075b9c013cc506a1"
+  },
+  "backend/src/test/java/com/nexus/backend/domain/UserValidationTest.java": {
+    "mtime": 1790659356.217986,
+    "seen": 1791538066.9013684,
+    "ast_hash": "079dd39ad0843a0bceb773fd74fbd1bd",
+    "semantic_hash": "079dd39ad0843a0bceb773fd74fbd1bd"
+  },
+  "backend/src/test/java/com/nexus/backend/dto/StatusRequestValidationTest.java": {
+    "mtime": 1790930492.4525766,
+    "seen": 1791538066.9013696,
+    "ast_hash": "9bd877b6d2f90946ec8f3e7f2faa98cd",
+    "semantic_hash": "9bd877b6d2f90946ec8f3e7f2faa98cd"
+  },
+  "backend/src/test/java/com/nexus/backend/dto/WikiPageRequestValidationTest.java": {
+    "mtime": 1790931371.9198706,
+    "seen": 1791538066.9013705,
+    "ast_hash": "2643400d9e61425405c2f7db81c2895a",
+    "semantic_hash": "2643400d9e61425405c2f7db81c2895a"
+  },
+  "backend/src/test/java/com/nexus/backend/exception/GlobalExceptionHandlerTest.java": {
+    "mtime": 1790929376.1242318,
+    "seen": 1791538066.901372,
+    "ast_hash": "277298007345f92aa126591511b824e3",
+    "semantic_hash": "277298007345f92aa126591511b824e3"
+  },
+  "backend/src/test/java/com/nexus/backend/security/SupabaseIdentityTest.java": {
+    "mtime": 1792400385.26497,
+    "seen": 1792517398.4500082,
+    "ast_hash": "19580df8c6c15267dc5e17831e8cc15e",
+    "semantic_hash": "19580df8c6c15267dc5e17831e8cc15e"
+  },
+  "backend/src/test/java/com/nexus/backend/security/TaskAssignmentPolicyTest.java": {
+    "mtime": 1792400385.2729692,
+    "seen": 1792517398.4500148,
+    "ast_hash": "33e41a6eb50314c6dd5d9feacf4535b0",
+    "semantic_hash": "33e41a6eb50314c6dd5d9feacf4535b0"
+  },
+  "backend/src/test/java/com/nexus/backend/security/ViewerReadOnlySecurityTest.java": {
+    "mtime": 1792400385.2749708,
+    "seen": 1792517398.4500184,
+    "ast_hash": "dc60bec9045a01ccb67b9dd0bd092f43",
+    "semantic_hash": "dc60bec9045a01ccb67b9dd0bd092f43"
+  },
+  "backend/src/test/java/com/nexus/backend/security/WorkspaceManageSecurityTest.java": {
+    "mtime": 1791535733.2561817,
+    "seen": 1791538066.9013767,
+    "ast_hash": "dbaea6284f1abaf68d4ef5b298d4770d",
+    "semantic_hash": "dbaea6284f1abaf68d4ef5b298d4770d"
+  },
+  "backend/src/test/java/com/nexus/backend/service/AdminAccountServiceTest.java": {
+    "mtime": 1792412059.373107,
+    "seen": 1792517398.4511836,
+    "ast_hash": "0fc9e88b091e6c8520199aef504c384b",
+    "semantic_hash": "0fc9e88b091e6c8520199aef504c384b"
+  },
+  "backend/src/test/java/com/nexus/backend/service/AvatarServiceTest.java": {
+    "mtime": 1792400385.2829978,
+    "seen": 1792517398.451189,
+    "ast_hash": "e7340b329b8dbc5f7cf5a3fa3483dcb9",
+    "semantic_hash": "e7340b329b8dbc5f7cf5a3fa3483dcb9"
+  },
+  "backend/src/test/java/com/nexus/backend/service/ChatServiceTest.java": {
+    "mtime": 1792400385.2849708,
+    "seen": 1792517398.451193,
+    "ast_hash": "1e110e540bf071b7c028897136b08776",
+    "semantic_hash": "1e110e540bf071b7c028897136b08776"
+  },
+  "backend/src/test/java/com/nexus/backend/service/CopilotServiceTest.java": {
+    "mtime": 1791044808.498117,
+    "seen": 1791538066.9013815,
+    "ast_hash": "e884589ae51482189bf12403b22d5e38",
+    "semantic_hash": "e884589ae51482189bf12403b22d5e38"
+  },
+  "backend/src/test/java/com/nexus/backend/service/LlmClientTest.java": {
+    "mtime": 1791044613.5087152,
+    "seen": 1791538066.9013827,
+    "ast_hash": "f7d67e409c7a377d244d92ee48334e63",
+    "semantic_hash": "f7d67e409c7a377d244d92ee48334e63"
+  },
+  "backend/src/test/java/com/nexus/backend/service/MessageServiceTest.java": {
+    "mtime": 1792400385.2909737,
+    "seen": 1792517398.4523506,
+    "ast_hash": "d59c299cfc1acfdd7e034a78bfc6e8d5",
+    "semantic_hash": "d59c299cfc1acfdd7e034a78bfc6e8d5"
+  },
+  "backend/src/test/java/com/nexus/backend/service/NotificationServiceTest.java": {
+    "mtime": 1792400385.2929718,
+    "seen": 1792517398.4523556,
+    "ast_hash": "84968273daed5028e20413954c5fbe1c",
+    "semantic_hash": "84968273daed5028e20413954c5fbe1c"
+  },
+  "backend/src/test/java/com/nexus/backend/service/ProjectTaskServiceTest.java": {
+    "mtime": 1792400385.300981,
+    "seen": 1792517398.4523664,
+    "ast_hash": "0bb01d943829db138e5b7a16a5947563",
+    "semantic_hash": "0bb01d943829db138e5b7a16a5947563"
+  },
+  "backend/src/test/java/com/nexus/backend/service/UserSprintServiceTest.java": {
+    "mtime": 1792400385.3049753,
+    "seen": 1792517398.4523776,
+    "ast_hash": "6efa73df660eafa8f7759a811fe8f85e",
+    "semantic_hash": "6efa73df660eafa8f7759a811fe8f85e"
+  },
+  "backend/src/test/java/com/nexus/backend/service/activity/WorkspaceActivityListenerTest.java": {
+    "mtime": 1792400385.3209698,
+    "seen": 1792517398.452384,
+    "ast_hash": "1094f60b39d84819b51d08b6d9a7ba53",
+    "semantic_hash": "1094f60b39d84819b51d08b6d9a7ba53"
+  },
+  "backend/src/test/java/com/nexus/backend/service/ai/AiServiceTest.java": {
+    "mtime": 1791382800.03217,
+    "seen": 1791538066.9013898,
+    "ast_hash": "56b877a47b6c8753f037f0930cf9af6b",
+    "semantic_hash": "56b877a47b6c8753f037f0930cf9af6b"
+  },
+  "backend/src/test/java/com/nexus/backend/service/ai/PromptBuilderTest.java": {
+    "mtime": 1791382800.0331764,
+    "seen": 1791538066.9013908,
+    "ast_hash": "abd20de7ad2b2460cef46f65c1ebe9e4",
+    "semantic_hash": "abd20de7ad2b2460cef46f65c1ebe9e4"
+  },
+  "backend/src/test/java/com/nexus/backend/service/ai/RetrievalServiceTest.java": {
+    "mtime": 1792400385.323973,
+    "seen": 1792517398.453169,
+    "ast_hash": "fa14c8c8dd4dc8b57db54c812ec24c69",
+    "semantic_hash": "fa14c8c8dd4dc8b57db54c812ec24c69"
+  },
+  "backend/src/test/java/com/nexus/backend/service/ai/VectorIndexTest.java": {
+    "mtime": 1792400385.3259706,
+    "seen": 1792517398.453173,
+    "ast_hash": "0346bcfdf6b7ac45958974d931f47984",
+    "semantic_hash": "0346bcfdf6b7ac45958974d931f47984"
+  },
+  "backend/src/test/java/com/nexus/backend/service/knowledge/ChunkerTest.java": {
+    "mtime": 1791382800.0364778,
+    "seen": 1791538066.9013944,
+    "ast_hash": "bfc547f88d37d341afca9418b8e6017e",
+    "semantic_hash": "bfc547f88d37d341afca9418b8e6017e"
+  },
+  "backend/src/test/java/com/nexus/backend/web/UserAvatarEndpointTest.java": {
+    "mtime": 1792400385.339972,
+    "seen": 1792517398.4535327,
+    "ast_hash": "a90ab9d0d2e87ba5508004f4edf6d2cb",
+    "semantic_hash": "a90ab9d0d2e87ba5508004f4edf6d2cb"
+  },
+  "frontend/.oxlintrc.json": {
+    "mtime": 1788707737.8399422,
+    "seen": 1791538066.9013968,
+    "ast_hash": "1f0703525c59e961c2b7f20e78aa1cd4",
+    "semantic_hash": "1f0703525c59e961c2b7f20e78aa1cd4"
+  },
+  "frontend/package.json": {
+    "mtime": 1791963149.8317297,
+    "seen": 1792517398.4539504,
+    "ast_hash": "3be203529bb4a395c89d5bbda1e372ca",
+    "semantic_hash": "3be203529bb4a395c89d5bbda1e372ca"
+  },
+  "frontend/postcss.config.js": {
+    "mtime": 1788707737.8495138,
+    "seen": 1791538066.9013991,
+    "ast_hash": "ee58a68dc3308c729e9a66e03a2cafad",
+    "semantic_hash": "ee58a68dc3308c729e9a66e03a2cafad"
+  },
+  "frontend/src/App.tsx": {
+    "mtime": 1792409468.046569,
+    "seen": 1792517398.454224,
+    "ast_hash": "5441e5ef929859b8d32637f42e8e63d7",
+    "semantic_hash": "5441e5ef929859b8d32637f42e8e63d7"
+  },
+  "frontend/src/components/ai/Markdown.tsx": {
+    "mtime": 1791572731.3335319,
+    "seen": 1792517398.4542265,
+    "ast_hash": "b444a324ca793950934445919a30b43c",
+    "semantic_hash": "b444a324ca793950934445919a30b43c"
+  },
+  "frontend/src/components/layout/AlertToasts.test.tsx": {
+    "mtime": 1791521920.4365883,
+    "seen": 1791538066.9014027,
+    "ast_hash": "2d56df7d8150b93d7621bdcf2840a472",
+    "semantic_hash": "2d56df7d8150b93d7621bdcf2840a472"
+  },
+  "frontend/src/components/layout/AlertToasts.tsx": {
+    "mtime": 1791886199.7357678,
+    "seen": 1792517398.4545364,
+    "ast_hash": "30a3102d3830f47f9606492be1563d9f",
+    "semantic_hash": "30a3102d3830f47f9606492be1563d9f"
+  },
+  "frontend/src/components/layout/AppShell.tsx": {
+    "mtime": 1791572731.3295307,
+    "seen": 1792517398.4545388,
+    "ast_hash": "fa54b743eada097cbb6468f8e8af3c08",
+    "semantic_hash": "fa54b743eada097cbb6468f8e8af3c08"
+  },
+  "frontend/src/components/layout/Sidebar.test.tsx": {
+    "mtime": 1791382800.0487678,
+    "seen": 1791538066.9014063,
+    "ast_hash": "c46dd7e167ad308db47543c25c29c76d",
+    "semantic_hash": "c46dd7e167ad308db47543c25c29c76d"
+  },
+  "frontend/src/components/layout/Sidebar.tsx": {
+    "mtime": 1791572731.3275323,
+    "seen": 1792517398.454852,
+    "ast_hash": "324ffccbdebce16b3ed85656bd1bbf4d",
+    "semantic_hash": "324ffccbdebce16b3ed85656bd1bbf4d"
+  },
+  "frontend/src/components/layout/navIcons.ts": {
+    "mtime": 1791382800.051767,
+    "seen": 1791538066.9014082,
+    "ast_hash": "dfa32eab65ac57e92efd14c1f52abe1b",
+    "semantic_hash": "dfa32eab65ac57e92efd14c1f52abe1b"
+  },
+  "frontend/src/components/mail/ComposeMessageModal.test.tsx": {
+    "mtime": 1791521920.4365883,
+    "seen": 1791538066.9014094,
+    "ast_hash": "dccac8f5a91989989439e7fd7c2601a5",
+    "semantic_hash": "dccac8f5a91989989439e7fd7c2601a5"
+  },
+  "frontend/src/components/mail/ComposeMessageModal.tsx": {
+    "mtime": 1791886400.2045388,
+    "seen": 1792517398.455618,
+    "ast_hash": "9092bce2772c1ccab8b5cafc606ac9a9",
+    "semantic_hash": "9092bce2772c1ccab8b5cafc606ac9a9"
+  },
+  "frontend/src/components/mail/MessageModal.tsx": {
+    "mtime": 1791572731.3175344,
+    "seen": 1792517398.4556298,
+    "ast_hash": "6344afd7a6ef59e0c52809f1420cf4ea",
+    "semantic_hash": "6344afd7a6ef59e0c52809f1420cf4ea"
+  },
+  "frontend/src/components/marketing/Reveal.tsx": {
+    "mtime": 1788772244.1063867,
+    "seen": 1791538066.9014132,
+    "ast_hash": "9aafd3bb029e57ab7fed482ccd964cb3",
+    "semantic_hash": "9aafd3bb029e57ab7fed482ccd964cb3"
+  },
+  "frontend/src/components/project/EditProjectModal.tsx": {
+    "mtime": 1791572731.3145325,
+    "seen": 1792517398.456023,
+    "ast_hash": "c21943bde689bdc66e93286f13ba473d",
+    "semantic_hash": "c21943bde689bdc66e93286f13ba473d"
+  },
+  "frontend/src/components/project/NewProjectModal.tsx": {
+    "mtime": 1791886400.2510817,
+    "seen": 1792517398.4560292,
+    "ast_hash": "0be3f89ee22d85184eba0921a7d1b862",
+    "semantic_hash": "0be3f89ee22d85184eba0921a7d1b862"
+  },
+  "frontend/src/components/sprint/EditSprintModal.test.tsx": {
+    "mtime": 1791572731.3125336,
+    "seen": 1792517398.4560375,
+    "ast_hash": "f64a78d8688f7c8fdf8c8c868a1d3b3f",
+    "semantic_hash": "f64a78d8688f7c8fdf8c8c868a1d3b3f"
+  },
+  "frontend/src/components/sprint/EditSprintModal.tsx": {
+    "mtime": 1791572731.3095384,
+    "seen": 1792517398.4560442,
+    "ast_hash": "2b90b242b56dacb1d32a0b201bd7b551",
+    "semantic_hash": "2b90b242b56dacb1d32a0b201bd7b551"
+  },
+  "frontend/src/components/sprint/NewSprintModal.tsx": {
+    "mtime": 1791572731.2292864,
+    "seen": 1792517398.4560497,
+    "ast_hash": "f2979ad76ac1bddd03c4daebdb819830",
+    "semantic_hash": "f2979ad76ac1bddd03c4daebdb819830"
+  },
+  "frontend/src/components/task/EditTaskModal.tsx": {
+    "mtime": 1791572731.2272873,
+    "seen": 1792517398.4560566,
+    "ast_hash": "d1753351eb1f7cc39c22881d8ed5149d",
+    "semantic_hash": "d1753351eb1f7cc39c22881d8ed5149d"
+  },
+  "frontend/src/components/task/LabelChips.test.tsx": {
+    "mtime": 1791050390.609453,
+    "seen": 1791538066.9014218,
+    "ast_hash": "1394e4c100eaa20598878be6f6faf53b",
+    "semantic_hash": "1394e4c100eaa20598878be6f6faf53b"
+  },
+  "frontend/src/components/task/LabelChips.tsx": {
+    "mtime": 1791015413.3262794,
+    "seen": 1791538066.9014227,
+    "ast_hash": "5b68055fe49a1544a3952f9feb315ecd",
+    "semantic_hash": "5b68055fe49a1544a3952f9feb315ecd"
+  },
+  "frontend/src/components/task/NewTaskModal.tsx": {
+    "mtime": 1791886400.2300065,
+    "seen": 1792517398.4567497,
+    "ast_hash": "8c96b09eefae958773f1a5edf648af04",
+    "semantic_hash": "8c96b09eefae958773f1a5edf648af04"
+  },
+  "frontend/src/components/team/NewTeamModal.tsx": {
+    "mtime": 1791886400.2895515,
+    "seen": 1792517398.4567516,
+    "ast_hash": "0d168995fbb66a3fc450f55f16252c29",
+    "semantic_hash": "0d168995fbb66a3fc450f55f16252c29"
+  },
+  "frontend/src/components/ui/MagneticButton.tsx": {
+    "mtime": 1788707737.852197,
+    "seen": 1791538066.901426,
+    "ast_hash": "67d357162eecf3617d5e9a225ca1a775",
+    "semantic_hash": "67d357162eecf3617d5e9a225ca1a775"
+  },
+  "frontend/src/components/ui/MarqueeBand.tsx": {
+    "mtime": 1788707737.852197,
+    "seen": 1791538066.9014275,
+    "ast_hash": "cdf8bd686bf7b6e7971956765741c859",
+    "semantic_hash": "cdf8bd686bf7b6e7971956765741c859"
+  },
+  "frontend/src/components/ui/Modal.tsx": {
+    "mtime": 1791572731.225278,
+    "seen": 1792517398.4572976,
+    "ast_hash": "3ae32977c6b72527f8a13ded49a5ad89",
+    "semantic_hash": "3ae32977c6b72527f8a13ded49a5ad89"
+  },
+  "frontend/src/components/user/UserAvatar.test.tsx": {
+    "mtime": 1791050390.6261406,
+    "seen": 1791538066.9014297,
+    "ast_hash": "62f661ea082fd8272657be44864b7107",
+    "semantic_hash": "62f661ea082fd8272657be44864b7107"
+  },
+  "frontend/src/components/user/UserAvatar.tsx": {
+    "mtime": 1792164543.7683444,
+    "seen": 1792517398.4575808,
+    "ast_hash": "d385e9ce302a276091abe8ab25e59ed2",
+    "semantic_hash": "d385e9ce302a276091abe8ab25e59ed2"
+  },
+  "frontend/src/components/wiki/NewWikiPageModal.tsx": {
+    "mtime": 1791886400.2707205,
+    "seen": 1792517398.4575832,
+    "ast_hash": "fa91e3fc0cbe293eb9a39be13124632c",
+    "semantic_hash": "fa91e3fc0cbe293eb9a39be13124632c"
+  },
+  "frontend/src/hooks/useAvatar.test.tsx": {
+    "mtime": 1791485678.5319319,
+    "seen": 1791538066.901433,
+    "ast_hash": "b59efb489cec28aca0c2598ea5e714a8",
+    "semantic_hash": "b59efb489cec28aca0c2598ea5e714a8"
+  },
+  "frontend/src/hooks/useAvatar.ts": {
+    "mtime": 1791485678.537224,
+    "seen": 1791538066.9014344,
+    "ast_hash": "86243f8bf324139404156005e9f4b224",
+    "semantic_hash": "86243f8bf324139404156005e9f4b224"
+  },
+  "frontend/src/hooks/useDeepLink.test.tsx": {
+    "mtime": 1791521920.4365883,
+    "seen": 1791538066.9014354,
+    "ast_hash": "32cb7c6b9a6355e9f8a97c11840d412a",
+    "semantic_hash": "32cb7c6b9a6355e9f8a97c11840d412a"
+  },
+  "frontend/src/hooks/useDeepLink.ts": {
+    "mtime": 1791521920.4365883,
+    "seen": 1791538066.9014366,
+    "ast_hash": "fb55eb7ae6243e75230fe6f8096bab95",
+    "semantic_hash": "fb55eb7ae6243e75230fe6f8096bab95"
+  },
+  "frontend/src/hooks/useDeviceAlerts.test.tsx": {
+    "mtime": 1791918444.867806,
+    "seen": 1792517398.4586556,
+    "ast_hash": "15f2113aeb422415d1d70b7c58ff57fa",
+    "semantic_hash": "15f2113aeb422415d1d70b7c58ff57fa"
+  },
+  "frontend/src/hooks/useDeviceAlerts.ts": {
+    "mtime": 1791916566.3695295,
+    "seen": 1792517398.4586582,
+    "ast_hash": "a5b105552f7cddcee0d1b1df9587ee31",
+    "semantic_hash": "a5b105552f7cddcee0d1b1df9587ee31"
+  },
+  "frontend/src/hooks/useUnreadCount.ts": {
+    "mtime": 1790879814.2244854,
+    "seen": 1791538066.90144,
+    "ast_hash": "164b1891f72d2d223ef05d297e4d4c8d",
+    "semantic_hash": "164b1891f72d2d223ef05d297e4d4c8d"
+  },
+  "frontend/src/lib/api.test.ts": {
+    "mtime": 1792409468.045606,
+    "seen": 1792517398.4589355,
+    "ast_hash": "1564ebeb7ff40f024b3ba0cd5b730781",
+    "semantic_hash": "1564ebeb7ff40f024b3ba0cd5b730781"
+  },
+  "frontend/src/lib/api.ts": {
+    "mtime": 1792412059.075948,
+    "seen": 1792517398.4589374,
+    "ast_hash": "2ea6d61ed431a52c3776f104f7a84a6d",
+    "semantic_hash": "2ea6d61ed431a52c3776f104f7a84a6d"
+  },
+  "frontend/src/lib/chatSocket.ts": {
+    "mtime": 1791492188.0776322,
+    "seen": 1791538066.9014435,
+    "ast_hash": "29258bd30cc0da55f7bc53104d123475",
+    "semantic_hash": "29258bd30cc0da55f7bc53104d123475"
+  },
+  "frontend/src/lib/deviceAlerts.test.ts": {
+    "mtime": 1791918381.654667,
+    "seen": 1792517398.459204,
+    "ast_hash": "9d3d4f743bf032830f1dd483f1974220",
+    "semantic_hash": "9d3d4f743bf032830f1dd483f1974220"
+  },
+  "frontend/src/lib/deviceAlerts.ts": {
+    "mtime": 1791916547.7461615,
+    "seen": 1792517398.4592056,
+    "ast_hash": "36b58fb3801bff04c53c9ac12c55d08b",
+    "semantic_hash": "36b58fb3801bff04c53c9ac12c55d08b"
+  },
+  "frontend/src/lib/labels.ts": {
+    "mtime": 1791015406.1261792,
+    "seen": 1791538066.9014468,
+    "ast_hash": "56ff1b336e7e59ecabcb07f2fa65178a",
+    "semantic_hash": "56ff1b336e7e59ecabcb07f2fa65178a"
+  },
+  "frontend/src/lib/mockData.ts": {
+    "mtime": 1791043521.938092,
+    "seen": 1791538066.901448,
+    "ast_hash": "d4a0fce71ebdaf7cd69f42673be336f1",
+    "semantic_hash": "d4a0fce71ebdaf7cd69f42673be336f1"
+  },
+  "frontend/src/lib/nav.ts": {
+    "mtime": 1791382800.0557666,
+    "seen": 1791538066.9014492,
+    "ast_hash": "c215a3b30be641389dce03479e877ea0",
+    "semantic_hash": "c215a3b30be641389dce03479e877ea0"
+  },
+  "frontend/src/lib/roles.ts": {
+    "mtime": 1791433139.151847,
+    "seen": 1791538066.9014504,
+    "ast_hash": "bed6d965359073259a4bff0f503b8ebc",
+    "semantic_hash": "bed6d965359073259a4bff0f503b8ebc"
+  },
+  "frontend/src/lib/supabase.ts": {
+    "mtime": 1790445416.5116427,
+    "seen": 1791538066.9014516,
+    "ast_hash": "f3156776e6345428f36e5dfed9591c32",
+    "semantic_hash": "f3156776e6345428f36e5dfed9591c32"
+  },
+  "frontend/src/lib/whiteboardSocket.ts": {
+    "mtime": 1790445436.7094955,
+    "seen": 1791538066.9014525,
+    "ast_hash": "99be1cc20c3337dcc072ade7c82cb861",
+    "semantic_hash": "99be1cc20c3337dcc072ade7c82cb861"
+  },
+  "frontend/src/main.tsx": {
+    "mtime": 1791967362.4478931,
+    "seen": 1792517398.4609232,
+    "ast_hash": "faec76255e6d797e6e8b6d2f68f933bb",
+    "semantic_hash": "faec76255e6d797e6e8b6d2f68f933bb"
+  },
+  "frontend/src/pages/AICopilot.tsx": {
+    "mtime": 1791572731.2207694,
+    "seen": 1792517398.4609256,
+    "ast_hash": "b5a8081dc4823cb0df5b1a5912c19477",
+    "semantic_hash": "b5a8081dc4823cb0df5b1a5912c19477"
+  },
+  "frontend/src/pages/Admin.tsx": {
+    "mtime": 1792400385.3649752,
+    "seen": 1792517398.4609275,
+    "ast_hash": "8f94f9775179c9b99237cbbef742e25d",
+    "semantic_hash": "8f94f9775179c9b99237cbbef742e25d"
+  },
+  "frontend/src/pages/Analytics.tsx": {
+    "mtime": 1791572731.2167678,
+    "seen": 1792517398.4609299,
+    "ast_hash": "807db3466ac45688c58e7741a52bf343",
+    "semantic_hash": "807db3466ac45688c58e7741a52bf343"
+  },
+  "frontend/src/pages/Backlog.tsx": {
+    "mtime": 1792165856.6301918,
+    "seen": 1792517398.4609315,
+    "ast_hash": "0966760214024b4c37b632302efd6de5",
+    "semantic_hash": "0966760214024b4c37b632302efd6de5"
+  },
+  "frontend/src/pages/Board.tsx": {
+    "mtime": 1792165837.6995108,
+    "seen": 1792517398.4609337,
+    "ast_hash": "8fe25b00c8127dc029486ec22c6d61f9",
+    "semantic_hash": "8fe25b00c8127dc029486ec22c6d61f9"
+  },
+  "frontend/src/pages/Calendar.tsx": {
+    "mtime": 1791572731.2127688,
+    "seen": 1792517398.4609358,
+    "ast_hash": "9e7da0a2618ebab6aed14495a9cf7ef5",
+    "semantic_hash": "9e7da0a2618ebab6aed14495a9cf7ef5"
+  },
+  "frontend/src/pages/Chat.tsx": {
+    "mtime": 1791572731.2117712,
+    "seen": 1792517398.460942,
+    "ast_hash": "dab590770ff70171931f33f5f16b1cdb",
+    "semantic_hash": "dab590770ff70171931f33f5f16b1cdb"
+  },
+  "frontend/src/pages/Help.tsx": {
+    "mtime": 1791572731.2097719,
+    "seen": 1792517398.4609444,
+    "ast_hash": "5710431f65c5f8aceecc1a6c9ec1ac94",
+    "semantic_hash": "5710431f65c5f8aceecc1a6c9ec1ac94"
+  },
+  "frontend/src/pages/Home.tsx": {
+    "mtime": 1791572731.2087731,
+    "seen": 1792517398.4609463,
+    "ast_hash": "f1916dee19779b7915cda87a3ef0994e",
+    "semantic_hash": "f1916dee19779b7915cda87a3ef0994e"
+  },
+  "frontend/src/pages/Inbox.test.tsx": {
+    "mtime": 1791572731.2077696,
+    "seen": 1792517398.4609482,
+    "ast_hash": "d15c19f410ac449df112bb75830963d4",
+    "semantic_hash": "d15c19f410ac449df112bb75830963d4"
+  },
+  "frontend/src/pages/Inbox.tsx": {
+    "mtime": 1791572731.2057703,
+    "seen": 1792517398.4609504,
+    "ast_hash": "bd2d1be36a6e089c160c24d47cb34c04",
+    "semantic_hash": "bd2d1be36a6e089c160c24d47cb34c04"
+  },
+  "frontend/src/pages/Landing.tsx": {
+    "mtime": 1791885867.675385,
+    "seen": 1792517398.4609523,
+    "ast_hash": "4aea607a61c05283b362571442a968be",
+    "semantic_hash": "4aea607a61c05283b362571442a968be"
+  },
+  "frontend/src/pages/Login.tsx": {
+    "mtime": 1792400385.37598,
+    "seen": 1792517398.4609542,
+    "ast_hash": "ddfdc4f939add1386cb2dc84fe46e0e3",
+    "semantic_hash": "ddfdc4f939add1386cb2dc84fe46e0e3"
+  },
+  "frontend/src/pages/MyWork.tsx": {
+    "mtime": 1791572731.2007685,
+    "seen": 1792517398.4609559,
+    "ast_hash": "e94f126fe73b515a6d7ea34ad835f0aa",
+    "semantic_hash": "e94f126fe73b515a6d7ea34ad835f0aa"
+  },
+  "frontend/src/pages/NexusAI.tsx": {
+    "mtime": 1791572731.1987782,
+    "seen": 1792517398.4609578,
+    "ast_hash": "b0c126fe6c22c1e46d04d8cb34c50a7f",
+    "semantic_hash": "b0c126fe6c22c1e46d04d8cb34c50a7f"
+  },
+  "frontend/src/pages/Projects.tsx": {
+    "mtime": 1792165235.0262864,
+    "seen": 1792517398.4609628,
+    "ast_hash": "55f2d6955750e290e4109ae56dba7483",
+    "semantic_hash": "55f2d6955750e290e4109ae56dba7483"
+  },
+  "frontend/src/pages/Settings.tsx": {
+    "mtime": 1792400385.3909705,
+    "seen": 1792517398.4609644,
+    "ast_hash": "cc74d4b9dbee902a98b207e68531a6d8",
+    "semantic_hash": "cc74d4b9dbee902a98b207e68531a6d8"
+  },
+  "frontend/src/pages/Sprints.tsx": {
+    "mtime": 1792165818.3969498,
+    "seen": 1792517398.4609659,
+    "ast_hash": "ff998bbcb7d9092858ac4ff2393fed3b",
+    "semantic_hash": "ff998bbcb7d9092858ac4ff2393fed3b"
+  },
+  "frontend/src/pages/Team.tsx": {
+    "mtime": 1791572731.1927686,
+    "seen": 1792517398.4609716,
+    "ast_hash": "cdababe9a68b3b0fd3deedeb6363f9e5",
+    "semantic_hash": "cdababe9a68b3b0fd3deedeb6363f9e5"
+  },
+  "frontend/src/pages/Whiteboard.tsx": {
+    "mtime": 1791572731.1907797,
+    "seen": 1792517398.460974,
+    "ast_hash": "b3a11b303704742dde48ee52220e87c5",
+    "semantic_hash": "b3a11b303704742dde48ee52220e87c5"
+  },
+  "frontend/src/pages/Wiki.tsx": {
+    "mtime": 1791572731.1897693,
+    "seen": 1792517398.460976,
+    "ast_hash": "8c49eba08e7c388c4e56120bf95ba0eb",
+    "semantic_hash": "8c49eba08e7c388c4e56120bf95ba0eb"
+  },
+  "frontend/src/store/contracts.ts": {
+    "mtime": 1791489092.9578402,
+    "seen": 1791538066.9014788,
+    "ast_hash": "af0c6bf0e7235e92882282c03d3b5342",
+    "semantic_hash": "af0c6bf0e7235e92882282c03d3b5342"
+  },
+  "frontend/src/store/ids.ts": {
+    "mtime": 1791061265.4201458,
+    "seen": 1791538066.9014797,
+    "ast_hash": "b5eb19d410c36d9da03d13b40a5a8712",
+    "semantic_hash": "b5eb19d410c36d9da03d13b40a5a8712"
+  },
+  "frontend/src/store/mappers.ts": {
+    "mtime": 1791489081.8973627,
+    "seen": 1791538066.901481,
+    "ast_hash": "316e676751416ff8c5203e83807eb28e",
+    "semantic_hash": "316e676751416ff8c5203e83807eb28e"
+  },
+  "frontend/src/store/models.ts": {
+    "mtime": 1791516540.176078,
+    "seen": 1791538066.9014819,
+    "ast_hash": "b51e524592198374c8b8e7faeb938e58",
+    "semantic_hash": "b51e524592198374c8b8e7faeb938e58"
+  },
+  "frontend/src/store/slices/alerts.ts": {
+    "mtime": 1791521920.4365883,
+    "seen": 1791538066.901483,
+    "ast_hash": "1d55b255f116194b14846d579754e66b",
+    "semantic_hash": "1d55b255f116194b14846d579754e66b"
+  },
+  "frontend/src/store/slices/auth.ts": {
+    "mtime": 1792411033.3145306,
+    "seen": 1792517398.462324,
+    "ast_hash": "ffc66be867359b6075dddb8d281bdc50",
+    "semantic_hash": "ffc66be867359b6075dddb8d281bdc50"
+  },
+  "frontend/src/store/slices/members.ts": {
+    "mtime": 1791061431.6965685,
+    "seen": 1791538066.9014852,
+    "ast_hash": "a7426aff1820c83529908a2f8dbf9ea4",
+    "semantic_hash": "a7426aff1820c83529908a2f8dbf9ea4"
+  },
+  "frontend/src/store/slices/messages.ts": {
+    "mtime": 1791489136.082793,
+    "seen": 1791538066.9014864,
+    "ast_hash": "2d7d37900d08f49271e442e639a436d4",
+    "semantic_hash": "2d7d37900d08f49271e442e639a436d4"
+  },
+  "frontend/src/store/slices/notifications.ts": {
+    "mtime": 1791516540.3229928,
+    "seen": 1791538066.9014874,
+    "ast_hash": "76228241d5aca4ba00078d7ea6a9d6a9",
+    "semantic_hash": "76228241d5aca4ba00078d7ea6a9d6a9"
+  },
+  "frontend/src/store/slices/projects.ts": {
+    "mtime": 1791061408.809899,
+    "seen": 1791538066.9014885,
+    "ast_hash": "464bc49a41f2456cc7d45719cd390b12",
+    "semantic_hash": "464bc49a41f2456cc7d45719cd390b12"
+  },
+  "frontend/src/store/slices/settings.ts": {
+    "mtime": 1791061484.040097,
+    "seen": 1791538066.9014897,
+    "ast_hash": "d8394b711ae841dd009a6fc618874f56",
+    "semantic_hash": "d8394b711ae841dd009a6fc618874f56"
+  },
+  "frontend/src/store/slices/sprints.ts": {
+    "mtime": 1791061423.6371963,
+    "seen": 1791538066.9014907,
+    "ast_hash": "af38b1ddb5d6e53d9f5fa7d9946da497",
+    "semantic_hash": "af38b1ddb5d6e53d9f5fa7d9946da497"
+  },
+  "frontend/src/store/slices/sync.ts": {
+    "mtime": 1791434938.677579,
+    "seen": 1791538066.9014919,
+    "ast_hash": "768009c427139de48c94b61b7e8be342",
+    "semantic_hash": "768009c427139de48c94b61b7e8be342"
+  },
+  "frontend/src/store/slices/tasks.ts": {
+    "mtime": 1791061408.774235,
+    "seen": 1791538066.901493,
+    "ast_hash": "91ff7a23432c85a3c94be12e31f9ab15",
+    "semantic_hash": "91ff7a23432c85a3c94be12e31f9ab15"
+  },
+  "frontend/src/store/slices/teams.ts": {
+    "mtime": 1791061452.2332418,
+    "seen": 1791538066.901494,
+    "ast_hash": "76a2d7aef0a7fe723ec8c03afa126fb9",
+    "semantic_hash": "76a2d7aef0a7fe723ec8c03afa126fb9"
+  },
+  "frontend/src/store/slices/whiteboard.ts": {
+    "mtime": 1791061452.1952105,
+    "seen": 1791538066.901495,
+    "ast_hash": "5854d148a4617b5c1368e8dbc3cfe606",
+    "semantic_hash": "5854d148a4617b5c1368e8dbc3cfe606"
+  },
+  "frontend/src/store/slices/wiki.ts": {
+    "mtime": 1791061467.6673133,
+    "seen": 1791538066.9014964,
+    "ast_hash": "35788035b38710f8393328c56c7cb5cb",
+    "semantic_hash": "35788035b38710f8393328c56c7cb5cb"
+  },
+  "frontend/src/store/state.ts": {
+    "mtime": 1791492009.4972134,
+    "seen": 1791538066.9014976,
+    "ast_hash": "2e37644bb271782fae41ce1d3803029b",
+    "semantic_hash": "2e37644bb271782fae41ce1d3803029b"
+  },
+  "frontend/src/store/useAppStore.test.ts": {
+    "mtime": 1792400385.4188223,
+    "seen": 1792517398.4686637,
+    "ast_hash": "73a12db5826458a37d9826f8a9003b50",
+    "semantic_hash": "73a12db5826458a37d9826f8a9003b50"
+  },
+  "frontend/src/store/useAppStore.ts": {
+    "mtime": 1791491974.081166,
+    "seen": 1791538066.9015,
+    "ast_hash": "ca53b9ec292b0a9e7e31522e179e697d",
+    "semantic_hash": "ca53b9ec292b0a9e7e31522e179e697d"
+  },
+  "frontend/src/test/setup.ts": {
+    "mtime": 1792400385.4208188,
+    "seen": 1792517398.4693146,
+    "ast_hash": "b79863c5f1533feeddd5a38714a7d6cc",
+    "semantic_hash": "b79863c5f1533feeddd5a38714a7d6cc"
+  },
+  "frontend/tsconfig.app.json": {
+    "mtime": 1791963253.5273025,
+    "seen": 1792517398.4693186,
+    "ast_hash": "c1986faef93676817c7f1e27dd4f8e3d",
+    "semantic_hash": "c1986faef93676817c7f1e27dd4f8e3d"
+  },
+  "frontend/tsconfig.json": {
+    "mtime": 1791963253.5273025,
+    "seen": 1792517398.4693217,
+    "ast_hash": "ce80bf9d180c31e7f1fb00212edb6388",
+    "semantic_hash": "ce80bf9d180c31e7f1fb00212edb6388"
+  },
+  "frontend/tsconfig.node.json": {
+    "mtime": 1788707737.872355,
+    "seen": 1791538066.9015043,
+    "ast_hash": "74cde0261ad0a13045ca0a05ab1542ae",
+    "semantic_hash": "74cde0261ad0a13045ca0a05ab1542ae"
+  },
+  "frontend/vercel.json": {
+    "mtime": 1792412059.3163593,
+    "seen": 1792517398.469966,
+    "ast_hash": "0b565374823234bfea1d1685cb734920",
+    "semantic_hash": "0b565374823234bfea1d1685cb734920"
+  },
+  "frontend/vite.config.ts": {
+    "mtime": 1791962924.4195354,
+    "seen": 1792517398.469971,
+    "ast_hash": "eba022ea4d90b4d025ac2422a5393822",
+    "semantic_hash": "eba022ea4d90b4d025ac2422a5393822"
+  },
+  "frontend/vitest.config.ts": {
+    "mtime": 1791050158.0422654,
+    "seen": 1791538066.9015076,
+    "ast_hash": "cddb2ff9c574c313ac9da710fccf4f66",
+    "semantic_hash": "cddb2ff9c574c313ac9da710fccf4f66"
+  },
+  "vercel.json": {
+    "mtime": 1792412059.2759087,
+    "seen": 1792517398.4705563,
+    "ast_hash": "bc2c25bba555c7cd1599947a966e2d5a",
+    "semantic_hash": "bc2c25bba555c7cd1599947a966e2d5a"
+  },
+  ".github/workflows/ci.yml": {
+    "mtime": 1791050477.1403968,
+    "seen": 1791538066.9015105,
+    "ast_hash": "3c143af3cdfefbce2c8ef6b030cf3cc5",
+    "semantic_hash": "3c143af3cdfefbce2c8ef6b030cf3cc5"
+  },
+  "OPERATIONS.md": {
+    "mtime": 1791062797.536991,
+    "seen": 1791538066.9015117,
+    "ast_hash": "df66d9934312d4444659d14d86b321a2",
+    "semantic_hash": "df66d9934312d4444659d14d86b321a2"
+  },
+  "PRD.md": {
+    "mtime": 1791382799.96112,
+    "seen": 1791538066.9015129,
+    "ast_hash": "cd799131924db391a31319f4ca09b0a9",
+    "semantic_hash": "cd799131924db391a31319f4ca09b0a9"
+  },
+  "README.md": {
+    "mtime": 1791382799.9691608,
+    "seen": 1791538066.9015143,
+    "ast_hash": "5fd4439f5147ab9dfb7adc79943da4f2",
+    "semantic_hash": "5fd4439f5147ab9dfb7adc79943da4f2"
+  },
+  "backend/SECURITY_AUDIT.md": {
+    "mtime": 1791536893.2853923,
+    "seen": 1791538066.9015155,
+    "ast_hash": "ae2ff3bb691eb01ae446981e1fadc284",
+    "semantic_hash": "ae2ff3bb691eb01ae446981e1fadc284"
+  },
+  "docker-compose.yml": {
+    "mtime": 1791382800.1414301,
+    "seen": 1791538066.9015164,
+    "ast_hash": "33816ea3009618a818fb156bb1097a04",
+    "semantic_hash": "33816ea3009618a818fb156bb1097a04"
+  },
+  "frontend/README.md": {
+    "mtime": 1788707737.8399422,
+    "seen": 1791538066.9015179,
+    "ast_hash": "3a8e2f41658852c43fdce93a22bc2f90",
+    "semantic_hash": "3a8e2f41658852c43fdce93a22bc2f90"
+  },
+  "frontend/index.html": {
+    "mtime": 1788772244.0877347,
+    "seen": 1791538066.901519,
+    "ast_hash": "b66adb0ef365d4cbc9fba304b86c29bd",
+    "semantic_hash": "b66adb0ef365d4cbc9fba304b86c29bd"
+  },
+  "frontend/public/favicon-v2.png": {
+    "mtime": 1788772244.096082,
+    "seen": 1791538066.9015205,
+    "ast_hash": "7cd3999568ffee7279b6035ad8995309",
+    "semantic_hash": "7cd3999568ffee7279b6035ad8995309"
+  },
+  "frontend/public/favicon.svg": {
+    "mtime": 1788707737.8505473,
+    "seen": 1791538066.9015217,
+    "ast_hash": "7e840862161341271697daa99a40d76b",
+    "semantic_hash": "7e840862161341271697daa99a40d76b"
+  },
+  "frontend/public/icons.svg": {
+    "mtime": 1788707737.851341,
+    "seen": 1791538066.9015226,
+    "ast_hash": "21c7473c592c67dc87223d49892c8f0a",
+    "semantic_hash": "21c7473c592c67dc87223d49892c8f0a"
+  },
+  "frontend/public/logo-mark.png": {
+    "mtime": 1788772244.0981483,
+    "seen": 1791538066.9015243,
+    "ast_hash": "9d084afbad3200e9b97bbc34dba5da73",
+    "semantic_hash": "9d084afbad3200e9b97bbc34dba5da73"
+  },
+  "frontend/public/logo-wordmark.png": {
+    "mtime": 1788772244.098701,
+    "seen": 1791538066.9015253,
+    "ast_hash": "1cdeb232d0c8531ed71702979a3c6096",
+    "semantic_hash": "1cdeb232d0c8531ed71702979a3c6096"
+  },
+  "frontend/public/sounds/mixkit-gaming-lock-2848.wav": {
+    "mtime": 1791521920.4355,
+    "seen": 1791538066.9015262,
+    "ast_hash": "c49a400becb8be1027b7baac747a1216",
+    "semantic_hash": "c49a400becb8be1027b7baac747a1216"
+  },
+  "backend/src/main/java/com/nexus/backend/config/CompanySuspensionConfig.java": {
+    "mtime": 1792400384.9546406,
+    "seen": 1792517398.3928478,
+    "ast_hash": "7152fb0d747cb65c581d745e187e09d0",
+    "semantic_hash": "7152fb0d747cb65c581d745e187e09d0"
+  },
+  "backend/src/main/java/com/nexus/backend/config/PushProperties.java": {
+    "mtime": 1791917243.3023658,
+    "seen": 1792517398.394087,
+    "ast_hash": "3c3e6951bfc27a04a3365819e43371cd",
+    "semantic_hash": "3c3e6951bfc27a04a3365819e43371cd"
+  },
+  "backend/src/main/java/com/nexus/backend/domain/audit/AuditAction.java": {
+    "mtime": 1792400384.9736364,
+    "seen": 1792517398.3955855,
+    "ast_hash": "e6e7fb729f3ae4e7188254c141284b8c",
+    "semantic_hash": "e6e7fb729f3ae4e7188254c141284b8c"
+  },
+  "backend/src/main/java/com/nexus/backend/domain/audit/AuditLog.java": {
+    "mtime": 1792400384.974635,
+    "seen": 1792517398.3955877,
+    "ast_hash": "c6624fbbf24a1c99d7918d4edefc4c3f",
+    "semantic_hash": "c6624fbbf24a1c99d7918d4edefc4c3f"
+  },
+  "backend/src/main/java/com/nexus/backend/domain/company/Company.java": {
+    "mtime": 1792400384.985651,
+    "seen": 1792517398.3955965,
+    "ast_hash": "bf827ff9d592696dce00a7dfa463d2cf",
+    "semantic_hash": "bf827ff9d592696dce00a7dfa463d2cf"
+  },
+  "backend/src/main/java/com/nexus/backend/domain/push/PushSubscription.java": {
+    "mtime": 1792400384.9966414,
+    "seen": 1792517398.397349,
+    "ast_hash": "5755750b535a364dec922362246231b9",
+    "semantic_hash": "5755750b535a364dec922362246231b9"
+  },
+  "backend/src/main/java/com/nexus/backend/dto/AdminAccountResponse.java": {
+    "mtime": 1792400385.0246346,
+    "seen": 1792517398.4025395,
+    "ast_hash": "de8d417cdc930e8e820581a5451dc6a2",
+    "semantic_hash": "de8d417cdc930e8e820581a5451dc6a2"
+  },
+  "backend/src/main/java/com/nexus/backend/dto/ChangePasswordRequest.java": {
+    "mtime": 1792400385.0261722,
+    "seen": 1792517398.4091356,
+    "ast_hash": "153ed7e39cd36512b5c9383bbafd5ab5",
+    "semantic_hash": "153ed7e39cd36512b5c9383bbafd5ab5"
+  },
+  "backend/src/main/java/com/nexus/backend/dto/CompanyAdminResponse.java": {
+    "mtime": 1792400385.027257,
+    "seen": 1792517398.4119616,
+    "ast_hash": "518cb751447d82c6fc1ca44372279628",
+    "semantic_hash": "518cb751447d82c6fc1ca44372279628"
+  },
+  "backend/src/main/java/com/nexus/backend/dto/CreateCompanyRequest.java": {
+    "mtime": 1792400385.0292633,
+    "seen": 1792517398.4126866,
+    "ast_hash": "26bdda1e6e07e7e8dbc2c138836622d9",
+    "semantic_hash": "26bdda1e6e07e7e8dbc2c138836622d9"
+  },
+  "backend/src/main/java/com/nexus/backend/dto/CreatedCompanyResponse.java": {
+    "mtime": 1792400385.0302515,
+    "seen": 1792517398.4130018,
+    "ast_hash": "f2697168b5772a5dc5123cff217a0226",
+    "semantic_hash": "f2697168b5772a5dc5123cff217a0226"
+  },
+  "backend/src/main/java/com/nexus/backend/dto/PushSelfCheckResponse.java": {
+    "mtime": 1791922787.327079,
+    "seen": 1792517398.4183772,
+    "ast_hash": "a37593256f4115865a7660ffce43f756",
+    "semantic_hash": "a37593256f4115865a7660ffce43f756"
+  },
+  "backend/src/main/java/com/nexus/backend/dto/PushSubscriptionRequest.java": {
+    "mtime": 1791917354.7739007,
+    "seen": 1792517398.4183915,
+    "ast_hash": "b452b4489a7f5adeeab5a8e2228990cd",
+    "semantic_hash": "b452b4489a7f5adeeab5a8e2228990cd"
+  },
+  "backend/src/main/java/com/nexus/backend/dto/PushUnsubscribeRequest.java": {
+    "mtime": 1791917354.794231,
+    "seen": 1792517398.4183936,
+    "ast_hash": "8d5a6f9bfb3b1d5da5b87a6ff1605b4f",
+    "semantic_hash": "8d5a6f9bfb3b1d5da5b87a6ff1605b4f"
+  },
+  "backend/src/main/java/com/nexus/backend/exception/CompanySuspendedException.java": {
+    "mtime": 1792400385.0432549,
+    "seen": 1792517398.4232082,
+    "ast_hash": "8f3a481a614fc1d0c5b0c895c115183b",
+    "semantic_hash": "8f3a481a614fc1d0c5b0c895c115183b"
+  },
+  "backend/src/main/java/com/nexus/backend/exception/DuplicateEmailException.java": {
+    "mtime": 1792400385.0462513,
+    "seen": 1792517398.423219,
+    "ast_hash": "707c09937ad808f9d6d98b3835255b8a",
+    "semantic_hash": "707c09937ad808f9d6d98b3835255b8a"
+  },
+  "backend/src/main/java/com/nexus/backend/repository/AuditLogRepository.java": {
+    "mtime": 1792400385.0527933,
+    "seen": 1792517398.4246976,
+    "ast_hash": "8bbbd2c3f1671045728643d2f9c533d4",
+    "semantic_hash": "8bbbd2c3f1671045728643d2f9c533d4"
+  },
+  "backend/src/main/java/com/nexus/backend/repository/CompanyRepository.java": {
+    "mtime": 1792400385.0568023,
+    "seen": 1792517398.4253025,
+    "ast_hash": "c45d65adffbd356ddba7ed4bbfb950a0",
+    "semantic_hash": "c45d65adffbd356ddba7ed4bbfb950a0"
+  },
+  "backend/src/main/java/com/nexus/backend/repository/PushSubscriptionRepository.java": {
+    "mtime": 1792400385.0657969,
+    "seen": 1792517398.425919,
+    "ast_hash": "555a63d63325758934eda97e2445f192",
+    "semantic_hash": "555a63d63325758934eda97e2445f192"
+  },
+  "backend/src/main/java/com/nexus/backend/security/MustChangePasswordFilter.java": {
+    "mtime": 1792400385.0898652,
+    "seen": 1792517398.4259408,
+    "ast_hash": "63d105e11c2c5a2f1be08637bad48477",
+    "semantic_hash": "63d105e11c2c5a2f1be08637bad48477"
+  },
+  "backend/src/main/java/com/nexus/backend/security/MustChangePasswordHandshakeGuard.java": {
+    "mtime": 1792400385.0908656,
+    "seen": 1792517398.4259431,
+    "ast_hash": "0aa54cbca09b8d633da82b40f70dc734",
+    "semantic_hash": "0aa54cbca09b8d633da82b40f70dc734"
+  },
+  "backend/src/main/java/com/nexus/backend/security/NexusUserPrincipal.java": {
+    "mtime": 1792412183.9998155,
+    "seen": 1792517398.4259446,
+    "ast_hash": "0f4f62f4b3bf845f48929ef949af5c84",
+    "semantic_hash": "0f4f62f4b3bf845f48929ef949af5c84"
+  },
+  "backend/src/main/java/com/nexus/backend/security/SocketPrincipalResolver.java": {
+    "mtime": 1792412184.0018208,
+    "seen": 1792517398.4262464,
+    "ast_hash": "9f0961a722c683354205c3ced6baa62a",
+    "semantic_hash": "9f0961a722c683354205c3ced6baa62a"
+  },
+  "backend/src/main/java/com/nexus/backend/security/SuspendedCompanyFilter.java": {
+    "mtime": 1792400385.1004949,
+    "seen": 1792517398.426561,
+    "ast_hash": "56a642db66520082dccff69d94bcbd51",
+    "semantic_hash": "56a642db66520082dccff69d94bcbd51"
+  },
+  "backend/src/main/java/com/nexus/backend/service/AuditService.java": {
+    "mtime": 1792400385.1064909,
+    "seen": 1792517398.427191,
+    "ast_hash": "7881a959a744a286d6998d67024a3eab",
+    "semantic_hash": "7881a959a744a286d6998d67024a3eab"
+  },
+  "backend/src/main/java/com/nexus/backend/service/CompanyService.java": {
+    "mtime": 1792400385.1154888,
+    "seen": 1792517398.4271998,
+    "ast_hash": "79cd827a81a80c06b7fa617957082a98",
+    "semantic_hash": "79cd827a81a80c06b7fa617957082a98"
+  },
+  "backend/src/main/java/com/nexus/backend/service/CompanySocketCloser.java": {
+    "mtime": 1792400385.1164882,
+    "seen": 1792517398.4272015,
+    "ast_hash": "5b932bd5ac150bbbd051e20548e663c1",
+    "semantic_hash": "5b932bd5ac150bbbd051e20548e663c1"
+  },
+  "backend/src/main/java/com/nexus/backend/service/CompanySuspensionService.java": {
+    "mtime": 1792400385.1184976,
+    "seen": 1792517398.4272034,
+    "ast_hash": "f58c0ac989d1d1233c94a88a7618724e",
+    "semantic_hash": "f58c0ac989d1d1233c94a88a7618724e"
+  },
+  "backend/src/main/java/com/nexus/backend/service/EmployeeCodeService.java": {
+    "mtime": 1792400385.119492,
+    "seen": 1792517398.4274986,
+    "ast_hash": "7b41d5fe84e728dca24659e4bf04896a",
+    "semantic_hash": "7b41d5fe84e728dca24659e4bf04896a"
+  },
+  "backend/src/main/java/com/nexus/backend/service/PasswordChangeService.java": {
+    "mtime": 1792412184.0068219,
+    "seen": 1792517398.428696,
+    "ast_hash": "42803ad39895510fba7a9efd9b7257b3",
+    "semantic_hash": "42803ad39895510fba7a9efd9b7257b3"
+  },
+  "backend/src/main/java/com/nexus/backend/service/SuperAdminService.java": {
+    "mtime": 1792400385.1334903,
+    "seen": 1792517398.428704,
+    "ast_hash": "e4f2d7ec18b3156361bca2937b8ac0b5",
+    "semantic_hash": "e4f2d7ec18b3156361bca2937b8ac0b5"
+  },
+  "backend/src/main/java/com/nexus/backend/service/push/PushAttempt.java": {
+    "mtime": 1791922730.8416135,
+    "seen": 1792517398.4380834,
+    "ast_hash": "8d704c87dfd7b89246a1bb9421a022e6",
+    "semantic_hash": "8d704c87dfd7b89246a1bb9421a022e6"
+  },
+  "backend/src/main/java/com/nexus/backend/service/push/PushSubscriptionService.java": {
+    "mtime": 1792400385.1664906,
+    "seen": 1792517398.4380853,
+    "ast_hash": "406ceda67f2c36dbf1ef9125064b45c0",
+    "semantic_hash": "406ceda67f2c36dbf1ef9125064b45c0"
+  },
+  "backend/src/main/java/com/nexus/backend/service/push/WebPushSender.java": {
+    "mtime": 1792400385.169495,
+    "seen": 1792517398.438087,
+    "ast_hash": "f20693e1174df11e76ac16d1dea76fed",
+    "semantic_hash": "f20693e1174df11e76ac16d1dea76fed"
+  },
+  "backend/src/main/java/com/nexus/backend/tenant/CurrentTenant.java": {
+    "mtime": 1792400385.1714933,
+    "seen": 1792517398.4380887,
+    "ast_hash": "7c849c300192e831399ee97d58f09872",
+    "semantic_hash": "7c849c300192e831399ee97d58f09872"
+  },
+  "backend/src/main/java/com/nexus/backend/tenant/TenantAware.java": {
+    "mtime": 1792400385.1734965,
+    "seen": 1792517398.438091,
+    "ast_hash": "253f70f0bda257ca58aa7abcf8f26c9c",
+    "semantic_hash": "253f70f0bda257ca58aa7abcf8f26c9c"
+  },
+  "backend/src/main/java/com/nexus/backend/tenant/TenantContext.java": {
+    "mtime": 1792400385.176028,
+    "seen": 1792517398.4380925,
+    "ast_hash": "d6ed6e702a99b2b5d30587641b653762",
+    "semantic_hash": "d6ed6e702a99b2b5d30587641b653762"
+  },
+  "backend/src/main/java/com/nexus/backend/tenant/TenantScope.java": {
+    "mtime": 1792400385.1780455,
+    "seen": 1792517398.4380944,
+    "ast_hash": "d05df8f4ec9147734344faf1f5ec9f39",
+    "semantic_hash": "d05df8f4ec9147734344faf1f5ec9f39"
+  },
+  "backend/src/main/java/com/nexus/backend/tenant/TenantStampListener.java": {
+    "mtime": 1792400385.181025,
+    "seen": 1792517398.4380956,
+    "ast_hash": "01f65ca72a88a518cc212ec460e3cdd0",
+    "semantic_hash": "01f65ca72a88a518cc212ec460e3cdd0"
+  },
+  "backend/src/main/java/com/nexus/backend/web/PushController.java": {
+    "mtime": 1791922804.6151123,
+    "seen": 1792517398.4403503,
+    "ast_hash": "cebc1567f25fdc8f8439e4fa5296acad",
+    "semantic_hash": "cebc1567f25fdc8f8439e4fa5296acad"
+  },
+  "backend/src/main/java/com/nexus/backend/web/SuperAdminController.java": {
+    "mtime": 1792400385.1950338,
+    "seen": 1792517398.4406629,
+    "ast_hash": "422b7b3227a33e81ce252dfd5814fd9b",
+    "semantic_hash": "422b7b3227a33e81ce252dfd5814fd9b"
+  },
+  "backend/src/test/java/com/nexus/backend/db/DbTestSupport.java": {
+    "mtime": 1792400385.23244,
+    "seen": 1792517398.4473038,
+    "ast_hash": "d09666922e5826079b2e3d6c83a13b7a",
+    "semantic_hash": "d09666922e5826079b2e3d6c83a13b7a"
+  },
+  "backend/src/test/java/com/nexus/backend/db/EntitySchemaConformanceTest.java": {
+    "mtime": 1792400385.2344356,
+    "seen": 1792517398.447306,
+    "ast_hash": "ecd0672a93fda5ac86c73986bf6f05ba",
+    "semantic_hash": "ecd0672a93fda5ac86c73986bf6f05ba"
+  },
+  "backend/src/test/java/com/nexus/backend/db/MultiTenancyMigrationTest.java": {
+    "mtime": 1792412059.3911843,
+    "seen": 1792517398.4473076,
+    "ast_hash": "a23e843a97359299dc9862b2821898f1",
+    "semantic_hash": "a23e843a97359299dc9862b2821898f1"
+  },
+  "backend/src/test/java/com/nexus/backend/db/MultiTenancyRollbackTest.java": {
+    "mtime": 1792400385.238428,
+    "seen": 1792517398.4473095,
+    "ast_hash": "d110f3a23a083d7251a8ab575fe0e0d0",
+    "semantic_hash": "d110f3a23a083d7251a8ab575fe0e0d0"
+  },
+  "backend/src/test/java/com/nexus/backend/realtime/TenantFanOutIsolationTest.java": {
+    "mtime": 1792400385.2410383,
+    "seen": 1792517398.4499578,
+    "ast_hash": "1509526e465eb6cb62a3f673bc6067de",
+    "semantic_hash": "1509526e465eb6cb62a3f673bc6067de"
+  },
+  "backend/src/test/java/com/nexus/backend/realtime/TwoCompanyIsolationTest.java": {
+    "mtime": 1792411338.9056578,
+    "seen": 1792517398.4499614,
+    "ast_hash": "66ffe1290f2f92bd05b143066f9d015e",
+    "semantic_hash": "66ffe1290f2f92bd05b143066f9d015e"
+  },
+  "backend/src/test/java/com/nexus/backend/security/JwtAuthenticationFilterTokenVersionTest.java": {
+    "mtime": 1792412059.4107864,
+    "seen": 1792517398.4499667,
+    "ast_hash": "68a74e6d1e3f668ef2d0a7b765ada1c4",
+    "semantic_hash": "68a74e6d1e3f668ef2d0a7b765ada1c4"
+  },
+  "backend/src/test/java/com/nexus/backend/security/JwtUtilTokenVersionTest.java": {
+    "mtime": 1792410393.501333,
+    "seen": 1792517398.4499698,
+    "ast_hash": "04b6eeecfa683909b9a645060ceb0039",
+    "semantic_hash": "04b6eeecfa683909b9a645060ceb0039"
+  },
+  "backend/src/test/java/com/nexus/backend/security/MustChangePasswordFilterTest.java": {
+    "mtime": 1792400385.248969,
+    "seen": 1792517398.4499726,
+    "ast_hash": "cc86f8adee11346f0da4328a851f3b82",
+    "semantic_hash": "cc86f8adee11346f0da4328a851f3b82"
+  },
+  "backend/src/test/java/com/nexus/backend/security/MustChangePasswordGateSecurityTest.java": {
+    "mtime": 1792400385.251989,
+    "seen": 1792517398.4499927,
+    "ast_hash": "e9245c684f73e31609ea19cb7cc5487a",
+    "semantic_hash": "e9245c684f73e31609ea19cb7cc5487a"
+  },
+  "backend/src/test/java/com/nexus/backend/security/SocketHandshakeGateTest.java": {
+    "mtime": 1792411338.910316,
+    "seen": 1792517398.4499967,
+    "ast_hash": "b3974c90bf2979aa1d6cab6701edcc87",
+    "semantic_hash": "b3974c90bf2979aa1d6cab6701edcc87"
+  },
+  "backend/src/test/java/com/nexus/backend/security/SocketPrincipalResolverSuspensionTest.java": {
+    "mtime": 1792400385.2569678,
+    "seen": 1792517398.45,
+    "ast_hash": "f9969505a48ee342d837930c25c86493",
+    "semantic_hash": "f9969505a48ee342d837930c25c86493"
+  },
+  "backend/src/test/java/com/nexus/backend/security/SupabaseAdminClientTest.java": {
+    "mtime": 1792400385.258976,
+    "seen": 1792517398.4500034,
+    "ast_hash": "e7974749cbc6c7abcf647666a25b5866",
+    "semantic_hash": "e7974749cbc6c7abcf647666a25b5866"
+  },
+  "backend/src/test/java/com/nexus/backend/security/SuspendedCompanyFilterTest.java": {
+    "mtime": 1792400385.2669733,
+    "seen": 1792517398.4500113,
+    "ast_hash": "e76a4d94d6667fc306c4d1b331b4125e",
+    "semantic_hash": "e76a4d94d6667fc306c4d1b331b4125e"
+  },
+  "backend/src/test/java/com/nexus/backend/service/CompanyServiceTest.java": {
+    "mtime": 1792400385.2869723,
+    "seen": 1792517398.4511964,
+    "ast_hash": "5f0cd3deed3fd36df2fffc74e48a6e0f",
+    "semantic_hash": "5f0cd3deed3fd36df2fffc74e48a6e0f"
+  },
+  "backend/src/test/java/com/nexus/backend/service/CompanySocketCloserTest.java": {
+    "mtime": 1792400385.2879694,
+    "seen": 1792517398.4511998,
+    "ast_hash": "ce69c7b446cad755f6d3baa6a7cf9949",
+    "semantic_hash": "ce69c7b446cad755f6d3baa6a7cf9949"
+  },
+  "backend/src/test/java/com/nexus/backend/service/CompanySuspensionServiceTest.java": {
+    "mtime": 1792400385.2899704,
+    "seen": 1792517398.451203,
+    "ast_hash": "9bd27bc0cd4c5f1296a6b33a9232f67e",
+    "semantic_hash": "9bd27bc0cd4c5f1296a6b33a9232f67e"
+  },
+  "backend/src/test/java/com/nexus/backend/service/PasswordChangeServiceTest.java": {
+    "mtime": 1792410799.3826902,
+    "seen": 1792517398.4523625,
+    "ast_hash": "6d76bf4df936249eda6f84e001e56bab",
+    "semantic_hash": "6d76bf4df936249eda6f84e001e56bab"
+  },
+  "backend/src/test/java/com/nexus/backend/service/SuperAdminServiceTest.java": {
+    "mtime": 1792400385.301977,
+    "seen": 1792517398.452371,
+    "ast_hash": "e36da7a19587b14d90c475a3c6336409",
+    "semantic_hash": "e36da7a19587b14d90c475a3c6336409"
+  },
+  "backend/src/test/java/com/nexus/backend/service/UserServiceSuspensionTest.java": {
+    "mtime": 1792412059.4077888,
+    "seen": 1792517398.452374,
+    "ast_hash": "62f79079f67c195492f2c383351c0ea9",
+    "semantic_hash": "62f79079f67c195492f2c383351c0ea9"
+  },
+  "backend/src/test/java/com/nexus/backend/service/WikiPageServiceTest.java": {
+    "mtime": 1792400385.307973,
+    "seen": 1792517398.4523802,
+    "ast_hash": "ec4c10f918792411b5a603a8eae909ed",
+    "semantic_hash": "ec4c10f918792411b5a603a8eae909ed"
+  },
+  "backend/src/test/java/com/nexus/backend/service/knowledge/KnowledgeIndexServiceTest.java": {
+    "mtime": 1792400385.327983,
+    "seen": 1792517398.453518,
+    "ast_hash": "1c70d34adfbc1bb0734bcc34077e672e",
+    "semantic_hash": "1c70d34adfbc1bb0734bcc34077e672e"
+  },
+  "backend/src/test/java/com/nexus/backend/service/push/PushSubscriptionServiceTest.java": {
+    "mtime": 1792400385.33299,
+    "seen": 1792517398.45352,
+    "ast_hash": "a49b6c60399a5f9baa8e5f1863289ff2",
+    "semantic_hash": "a49b6c60399a5f9baa8e5f1863289ff2"
+  },
+  "backend/src/test/java/com/nexus/backend/service/push/WebPushSenderTest.java": {
+    "mtime": 1792400385.335977,
+    "seen": 1792517398.4535224,
+    "ast_hash": "3151e62ccf48bc4e64efc52980f24934",
+    "semantic_hash": "3151e62ccf48bc4e64efc52980f24934"
+  },
+  "backend/src/test/java/com/nexus/backend/web/PushSelfCheckEndpointTest.java": {
+    "mtime": 1791922985.2361524,
+    "seen": 1792517398.4535239,
+    "ast_hash": "d8c405325e74638a0ba1ca04d6583bbf",
+    "semantic_hash": "d8c405325e74638a0ba1ca04d6583bbf"
+  },
+  "backend/src/test/java/com/nexus/backend/web/SuperAdminSecurityTest.java": {
+    "mtime": 1792400385.3379707,
+    "seen": 1792517398.4535275,
+    "ast_hash": "b725f8bb7329d8d1faec3bcf64de9ee7",
+    "semantic_hash": "b725f8bb7329d8d1faec3bcf64de9ee7"
+  },
+  "frontend/components.json": {
+    "mtime": 1791963087.473763,
+    "seen": 1792517398.4539473,
+    "ast_hash": "6cfb65d953ab9aeb3c9fc6e60c2ce399",
+    "semantic_hash": "6cfb65d953ab9aeb3c9fc6e60c2ce399"
+  },
+  "frontend/public/sw.js": {
+    "mtime": 1791916547.7051883,
+    "seen": 1792517398.4542198,
+    "ast_hash": "8dbb713d5c4aebbfcea28aea187da471",
+    "semantic_hash": "8dbb713d5c4aebbfcea28aea187da471"
+  },
+  "frontend/src/App.gate.test.tsx": {
+    "mtime": 1792400385.351971,
+    "seen": 1792517398.4542215,
+    "ast_hash": "26c027d95f87f981a743af87b21bce4a",
+    "semantic_hash": "26c027d95f87f981a743af87b21bce4a"
+  },
+  "frontend/src/components/auth/ChangePasswordForm.tsx": {
+    "mtime": 1792400385.3569715,
+    "seen": 1792517398.4542286,
+    "ast_hash": "ad2b4c8de93641f095ed402dceda8c0d",
+    "semantic_hash": "ad2b4c8de93641f095ed402dceda8c0d"
+  },
+  "frontend/src/components/legal/CookieConsent.tsx": {
+    "mtime": 1791885945.2459865,
+    "seen": 1792517398.455216,
+    "ast_hash": "0bba6464d14f7b200d0a8558e9f61cbe",
+    "semantic_hash": "0bba6464d14f7b200d0a8558e9f61cbe"
+  },
+  "frontend/src/components/legal/LegalPage.tsx": {
+    "mtime": 1791885667.0991101,
+    "seen": 1792517398.4552197,
+    "ast_hash": "c431505c72ce6ea7f5ebc85aeabae668",
+    "semantic_hash": "c431505c72ce6ea7f5ebc85aeabae668"
+  },
+  "frontend/src/components/ui/button.tsx": {
+    "mtime": 1791963151.1802707,
+    "seen": 1792517398.4573,
+    "ast_hash": "7be2359f1dd105869c353c3556134b01",
+    "semantic_hash": "7be2359f1dd105869c353c3556134b01"
+  },
+  "frontend/src/hooks/useDocumentTitle.ts": {
+    "mtime": 1791885782.4108634,
+    "seen": 1792517398.4586608,
+    "ast_hash": "fdd09a5d66ba8ea9bd2835ebb9089d87",
+    "semantic_hash": "fdd09a5d66ba8ea9bd2835ebb9089d87"
+  },
+  "frontend/src/lib/analytics.test.ts": {
+    "mtime": 1791891287.1271162,
+    "seen": 1792517398.4589298,
+    "ast_hash": "7552cb7f2e9d6ff8f789b546540b40da",
+    "semantic_hash": "7552cb7f2e9d6ff8f789b546540b40da"
+  },
+  "frontend/src/lib/analytics.ts": {
+    "mtime": 1791891175.460342,
+    "seen": 1792517398.4589317,
+    "ast_hash": "07b7cf1b82b71912f12a5a1375a86dab",
+    "semantic_hash": "07b7cf1b82b71912f12a5a1375a86dab"
+  },
+  "frontend/src/lib/api.gate.test.ts": {
+    "mtime": 1792400385.3579702,
+    "seen": 1792517398.4589334,
+    "ast_hash": "388c1b105c95de9a9341260184879d52",
+    "semantic_hash": "388c1b105c95de9a9341260184879d52"
+  },
+  "frontend/src/lib/legal.ts": {
+    "mtime": 1791885591.27414,
+    "seen": 1792517398.4595466,
+    "ast_hash": "6951bdbeec3bb4fcf9d1ce213b5bf59d",
+    "semantic_hash": "6951bdbeec3bb4fcf9d1ce213b5bf59d"
+  },
+  "frontend/src/lib/push.test.ts": {
+    "mtime": 1791918647.6100578,
+    "seen": 1792517398.4600706,
+    "ast_hash": "2ba9da23953703c20a2bf0b70705dcfc",
+    "semantic_hash": "2ba9da23953703c20a2bf0b70705dcfc"
+  },
+  "frontend/src/lib/push.ts": {
+    "mtime": 1791918647.5788634,
+    "seen": 1792517398.4600732,
+    "ast_hash": "ddf06701558b2a35efe0e540660a00e5",
+    "semantic_hash": "ddf06701558b2a35efe0e540660a00e5"
+  },
+  "frontend/src/lib/utils.ts": {
+    "mtime": 1791963151.1862707,
+    "seen": 1792517398.4606543,
+    "ast_hash": "0482d21cfeab8cfcfe44f94927e45afb",
+    "semantic_hash": "0482d21cfeab8cfcfe44f94927e45afb"
+  },
+  "frontend/src/lib/vercelRouting.test.ts": {
+    "mtime": 1791891605.6834264,
+    "seen": 1792517398.4606564,
+    "ast_hash": "3dccaad22b50ce8c6bfd2734d2bf4590",
+    "semantic_hash": "3dccaad22b50ce8c6bfd2734d2bf4590"
+  },
+  "frontend/src/pages/ChangePassword.tsx": {
+    "mtime": 1792400385.3669844,
+    "seen": 1792517398.460938,
+    "ast_hash": "ad980eddc6ee6e584faaea3ca4a443ab",
+    "semantic_hash": "ad980eddc6ee6e584faaea3ca4a443ab"
+  },
+  "frontend/src/pages/ChangePasswordForm.test.tsx": {
+    "mtime": 1792412059.255908,
+    "seen": 1792517398.4609404,
+    "ast_hash": "46a15c85ed16f2bba8acf639adc492ec",
+    "semantic_hash": "46a15c85ed16f2bba8acf639adc492ec"
+  },
+  "frontend/src/pages/NotFound.tsx": {
+    "mtime": 1791890375.8484058,
+    "seen": 1792517398.4609594,
+    "ast_hash": "0b107bf0e4d41edd92879c34f999888d",
+    "semantic_hash": "0b107bf0e4d41edd92879c34f999888d"
+  },
+  "frontend/src/pages/Privacy.tsx": {
+    "mtime": 1791885632.819829,
+    "seen": 1792517398.460961,
+    "ast_hash": "f7cd49514904da9cfd998f7f447545ca",
+    "semantic_hash": "f7cd49514904da9cfd998f7f447545ca"
+  },
+  "frontend/src/pages/SuperAdmin.test.tsx": {
+    "mtime": 1792410111.6315966,
+    "seen": 1792517398.4609678,
+    "ast_hash": "6055a696a6bcb87717b388228c46e701",
+    "semantic_hash": "6055a696a6bcb87717b388228c46e701"
+  },
+  "frontend/src/pages/SuperAdmin.tsx": {
+    "mtime": 1792412059.1072865,
+    "seen": 1792517398.4609694,
+    "ast_hash": "d373027b34a231f5f4d4750df22f1e38",
+    "semantic_hash": "d373027b34a231f5f4d4750df22f1e38"
+  },
+  "frontend/src/pages/Terms.tsx": {
+    "mtime": 1791885745.39258,
+    "seen": 1792517398.4609725,
+    "ast_hash": "5ca006f483594af455ccc7b2753a6c4b",
+    "semantic_hash": "5ca006f483594af455ccc7b2753a6c4b"
+  },
+  "frontend/src/store/slices/authGate.test.ts": {
+    "mtime": 1792411071.962241,
+    "seen": 1792517398.462326,
+    "ast_hash": "91ba30163bdd34ffcc5b6492f4584ffd",
+    "semantic_hash": "91ba30163bdd34ffcc5b6492f4584ffd"
+  },
+  "gen-vapid.cjs": {
+    "mtime": 1791917510.5305731,
+    "seen": 1792517398.4705515,
+    "ast_hash": "d454143ef1cd9a0cd433d0f41ba232cb",
+    "semantic_hash": "d454143ef1cd9a0cd433d0f41ba232cb"
+  }
+}
